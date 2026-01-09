@@ -1328,11 +1328,13 @@
         <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${inv.status||'draft'}</td>
         <td>${fmt(inv.total_cents||0,file.business.base_currency)}</td>
         <td class="row">
+          <button data-action="view">View</button>
           <button data-action="pay">Mark Paid</button>
           <button data-action="edit">Edit</button>
           <button data-action="void">Void</button>
           <button data-action="del">Delete</button>
         </td>`;
+        tr.querySelector('[data-action="view"]').onclick = () => viewInvoice(inv);
         tr.querySelector('[data-action="edit"]').onclick = () => editInvoice(inv);
         tr.querySelector('[data-action="del"]').onclick = () => deleteInvoice(inv);
         tr.querySelector('[data-action="pay"]').onclick = () => promptMarkPaid(inv);
