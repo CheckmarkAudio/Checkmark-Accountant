@@ -1564,6 +1564,293 @@
       showToast('Invoice voided', () => { inv.status = prevStatus; saveFile(); renderInvoices(); });
     };
 
+    const viewInvoice = (inv) => {
+      if (!file) return;
+      const party = file.parties.find(p => p.party_id === inv.party_id);
+      const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
+      const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+      const business = file.business;
+      
+      const invoiceHtml = `
+        <div id="invoice-view" class="invoice-view">
+          <div class="invoice-header">
+            <div class="invoice-actions">
+              <button id="print-invoice" class="primary">Print</button>
+              <button id="close-invoice-view">Close</button>
+            </div>
+          </div>
+          <div class="invoice-content">
+            <div class="invoice-header-info">
+              <div class="invoice-from">
+                <h2>${business.name || 'Business'}</h2>
+                ${business.address ? `<div>${business.address}</div>` : ''}
+                ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
+                ${business.phone ? `<div>${business.phone}</div>` : ''}
+                ${business.email ? `<div>${business.email}</div>` : ''}
+              </div>
+              <div class="invoice-title">
+                <h1>INVOICE</h1>
+                <div class="invoice-number">#${inv.number || '—'}</div>
+                ${inv.status === 'void' ? '<div class="invoice-status void">VOID</div>' : ''}
+                ${inv.status === 'paid' ? '<div class="invoice-status paid">PAID</div>' : ''}
+              </div>
+            </div>
+            
+            <div class="invoice-details">
+              <div class="invoice-to">
+                <h3>Bill To:</h3>
+                <div><strong>${party?.name || '—'}</strong></div>
+                ${party?.address ? `<div>${party.address}</div>` : ''}
+                ${party?.city && party?.state ? `<div>${party.city}, ${party.state} ${party.zip || ''}</div>` : ''}
+                ${party?.email ? `<div>${party.email}</div>` : ''}
+              </div>
+              <div class="invoice-meta">
+                <div class="invoice-meta-row">
+                  <span>Invoice Date:</span>
+                  <span>${inv.issue_date || '—'}</span>
+                </div>
+                ${project ? `
+                <div class="invoice-meta-row">
+                  <span>Project:</span>
+                  <span>${project.name}</span>
+                </div>
+                ` : ''}
+                ${inv.status ? `
+                <div class="invoice-meta-row">
+                  <span>Status:</span>
+                  <span class="status-${inv.status}">${inv.status.toUpperCase()}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <table class="invoice-lines">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th style="text-align:right">Quantity</th>
+                  <th style="text-align:right">Rate</th>
+                  <th style="text-align:right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${lines.length > 0 ? lines.map(line => `
+                  <tr>
+                    <td>${line.service_name || '—'}</td>
+                    <td style="text-align:right">${line.quantity || 0}</td>
+                    <td style="text-align:right">${fmt(line.rate_cents || 0, business.base_currency)}</td>
+                    <td style="text-align:right">${fmt(line.line_total_cents || 0, business.base_currency)}</td>
+                  </tr>
+                `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--muted)">No line items</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr class="invoice-total">
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:20px 18px">Total:</td>
+                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 18px">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+      
+      openPanel('Invoice', invoiceHtml);
+      
+      $('#print-invoice').onclick = () => printInvoice(inv);
+      $('#close-invoice-view').onclick = closePanel;
+    };
+
+    const printInvoice = (inv) => {
+      if (!file) return;
+      const party = file.parties.find(p => p.party_id === inv.party_id);
+      const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
+      const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+      const business = file.business;
+      
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice #${inv.number || '—'}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+              padding: 40px;
+              color: #1c1e26;
+              line-height: 1.6;
+            }
+            .invoice-print {
+              max-width: 800px;
+              margin: 0 auto;
+            }
+            .invoice-header-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 40px;
+              padding-bottom: 20px;
+              border-bottom: 2px solid #e3e5eb;
+            }
+            .invoice-from h2 {
+              font-size: 1.5em;
+              margin-bottom: 10px;
+            }
+            .invoice-title h1 {
+              font-size: 2.5em;
+              margin-bottom: 10px;
+              text-align: right;
+            }
+            .invoice-number {
+              font-size: 1.2em;
+              font-weight: 600;
+              text-align: right;
+              color: #6b7080;
+            }
+            .invoice-status {
+              text-align: right;
+              margin-top: 10px;
+              padding: 4px 12px;
+              display: inline-block;
+              border-radius: 4px;
+              font-weight: 600;
+              font-size: 0.9em;
+            }
+            .invoice-status.void {
+              background: #fee;
+              color: #c00;
+            }
+            .invoice-status.paid {
+              background: #efe;
+              color: #060;
+            }
+            .invoice-details {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 30px;
+            }
+            .invoice-to h3 {
+              margin-bottom: 10px;
+              font-size: 1.1em;
+            }
+            .invoice-meta-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+            }
+            .invoice-meta-row span:first-child {
+              color: #6b7080;
+            }
+            .invoice-lines {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            .invoice-lines th {
+              background: #f5f6f8;
+              padding: 12px;
+              text-align: left;
+              font-weight: 600;
+              border-bottom: 2px solid #e3e5eb;
+            }
+            .invoice-lines td {
+              padding: 12px;
+              border-bottom: 1px solid #e3e5eb;
+            }
+            .invoice-total {
+              border-top: 2px solid #1c1e26;
+            }
+            .invoice-total td {
+              padding-top: 20px;
+            }
+            @media print {
+              body { padding: 20px; }
+              @page { margin: 0.5cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-print">
+            <div class="invoice-header-info">
+              <div class="invoice-from">
+                <h2>${business.name || 'Business'}</h2>
+                ${business.address ? `<div>${business.address}</div>` : ''}
+                ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
+                ${business.phone ? `<div>${business.phone}</div>` : ''}
+                ${business.email ? `<div>${business.email}</div>` : ''}
+              </div>
+              <div class="invoice-title">
+                <h1>INVOICE</h1>
+                <div class="invoice-number">#${inv.number || '—'}</div>
+                ${inv.status === 'void' ? '<div class="invoice-status void">VOID</div>' : ''}
+                ${inv.status === 'paid' ? '<div class="invoice-status paid">PAID</div>' : ''}
+              </div>
+            </div>
+            
+            <div class="invoice-details">
+              <div class="invoice-to">
+                <h3>Bill To:</h3>
+                <div><strong>${party?.name || '—'}</strong></div>
+                ${party?.address ? `<div>${party.address}</div>` : ''}
+                ${party?.city && party?.state ? `<div>${party.city}, ${party.state} ${party.zip || ''}</div>` : ''}
+                ${party?.email ? `<div>${party.email}</div>` : ''}
+              </div>
+              <div class="invoice-meta">
+                <div class="invoice-meta-row">
+                  <span>Invoice Date:</span>
+                  <span>${inv.issue_date || '—'}</span>
+                </div>
+                ${project ? `
+                <div class="invoice-meta-row">
+                  <span>Project:</span>
+                  <span>${project.name}</span>
+                </div>
+                ` : ''}
+                ${inv.status ? `
+                <div class="invoice-meta-row">
+                  <span>Status:</span>
+                  <span>${inv.status.toUpperCase()}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <table class="invoice-lines">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th style="text-align:right">Quantity</th>
+                  <th style="text-align:right">Rate</th>
+                  <th style="text-align:right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${lines.length > 0 ? lines.map(line => `
+                  <tr>
+                    <td>${line.service_name || '—'}</td>
+                    <td style="text-align:right">${line.quantity || 0}</td>
+                    <td style="text-align:right">${fmt(line.rate_cents || 0, business.base_currency)}</td>
+                    <td style="text-align:right">${fmt(line.line_total_cents || 0, business.base_currency)}</td>
+                  </tr>
+                `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px">No line items</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr class="invoice-total">
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:20px 12px">Total:</td>
+                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 12px">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    };
+
     const promptMarkPaid = (inv) => {
       const depositOptions = file.accounts.filter(a=>a.type==='asset').map(a=>`<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
       const recent = recentSelections('deposit');
