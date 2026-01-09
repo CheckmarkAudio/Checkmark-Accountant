@@ -1487,6 +1487,8 @@
       const serviceRecent = file.services.slice(-3).reverse();
       const lines = inv.lines || [];
       const lineItems = lines.map(l => lineRow(l)).join('');
+      const selectedPartyId = inv.party_id || null;
+      const filteredProjects = selectedPartyId ? file.projects.filter(p=>p.party_id===selectedPartyId) : [];
       return `
         <form id="invoice-form" class="stack">
           <label>Client</label>
@@ -1494,13 +1496,13 @@
           <label>Date</label>
           <input name="issue_date" type="date" value="${inv.issue_date||today()}">
           <label>Project</label>
-          <select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
+          <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
           <div class="row" style="gap:8px; flex-wrap:wrap">
             <span class="muted">Recent services:</span>
             ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${s.service_id}">${s.name}</button>`).join('')}
             <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
           </div>
-          <div id="line-container" class="stack">${lineItems || '<div class="empty">No lines. Add a service.</div>'}</div>
+          <div id="line-container" class="stack">${lineItems || ''}</div>
           <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(inv.total_cents||0,file.business.base_currency)}</div></div>
           <div class="row">
             <button class="primary" type="submit">Save</button>
@@ -1542,6 +1544,19 @@
         showServiceInline(container);
       };
       form.addEventListener('input', () => updateInvoiceTotal(container));
+      // Update project dropdown when client changes
+      const partySelect = form.querySelector('[name="party_id"]');
+      const projectSelect = form.querySelector('[name="project_id"]');
+      const currentProjectId = invoice.project_id;
+      partySelect.addEventListener('change', () => {
+        const selectedPartyId = partySelect.value;
+        const filteredProjects = selectedPartyId ? file.projects.filter(p=>p.party_id===selectedPartyId) : [];
+        projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${p.project_id}">${p.name}</option>`).join('');
+        // Try to preserve the current project if it's still valid
+        if (currentProjectId && filteredProjects.find(p=>p.project_id===currentProjectId)) {
+          projectSelect.value = currentProjectId;
+        }
+      });
       const persistDraft = () => {
         const draftLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
           service_name: div.querySelector('.line-name').value,
@@ -2580,7 +2595,11 @@
       });
       const act = $('#dashboard-activity'); act.innerHTML = '';
       const activity = [];
-      file.invoices.forEach(i=>activity.push({ date:i.issue_date, text:`Invoice #${i.number} ${i.status}`, amount:i.total_cents }));
+      file.invoices.forEach(i=>{
+        const party = file.parties.find(p=>p.party_id===i.party_id);
+        const clientName = party ? ` - ${party.name}` : '';
+        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:i.total_cents });
+      });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
       activity.slice(0,8).forEach(a=>{
