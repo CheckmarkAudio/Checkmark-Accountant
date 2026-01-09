@@ -2927,22 +2927,44 @@
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
         
-        // Close side-panel when clicking outside of it (but not on calculator)
+        // Close side-panel when clicking outside of it (but not on calculator or interactive elements)
         document.addEventListener('click', (e) => {
+          const target = e.target;
           const sidePanel = $('#side-panel');
           const calculatorWindow = $('#calculator-window');
           const calculatorMinimized = $('#calculator-minimized');
           
+          // Don't close if clicking on interactive elements (buttons, links, inputs, etc.)
+          // These elements might open windows, so let their handlers run without interference
+          const isInteractive = target.tagName === 'BUTTON' || 
+                                target.tagName === 'A' || 
+                                target.tagName === 'INPUT' ||
+                                target.tagName === 'SELECT' ||
+                                target.tagName === 'TEXTAREA' ||
+                                target.closest('button') || 
+                                target.closest('a') ||
+                                target.closest('input') ||
+                                target.closest('select') ||
+                                target.closest('textarea') ||
+                                target.closest('[onclick]') ||
+                                target.closest('.modal') ||
+                                target.closest('#modal-overlay');
+          
+          if (isInteractive) {
+            return; // Let interactive elements handle their own clicks
+          }
+          
           if (sidePanel && sidePanel.classList.contains('open')) {
             // Check if click is outside the side-panel
-            if (!sidePanel.contains(e.target)) {
+            if (!sidePanel.contains(target)) {
               // Don't close if clicking on calculator window or minimized calculator
-              if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(e.target)) {
+              if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
                 return;
               }
-              if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(e.target)) {
+              if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
                 return;
               }
+              // Close the panel
               closePanel();
             }
           }
