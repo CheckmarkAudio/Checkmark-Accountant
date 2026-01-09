@@ -2926,6 +2926,39 @@
         };
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
+        
+        // Close side-panel when clicking outside of it (but not on calculator)
+        document.addEventListener('click', (e) => {
+          const sidePanel = $('#side-panel');
+          const calculatorWindow = $('#calculator-window');
+          const calculatorMinimized = $('#calculator-minimized');
+          
+          if (sidePanel && sidePanel.classList.contains('open')) {
+            // Check if click is outside the side-panel
+            if (!sidePanel.contains(e.target)) {
+              // Don't close if clicking on calculator window or minimized calculator
+              if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(e.target)) {
+                return;
+              }
+              if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(e.target)) {
+                return;
+              }
+              closePanel();
+            }
+          }
+        });
+        
+        // Close modal when clicking on overlay background (not on modal itself)
+        const modalOverlay = $('#modal-overlay');
+        if (modalOverlay) {
+          modalOverlay.addEventListener('click', (e) => {
+            // Only close if clicking directly on the overlay, not on the modal
+            if (e.target === modalOverlay) {
+              closeModal();
+            }
+          });
+        }
+        
         // #region agent log
         logDebug('bindUI:complete','bindUI completed successfully',{},'B');
         // #endregion
@@ -3305,6 +3338,12 @@
       }
       if (restoreBtn) {
         restoreBtn.onclick = restoreCalculator;
+      }
+      
+      // Make the entire minimized box clickable to restore calculator
+      const calculatorMinimized = $('#calculator-minimized');
+      if (calculatorMinimized) {
+        calculatorMinimized.onclick = restoreCalculator;
       }
 
       document.addEventListener('mousemove', (e) => {
