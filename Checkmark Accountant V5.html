@@ -4401,7 +4401,7 @@
         document.body.removeChild(printable);
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        addSinglePageImageToPdf(pdf, imgData, canvas);
+        addImageToPdf(pdf, imgData, canvas);
         pdf.save('Financial_Reports.pdf');
       } catch (error) {
         document.body.removeChild(printable);
