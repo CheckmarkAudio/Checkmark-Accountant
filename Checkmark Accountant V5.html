@@ -3312,8 +3312,10 @@
     const restoreCalculator = () => {
       calculatorState.minimized = false;
       calculatorState.open = true;
-      $('#calculator-window').classList.remove('hidden');
-      $('#calculator-minimized').classList.add('hidden');
+      const calcWindow = $('#calculator-window');
+      const calcMinimized = $('#calculator-minimized');
+      if (calcWindow) calcWindow.classList.remove('hidden');
+      if (calcMinimized) calcMinimized.classList.add('hidden');
       updateCalculatorPosition();
       updateCalculatorSize();
       saveCalculatorState();
@@ -3359,20 +3361,32 @@
           closeCalculator();
         };
       }
-      if (restoreBtn) {
-        restoreBtn.onclick = (e) => {
-          e.stopPropagation();
-          restoreCalculator();
-        };
-      }
-      
       // Make the entire minimized box clickable to restore calculator
       const calculatorMinimized = $('#calculator-minimized');
       if (calculatorMinimized) {
-        calculatorMinimized.onclick = (e) => {
+        // Use both onclick and addEventListener to ensure it works
+        calculatorMinimized.onclick = function(e) {
           e.stopPropagation();
           restoreCalculator();
+          return false;
         };
+        calculatorMinimized.addEventListener('click', function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        });
+      }
+      
+      // Also handle button clicks directly with both methods
+      if (restoreBtn) {
+        restoreBtn.onclick = function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+          return false;
+        };
+        restoreBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        });
       }
 
       document.addEventListener('mousemove', (e) => {
