@@ -3677,56 +3677,247 @@
       renderMonthlySummaryChart();
     };
 
-    const buildPrintableSection = (sectionId, title, dateRangeLabel) => {
-      const original = document.getElementById(sectionId);
-      if (!original) return null;
-      const clone = original.cloneNode(true);
-      // Inject light palette + ink-friendly overrides
-      const styleReset = document.createElement('style');
-      styleReset.textContent = `
-        :root {
-          --surface: #ffffff !important;
-          --surface-soft: #fafafa !important;
-          --border: #d8d8de !important;
-          --text: #111111 !important;
-          --muted: #444444 !important;
-          --accent: #1d4ed8 !important;
-        }
-        * { color: #111111 !important; background-color: transparent !important; }
-        .card { background: #ffffff !important; border: 1px solid #d8d8de !important; }
-        canvas { background: #ffffff !important; }
-      `;
-      clone.prepend(styleReset);
-      // Force light theme for print/export
-      const textNodes = clone.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div,li,th,td,strong,em');
-      textNodes.forEach(el => { el.style.color = '#111'; });
-      clone.style.display = 'grid';
-      clone.style.gridTemplateColumns = '1fr';
-      clone.style.gap = '16px';
-      clone.querySelectorAll('.card').forEach(card => {
-        card.style.margin = '0';
-        card.style.padding = '16px';
-        card.style.boxShadow = 'none';
-        card.style.border = '1px solid #d8d8de';
-        card.style.background = '#ffffff';
-        card.style.pageBreakInside = 'avoid';
-      });
-      clone.querySelectorAll('canvas').forEach(cv => {
-        cv.style.height = '200px';
-        cv.style.maxWidth = '100%';
-        cv.style.background = '#ffffff';
-      });
+    // ---------- Print-friendly builders ----------
+    const getLogoSrc = () => {
+      if (!file) return '';
+      return file.settings?.logoLightDataUrl || file.settings?.logoDarkDataUrl || '';
+    };
+
+    const createPrintContainer = (title, dateRangeLabel) => {
       const wrapper = document.createElement('div');
-      wrapper.style.padding = '12px';
-      wrapper.style.maxWidth = '900px';
+      wrapper.style.width = '100%';
+      wrapper.style.maxWidth = '760px';
       wrapper.style.margin = '0 auto';
+      wrapper.style.padding = '12px 0 8px 0';
       wrapper.style.background = '#ffffff';
       wrapper.style.color = '#111';
-      wrapper.innerHTML = `
-        <h1 style="margin:0 0 8px;font-family:system-ui,sans-serif;font-size:1.5rem">${title}</h1>
-        <p style="margin:0 0 16px;color:#555;font-family:system-ui,sans-serif;">${dateRangeLabel}</p>
+      wrapper.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      wrapper.style.lineHeight = '1.4';
+      wrapper.style.fontSize = '14px';
+
+      const header = document.createElement('div');
+      header.style.display = 'flex';
+      header.style.alignItems = 'center';
+      header.style.gap = '12px';
+      header.style.marginBottom = '8px';
+
+      const logo = getLogoSrc();
+      if (logo) {
+        const img = document.createElement('img');
+        img.src = logo;
+        img.style.height = '40px';
+        img.style.objectFit = 'contain';
+        img.style.flexShrink = '0';
+        header.appendChild(img);
+      }
+
+      const heading = document.createElement('div');
+      heading.innerHTML = `
+        <h1 style="margin:0;font-size:20px;font-weight:700;color:#111">${title}</h1>
+        <p style="margin:2px 0 0 0;color:#444;font-size:13px">${dateRangeLabel}</p>
       `;
-      wrapper.appendChild(clone);
+      header.appendChild(heading);
+      wrapper.appendChild(header);
+
+      const hr = document.createElement('div');
+      hr.style.borderBottom = '1px solid #e5e7eb';
+      hr.style.margin = '8px 0 12px 0';
+      wrapper.appendChild(hr);
+
+      return wrapper;
+    };
+
+    const addSection = (wrapper, title, bodyEl) => {
+      const section = document.createElement('section');
+      section.style.marginBottom = '16px';
+      const h = document.createElement('h2');
+      h.textContent = title;
+      h.style.margin = '0 0 6px 0';
+      h.style.fontSize = '16px';
+      h.style.fontWeight = '700';
+      h.style.color = '#111';
+      section.appendChild(h);
+      section.appendChild(bodyEl);
+      wrapper.appendChild(section);
+    };
+
+    const mapToTable = (map, currency, emptyText='No data', limit=10) => {
+      const entries = Object.entries(map || {}).sort((a,b)=>b[1]-a[1]).slice(0, limit);
+      if (!entries.length) {
+        const p = document.createElement('p');
+        p.textContent = emptyText;
+        p.style.margin = '0';
+        p.style.color = '#555';
+        return p;
+      }
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.fontSize = '13px';
+      entries.forEach(([k,v], idx)=>{
+        const row = document.createElement('tr');
+        row.style.borderBottom = idx === entries.length-1 ? 'none' : '1px solid #e5e7eb';
+        const name = document.createElement('td');
+        name.textContent = k;
+        name.style.padding = '6px 4px';
+        name.style.color = '#111';
+        const val = document.createElement('td');
+        val.textContent = fmt(v, currency);
+        val.style.padding = '6px 4px';
+        val.style.textAlign = 'right';
+        val.style.color = '#111';
+        val.style.fontWeight = '600';
+        row.appendChild(name);
+        row.appendChild(val);
+        table.appendChild(row);
+      });
+      return table;
+    };
+
+    const simpleNote = (text) => {
+      const p = document.createElement('p');
+      p.textContent = text;
+      p.style.margin = '0';
+      p.style.color = '#555';
+      return p;
+    };
+
+    const getCanvasImage = (canvas) => {
+      if (!canvas) return null;
+      const tmp = document.createElement('canvas');
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
+      const ctx = tmp.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,tmp.width,tmp.height);
+      ctx.drawImage(canvas,0,0);
+      return tmp.toDataURL('image/png');
+    };
+
+    const chartBlock = (canvasId) => {
+      const container = document.createElement('div');
+      container.style.border = '1px solid #e5e7eb';
+      container.style.borderRadius = '8px';
+      container.style.padding = '8px';
+      container.style.background = '#ffffff';
+      container.style.minHeight = '60px';
+      const canvas = document.getElementById(canvasId);
+      const imgSrc = getCanvasImage(canvas);
+      if (imgSrc) {
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.style.width = '100%';
+        img.style.maxHeight = '180px';
+        img.style.objectFit = 'contain';
+        img.style.display = 'block';
+        container.appendChild(img);
+      } else {
+        container.appendChild(simpleNote('No data'));
+      }
+      return container;
+    };
+
+    const postedLinesInRange = () => {
+      const { start, end } = getReportsDateRange();
+      return postedLines().filter(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        return entry && entry.entry_date >= start && entry.entry_date <= end;
+      });
+    };
+
+    const plSummaryData = () => {
+      const { start, end } = getReportsDateRange();
+      const lines = postedLinesInRange();
+      let income=0, expense=0;
+      lines.forEach(l=>{
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct) return;
+        if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
+        if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
+      });
+      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      invoices.forEach(inv => { income += inv.total_cents || 0; });
+      return { income, expense, net: income - expense };
+    };
+
+    const expenseSummaryMap = () => {
+      const map = {};
+      postedLinesInRange().forEach(l=>{
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct || acct.type!=='expense') return;
+        const delta = (l.debit_cents||0)-(l.credit_cents||0);
+        map[acct.name] = (map[acct.name]||0) + delta;
+      });
+      return map;
+    };
+
+    const projectProfitMap = () => {
+      const map = {};
+      postedLinesInRange().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry?.project_id) return;
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct) return;
+        const delta = (l.credit_cents||0)-(l.debit_cents||0);
+        map[entry.project_id] = (map[entry.project_id]||0) + delta;
+      });
+      const named = {};
+      Object.entries(map).forEach(([pid, val])=>{
+        const project = file.projects.find(p=>p.project_id===pid);
+        const name = project?.name || 'Unknown Project';
+        named[name] = val;
+      });
+      return named;
+    };
+
+    const buildPrintAnalytics = () => {
+      const { start, end } = getDateRange();
+      const wrapper = createPrintContainer('Analytics Report', `Date Range: ${start} to ${end}`);
+      const chartSections = [
+        { title:'Income vs Expenses Trend', id:'income-expense-chart' },
+        { title:'Profit & Loss', id:'profit-loss-chart' },
+        { title:'Expense by Category', id:'expense-category-chart' },
+        { title:'Income by Category', id:'income-category-chart' },
+        { title:'Client Revenue', id:'client-revenue-chart' },
+        { title:'Monthly Summary', id:'monthly-summary-chart' }
+      ];
+      chartSections.forEach(sec=>{
+        addSection(wrapper, sec.title, chartBlock(sec.id));
+      });
+      return wrapper;
+    };
+
+    const buildPrintReports = () => {
+      const { start, end } = getReportsDateRange();
+      const wrapper = createPrintContainer('Financial Reports', `Date Range: ${start} to ${end}`);
+      const pl = plSummaryData();
+      const plTable = document.createElement('table');
+      plTable.style.width = '100%';
+      plTable.style.borderCollapse = 'collapse';
+      [['Income', pl.income], ['Expenses', pl.expense], ['Net', pl.net]].forEach(([label,val], idx)=>{
+        const row = document.createElement('tr');
+        row.style.borderBottom = idx===2 ? 'none' : '1px solid #e5e7eb';
+        const name = document.createElement('td');
+        name.textContent = label;
+        name.style.padding = '8px 4px';
+        name.style.fontWeight = idx===2 ? '700' : '600';
+        const num = document.createElement('td');
+        num.textContent = fmt(val, file.business.base_currency);
+        num.style.padding = '8px 4px';
+        num.style.textAlign = 'right';
+        num.style.fontWeight = idx===2 ? '700' : '600';
+        num.style.color = idx===2 ? '#1d4ed8' : '#111';
+        row.appendChild(name);
+        row.appendChild(num);
+        plTable.appendChild(row);
+      });
+      addSection(wrapper, 'Profit & Loss', plTable);
+
+      addSection(wrapper, 'Expense by Category', mapToTable(expenseSummaryMap(), file.business.base_currency, 'No expenses found'));
+      addSection(wrapper, 'Client Revenue', mapToTable(clientRevenue(), file.business.base_currency, 'No client revenue'));
+      addSection(wrapper, 'Project Profitability', mapToTable(projectProfitMap(), file.business.base_currency, 'No project data'));
+      addSection(wrapper, 'Tax Summary', mapToTable(taxSummary(), file.business.base_currency, 'No tax data'));
+
       return wrapper;
     };
 
@@ -3742,14 +3933,11 @@
 
     const exportAnalyticsPDF = async () => {
       const { jsPDF } = window.jspdf;
-      const { start, end } = getDateRange();
-      const dateRangeLabel = `Date Range: ${start} to ${end}`;
-      const printable = buildPrintableSection('analytics-content', 'Analytics Report', dateRangeLabel);
+      const printable = buildPrintAnalytics();
       if (!printable) return;
       printable.style.position = 'absolute';
       printable.style.left = '-9999px';
       document.body.appendChild(printable);
-      
       try {
         const canvas = await html2canvas(printable, {
           scale: 2,
@@ -3761,8 +3949,7 @@
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         addSinglePageImageToPdf(pdf, imgData, canvas);
-        const dateRange = start === '1900-01-01' && end === '2999-12-31' ? 'All Time' : `${start} to ${end}`;
-        pdf.save(`Analytics_${dateRange.replace(/\s/g, '_')}.pdf`);
+        pdf.save('Analytics_Report.pdf');
       } catch (error) {
         document.body.removeChild(printable);
         alert('Error generating PDF: ' + error.message);
@@ -3770,9 +3957,7 @@
     };
 
     const printAnalytics = () => {
-      const { start, end } = getDateRange();
-      const dateRangeLabel = `Date Range: ${start} to ${end}`;
-      const printable = buildPrintableSection('analytics-content', 'Analytics Report', dateRangeLabel);
+      const printable = buildPrintAnalytics();
       if (!printable) return;
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -3782,17 +3967,12 @@
           <title>Analytics Report</title>
           <style>
             @page { size: A4 portrait; margin: 12mm; }
-            body { font-family: system-ui, sans-serif; padding: 0; }
-            .card { margin-bottom: 16px; page-break-inside: avoid; border: 1px solid #e5e7eb; padding: 16px; border-radius: 10px; }
-            canvas { max-width: 100%; height: 200px !important; }
-            h1 { margin: 0 0 8px; }
-            p { margin: 0 0 16px; color: #555; }
-            .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+            body { font-family: system-ui, sans-serif; padding: 0; background: #ffffff; color: #111; }
+            img { max-width: 100%; }
+            table { border-collapse: collapse; }
           </style>
         </head>
-        <body>
-          ${printable.outerHTML}
-        </body>
+        <body>${printable.outerHTML}</body>
         </html>
       `);
       printWindow.document.close();
@@ -3801,9 +3981,7 @@
 
     const exportReportsPDF = async () => {
       const { jsPDF } = window.jspdf;
-      const { start, end } = getReportsDateRange();
-      const dateRangeLabel = `Date Range: ${start} to ${end}`;
-      const printable = buildPrintableSection('reports-content', 'Financial Reports', dateRangeLabel);
+      const printable = buildPrintReports();
       if (!printable) return;
       printable.style.position = 'absolute';
       printable.style.left = '-9999px';
@@ -3820,10 +3998,7 @@
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         addSinglePageImageToPdf(pdf, imgData, canvas);
-        const dateRange = start === '1900-01-01' && end === '2999-12-31' 
-          ? 'All Time' 
-          : `${start} to ${end}`;
-        pdf.save(`Reports_${dateRange.replace(/\s/g, '_')}.pdf`);
+        pdf.save('Financial_Reports.pdf');
       } catch (error) {
         document.body.removeChild(printable);
         alert('Error generating PDF: ' + error.message);
@@ -3831,9 +4006,7 @@
     };
 
     const printReports = () => {
-      const { start, end } = getReportsDateRange();
-      const dateRangeLabel = `Date Range: ${start} to ${end}`;
-      const printable = buildPrintableSection('reports-content', 'Financial Reports', dateRangeLabel);
+      const printable = buildPrintReports();
       if (!printable) return;
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -3843,22 +4016,12 @@
           <title>Reports</title>
           <style>
             @page { size: A4 portrait; margin: 12mm; }
-            body { font-family: system-ui, sans-serif; padding: 0; }
-            .card { margin-bottom: 16px; page-break-inside: avoid; border: 1px solid #e5e7eb; padding: 16px; border-radius: 10px; }
-            h1 { margin: 0 0 8px; }
-            h3 { margin: 0 0 12px; color: #333; }
-            p { margin: 0 0 16px; color: #555; }
-            .row { display: flex; justify-content: space-between; padding: 8px 0; }
-            button { display: none; }
-            .stack { display: flex; flex-direction: column; gap: 12px; }
-            strong { font-weight: 600; }
-            .empty { color: #999; font-style: italic; }
-            .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+            body { font-family: system-ui, sans-serif; padding: 0; background: #ffffff; color: #111; }
+            img { max-width: 100%; }
+            table { border-collapse: collapse; }
           </style>
         </head>
-        <body>
-          ${printable.outerHTML}
-        </body>
+        <body>${printable.outerHTML}</body>
         </html>
       `);
       printWindow.document.close();
