@@ -3681,6 +3681,9 @@
       const original = document.getElementById(sectionId);
       if (!original) return null;
       const clone = original.cloneNode(true);
+      // Force light theme for print/export
+      const textNodes = clone.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div,li,th,td,strong,em');
+      textNodes.forEach(el => { el.style.color = '#111'; });
       clone.style.display = 'grid';
       clone.style.gridTemplateColumns = '1fr';
       clone.style.gap = '16px';
@@ -3688,17 +3691,21 @@
         card.style.margin = '0';
         card.style.padding = '16px';
         card.style.boxShadow = 'none';
-        card.style.border = '1px solid #e5e7eb';
+        card.style.border = '1px solid #d8d8de';
+        card.style.background = '#ffffff';
         card.style.pageBreakInside = 'avoid';
       });
       clone.querySelectorAll('canvas').forEach(cv => {
         cv.style.height = '200px';
         cv.style.maxWidth = '100%';
+        cv.style.background = '#ffffff';
       });
       const wrapper = document.createElement('div');
       wrapper.style.padding = '12px';
       wrapper.style.maxWidth = '900px';
       wrapper.style.margin = '0 auto';
+      wrapper.style.background = '#ffffff';
+      wrapper.style.color = '#111';
       wrapper.innerHTML = `
         <h1 style="margin:0 0 8px;font-family:system-ui,sans-serif;font-size:1.5rem">${title}</h1>
         <p style="margin:0 0 16px;color:#555;font-family:system-ui,sans-serif;">${dateRangeLabel}</p>
@@ -3732,7 +3739,7 @@
           scale: 2,
           useCORS: true,
           logging: false,
-          backgroundColor: isDarkMode() ? '#111624' : '#ffffff'
+          backgroundColor: '#ffffff'
         });
         document.body.removeChild(printable);
         const imgData = canvas.toDataURL('image/png');
@@ -3791,7 +3798,7 @@
           scale: 2,
           useCORS: true,
           logging: false,
-          backgroundColor: isDarkMode() ? '#111624' : '#ffffff'
+          backgroundColor: '#ffffff'
         });
         document.body.removeChild(printable);
         const imgData = canvas.toDataURL('image/png');
