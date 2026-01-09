@@ -696,7 +696,6 @@
         <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
         <div class="row" style="gap:8px">
           <select id="business-selector"></select>
-          <button id="new-business" class="ghost">+ New</button>
           <span class="saved-flag" id="saved-flag">Saved</span>
         </div>
       </div>
@@ -893,8 +892,13 @@
         <div class="card">
           <h3>Business</h3>
           <div id="business-info" class="stack"></div>
-          <button id="delete-business" style="background:var(--danger); color:#fff; border:none; margin-top:20px">Delete Current Business</button>
-          <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="new-business" class="primary" style="width:100%">+ New Business</button>
+          </div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
+            <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+          </div>
         </div>
         <div class="card">
           <h3>Migration</h3>
@@ -1545,6 +1549,8 @@
         // #region agent log
         logDebug('loadActive:early-return','No activeId and no businessList',{},'E');
         // #endregion
+        // Prompt to create a business if none exists
+        promptCreateBusinessIfNeeded();
         return;
       }
       file = loadFile(activeId);
@@ -1563,6 +1569,43 @@
       // #region agent log
       logDebug('loadActive:complete','loadActive completed',{},'E');
       // #endregion
+    };
+
+    const promptCreateBusinessIfNeeded = () => {
+      if (businessList.length > 0) return; // Don't prompt if businesses exist
+      
+      showModal(`
+        <div class="stack">
+          <h3>Welcome to Checkmark Accountant V5</h3>
+          <p>You don't have any businesses yet. Create your first business to get started.</p>
+          <label>Business Name</label>
+          <input type="text" id="new-business-name" placeholder="My Business" value="My Business" autofocus>
+          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary">Create Business</button>
+          </div>
+        </div>
+      `, () => {
+        const nameInput = $('#new-business-name');
+        const name = nameInput?.value?.trim() || 'My Business';
+        createBusiness(name);
+        closeModal();
+      });
+      
+      // Auto-focus and allow Enter key to submit
+      setTimeout(() => {
+        const nameInput = $('#new-business-name');
+        if (nameInput) {
+          nameInput.focus();
+          nameInput.select();
+          nameInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+              const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+              if (confirmBtn) confirmBtn.click();
+            }
+          };
+        }
+      }, 100);
     };
 
     // ---------- Invoices ----------
@@ -3135,8 +3178,39 @@
           });
         };
         const newBusiness = $('#new-business'); if (newBusiness) newBusiness.onclick = () => {
-          const name = prompt('Business name');
-          if (name) createBusiness(name);
+          showModal(`
+            <div class="stack">
+              <h3>Create New Business</h3>
+              <label>Business Name</label>
+              <input type="text" id="new-business-name-modal" placeholder="My Business" value="My Business" autofocus>
+              <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
+                <button data-cancel>Cancel</button>
+                <button data-confirm class="primary">Create Business</button>
+              </div>
+            </div>
+          `, () => {
+            const nameInput = $('#new-business-name-modal');
+            const name = nameInput?.value?.trim() || 'My Business';
+            if (name) {
+              createBusiness(name);
+              closeModal();
+            }
+          });
+          
+          // Auto-focus and allow Enter key to submit
+          setTimeout(() => {
+            const nameInput = $('#new-business-name-modal');
+            if (nameInput) {
+              nameInput.focus();
+              nameInput.select();
+              nameInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                  const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+                  if (confirmBtn) confirmBtn.click();
+                }
+              };
+            }
+          }, 100);
         };
         const deleteBusinessBtn = $('#delete-business'); if (deleteBusinessBtn) deleteBusinessBtn.onclick = () => {
           if (!activeId) {
@@ -3147,7 +3221,12 @@
         };
         const renderBusinessInfo = () => {
           const info = $('#business-info');
-          if (!info || !file) return;
+          if (!info) return;
+          if (!file || !file.business) {
+            info.innerHTML = '<div style="color:var(--muted)">No business selected. Create a new business to get started.</div>';
+            if (deleteBusinessBtn) deleteBusinessBtn.style.display = 'none';
+            return;
+          }
           const business = file.business;
           info.innerHTML = `
             <div><strong>Name:</strong> ${business.name || '—'}</div>
@@ -3690,10 +3769,8 @@
         if (!businessList.length && detectV4()) {
           renderMigrationBlock();
           setTab('settings');
-        } else if (!businessList.length) {
-          createBusiness('My Business');
         } else {
-          loadActive();
+          loadActive(); // This will prompt to create a business if none exists
         }
         // #region agent log
         logDebug('initApp:complete','initApp completed successfully',{},'A');
