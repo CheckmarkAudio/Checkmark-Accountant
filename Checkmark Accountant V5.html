@@ -3317,7 +3317,31 @@
       calculatorState.minimized = true;
       calculatorState.open = true; // Keep open=true so toggle knows it's minimized but not closed
       $('#calculator-window').classList.add('hidden');
-      $('#calculator-minimized').classList.remove('hidden');
+      const calcMinimized = $('#calculator-minimized');
+      if (calcMinimized) {
+        calcMinimized.classList.remove('hidden');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'minimizeCalculator:after-show',message:'Minimized box made visible',data:{elementExists:!!calcMinimized,elementHidden:calcMinimized.classList.contains('hidden'),elementDisplay:window.getComputedStyle(calcMinimized).display,elementPointerEvents:window.getComputedStyle(calcMinimized).pointerEvents,hasOnclick:!!calcMinimized.onclick,restoreBtn:!!calcMinimized.querySelector('#calculator-restore')},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        // Re-attach handlers when element becomes visible to ensure they work
+        calcMinimized.onclick = function(e) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-minimized-onclick-reattach:entry',message:'Reattached onclick handler fired',data:{targetId:e.target.id,targetTag:e.target.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          e.stopPropagation();
+          restoreCalculator();
+        };
+        const restoreBtn = calcMinimized.querySelector('#calculator-restore');
+        if (restoreBtn) {
+          restoreBtn.onclick = function(e) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restore-btn-onclick-reattach:entry',message:'Reattached restore button onclick fired',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            e.stopPropagation();
+            restoreCalculator();
+          };
+        }
+      }
       saveCalculatorState();
     };
 
@@ -3391,28 +3415,37 @@
       }
       // Make the entire minimized box clickable to restore calculator
       // Use event delegation on document with capture phase to ensure it runs first
+      // This handler ALWAYS checks for calculator clicks, regardless of element state
       document.addEventListener('click', function(e) {
+        const target = e.target;
+        const isCalcRestoreBtn = target.id === 'calculator-restore';
+        const isCalcMinimized = target.id === 'calculator-minimized';
+        const isInsideCalcMinimized = target.closest && target.closest('#calculator-minimized');
+        const isCalcRelated = isCalcRestoreBtn || isCalcMinimized || isInsideCalcMinimized;
+        
         // #region agent log
-        const isCalcRelated = e.target.id === 'calculator-restore' || e.target.id === 'calculator-minimized' || e.target.closest('#calculator-minimized');
         if (isCalcRelated) {
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:entry',message:'Document click handler fired (capture) - CALC RELATED',data:{targetTag:e.target.tagName,targetId:e.target.id,targetClass:e.target.className,closestCalcMin:!!e.target.closest('#calculator-minimized')},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:entry',message:'Document click handler fired (capture) - CALC RELATED',data:{targetTag:target.tagName,targetId:target.id,targetClass:target.className,isCalcRestoreBtn,isCalcMinimized,isInsideCalcMinimized:!!isInsideCalcMinimized},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})}).catch(()=>{});
         }
         // #endregion
-        const calculatorMinimized = $('#calculator-minimized');
-        // #region agent log
+        
         if (isCalcRelated) {
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:after-find',message:'Element lookup result - CALC RELATED',data:{found:!!calculatorMinimized,hidden:calculatorMinimized?calculatorMinimized.classList.contains('hidden'):null,contains:calculatorMinimized?calculatorMinimized.contains(e.target):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-        }
-        // #endregion
-        if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden')) {
-          // Check if click is on the minimized calculator box or its button
-          if (calculatorMinimized.contains(e.target)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/251e5d5a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:before-restore',message:'About to call restoreCalculator',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            restoreCalculator();
+          const calculatorMinimized = $('#calculator-minimized');
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:after-find',message:'Element lookup result - CALC RELATED',data:{found:!!calculatorMinimized,hidden:calculatorMinimized?calculatorMinimized.classList.contains('hidden'):null,contains:calculatorMinimized?calculatorMinimized.contains(target):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
+          if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden')) {
+            // Check if click is on the minimized calculator box or its button
+            if (calculatorMinimized.contains(target)) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/251e5d5a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:before-restore',message:'About to call restoreCalculator from delegation handler',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              restoreCalculator();
+              return;
+            }
           }
         }
       }, true); // Use capture phase to run before other handlers
