@@ -1752,7 +1752,6 @@
             <div class="invoice-actions">
               <button id="print-invoice" class="primary">Print</button>
               <button id="export-pdf-invoice" class="primary">Export PDF</button>
-              <button id="close-invoice-view">Close</button>
             </div>
           </div>
           <div class="invoice-content">
@@ -1836,7 +1835,6 @@
       // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
       const printBtn = $('#print-invoice');
       const pdfBtn = $('#export-pdf-invoice');
-      const closeBtn = $('#close-invoice-view');
       
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
@@ -1847,11 +1845,6 @@
         e.preventDefault();
         e.stopPropagation();
         exportInvoiceAsPDF(inv);
-      };
-      if (closeBtn) closeBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        closePanel();
       };
     };
 
