@@ -2934,6 +2934,14 @@
           const calculatorWindow = $('#calculator-window');
           const calculatorMinimized = $('#calculator-minimized');
           
+          // Always exclude calculator window and minimized calculator from closing logic
+          if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
+            return;
+          }
+          if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
+            return;
+          }
+          
           // Don't close if clicking on interactive elements (buttons, links, inputs, etc.)
           // These elements might open windows, so let their handlers run without interference
           const isInteractive = target.tagName === 'BUTTON' || 
@@ -2957,13 +2965,6 @@
           if (sidePanel && sidePanel.classList.contains('open')) {
             // Check if click is outside the side-panel
             if (!sidePanel.contains(target)) {
-              // Don't close if clicking on calculator window or minimized calculator
-              if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
-                return;
-              }
-              if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
-                return;
-              }
               // Close the panel
               closePanel();
             }
@@ -3359,13 +3360,19 @@
         };
       }
       if (restoreBtn) {
-        restoreBtn.onclick = restoreCalculator;
+        restoreBtn.onclick = (e) => {
+          e.stopPropagation();
+          restoreCalculator();
+        };
       }
       
       // Make the entire minimized box clickable to restore calculator
       const calculatorMinimized = $('#calculator-minimized');
       if (calculatorMinimized) {
-        calculatorMinimized.onclick = restoreCalculator;
+        calculatorMinimized.onclick = (e) => {
+          e.stopPropagation();
+          restoreCalculator();
+        };
       }
 
       document.addEventListener('mousemove', (e) => {
