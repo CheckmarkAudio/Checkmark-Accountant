@@ -86,6 +86,30 @@
       box-shadow: 0 4px 12px rgba(58,127,245,0.3);
     }
     button:active { transform: scale(calc(1 - 0.02 * var(--motion-scale))); }
+    button.date-preset-btn {
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    button.date-preset-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.date-preset-btn:hover {
+      background: var(--border);
+    }
+    button.date-preset-btn.active:hover {
+      background: var(--accent);
+    }
+    @media (max-width: 768px) {
+      .grid.cols-2 { grid-template-columns: 1fr; }
+      #analytics-content .card canvas {
+        max-height: 250px;
+      }
+    }
     input, select, textarea {
       width: 100%;
       padding: 14px 18px;
@@ -805,6 +829,70 @@
             <tbody id="service-rows"></tbody>
           </table>
           <div class="empty hidden" id="service-empty">No services yet.</div>
+        </div>
+      </section>
+
+      <section data-section="analytics" class="hidden">
+        <div class="card" style="margin-bottom: 28px;">
+          <h3 style="margin-bottom: 20px;">Date Range</h3>
+          <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+            <div class="row" style="gap: 8px; flex-wrap: wrap;">
+              <button class="date-preset-btn" data-preset="today">Today</button>
+              <button class="date-preset-btn" data-preset="week">This Week</button>
+              <button class="date-preset-btn" data-preset="month">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year">This Year</button>
+              <button class="date-preset-btn" data-preset="all">All Time</button>
+            </div>
+            <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
+              <input type="date" id="analytics-start" style="flex: 1; min-width: 140px;">
+              <span style="color: var(--muted);">to</span>
+              <input type="date" id="analytics-end" style="flex: 1; min-width: 140px;">
+            </div>
+            <button id="refresh-analytics" class="primary">Refresh</button>
+          </div>
+        </div>
+        <div class="row" style="justify-content: flex-end; margin-bottom: 20px; gap: 12px;">
+          <button id="export-analytics-pdf" class="primary">Export PDF</button>
+          <button id="print-analytics">Print</button>
+        </div>
+        <div id="analytics-content" class="grid cols-2">
+          <div class="card">
+            <h3>Income vs Expenses Trend</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="income-expense-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Profit & Loss</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="profit-loss-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Expense by Category</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="expense-category-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Income by Category</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="income-category-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Client Revenue</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="client-revenue-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Monthly Summary</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="monthly-summary-chart"></canvas>
+            </div>
+          </div>
         </div>
       </section>
 
