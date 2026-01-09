@@ -1004,7 +1004,7 @@
           service_name: div.querySelector('.line-name').value,
           quantity: Number(div.querySelector('.line-qty').value)||0,
           rate_cents: moneyToCents(div.querySelector('.line-rate').value),
-          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)
+          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0))
         }));
         const draftObj = {
           ...invoice,
@@ -1061,7 +1061,7 @@
             service_name: div.querySelector('.line-name').value,
             quantity: Number(div.querySelector('.line-qty').value)||0,
             rate_cents: moneyToCents(div.querySelector('.line-rate').value),
-            line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)
+            line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0))
           }))
         }));
         closePanel();
