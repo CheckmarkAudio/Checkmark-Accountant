@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkmark Accountant V5</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
       --bg: #f5f6f8;
@@ -1831,6 +1833,7 @@
       openPanel('Invoice', invoiceHtml);
       
       $('#print-invoice').onclick = () => printInvoice(inv);
+      $('#export-pdf-invoice').onclick = () => exportInvoiceAsPDF(inv);
       $('#close-invoice-view').onclick = closePanel;
     };
 
@@ -2038,6 +2041,157 @@
       setTimeout(() => {
         printWindow.print();
       }, 250);
+    };
+
+    const exportInvoiceAsPDF = async (inv) => {
+      if (!file) return;
+      const party = file.parties.find(p => p.party_id === inv.party_id);
+      const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
+      const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+      const business = file.business;
+      const settings = file.settings || {};
+      const logoVariant = settings.logoVariant || 'auto';
+      const lightLogo = settings.logoLightDataUrl;
+      const darkLogo = settings.logoDarkDataUrl;
+      const logoUrl = lightLogo || darkLogo || '';
+      
+      // Create a temporary container for the invoice content
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.padding = '20mm';
+      tempContainer.style.background = '#ffffff';
+      tempContainer.style.fontFamily = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+      tempContainer.style.fontSize = '14px';
+      tempContainer.style.color = '#1c1e26';
+      tempContainer.style.lineHeight = '1.6';
+      
+      const invoiceContent = `
+        <div style="display: flex; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 2px solid #e3e5eb; margin-bottom: 24px;">
+          <div>
+            ${logoUrl ? `<div style="margin-bottom: 16px;"><img src="${logoUrl}" alt="${business.name || 'Logo'}" style="max-height: 60px; max-width: 200px; object-fit: contain;" /></div>` : ''}
+            <h2 style="font-size: 1.4em; margin-bottom: 8px; margin-top: 0;">${business.name || 'Business'}</h2>
+            ${business.address ? `<div>${business.address}</div>` : ''}
+            ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
+            ${business.phone ? `<div>${business.phone}</div>` : ''}
+            ${business.email ? `<div>${business.email}</div>` : ''}
+          </div>
+          <div style="text-align: right;">
+            <h1 style="font-size: 2em; margin-bottom: 8px; margin-top: 0; font-weight: 700;">INVOICE</h1>
+            <div style="font-size: 1.1em; font-weight: 600; color: #6b7080; margin-bottom: 8px;">#${inv.number || '—'}</div>
+            ${inv.status === 'void' ? '<div style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85em; margin-top: 8px; background: rgba(226, 85, 85, 0.1); color: #e25555;">VOID</div>' : ''}
+            ${inv.status === 'paid' ? '<div style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85em; margin-top: 8px; background: rgba(31, 179, 122, 0.1); color: #1fb37a;">PAID</div>' : ''}
+          </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 24px;">
+          <div>
+            <h3 style="margin-bottom: 10px; font-size: 1em; font-weight: 600;">Bill To:</h3>
+            <div><strong>${party?.name || '—'}</strong></div>
+            ${party?.address ? `<div>${party.address}</div>` : ''}
+            ${party?.city && party?.state ? `<div>${party.city}, ${party.state} ${party.zip || ''}</div>` : ''}
+            ${party?.email ? `<div>${party.email}</div>` : ''}
+          </div>
+          <div style="text-align: right;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px;">
+              <span style="color: #6b7080;">Invoice Date:</span>
+              <span>${inv.issue_date || '—'}</span>
+            </div>
+            ${project ? `
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px;">
+              <span style="color: #6b7080;">Project:</span>
+              <span>${project.name}</span>
+            </div>
+            ` : ''}
+            ${inv.status ? `
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px;">
+              <span style="color: #6b7080;">Status:</span>
+              <span>${inv.status.toUpperCase()}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+          <thead>
+            <tr style="background: #f2f3f7; border-bottom: 2px solid #e3e5eb;">
+              <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 0.9em;">Description</th>
+              <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 0.9em;">Quantity</th>
+              <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 0.9em;">Rate</th>
+              <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 0.9em;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lines.length > 0 ? lines.map(line => `
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb;">${line.service_name || '—'}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb; text-align: right;">${line.quantity || 0}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb; text-align: right;">${fmt(line.rate_cents || 0, business.base_currency)}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb; text-align: right;">${fmt(line.line_total_cents || 0, business.base_currency)}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #6b7080;">No line items</td></tr>'}
+          </tbody>
+          <tfoot>
+            <tr style="border-top: 2px solid #1c1e26;">
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 20px 18px;">Total:</td>
+              <td style="text-align: right; font-weight: 700; font-size: 1.2em; padding: 20px 18px;">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+      
+      tempContainer.innerHTML = invoiceContent;
+      document.body.appendChild(tempContainer);
+      
+      try {
+        // Wait for images to load
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Convert to canvas
+        const canvas = await html2canvas(tempContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+        
+        // Create PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        
+        // Download PDF
+        const fileName = `Invoice_${inv.number || inv.invoice_id}_${inv.issue_date || 'draft'}.pdf`;
+        pdf.save(fileName);
+        
+        showToast('PDF exported successfully');
+      } catch (error) {
+        console.error('PDF export error:', error);
+        showToast('Error exporting PDF', null);
+      } finally {
+        document.body.removeChild(tempContainer);
+      }
     };
 
     const promptMarkPaid = (inv) => {
