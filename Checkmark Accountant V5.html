@@ -3681,6 +3681,22 @@
       const original = document.getElementById(sectionId);
       if (!original) return null;
       const clone = original.cloneNode(true);
+      // Inject light palette + ink-friendly overrides
+      const styleReset = document.createElement('style');
+      styleReset.textContent = `
+        :root {
+          --surface: #ffffff !important;
+          --surface-soft: #fafafa !important;
+          --border: #d8d8de !important;
+          --text: #111111 !important;
+          --muted: #444444 !important;
+          --accent: #1d4ed8 !important;
+        }
+        * { color: #111111 !important; background-color: transparent !important; }
+        .card { background: #ffffff !important; border: 1px solid #d8d8de !important; }
+        canvas { background: #ffffff !important; }
+      `;
+      clone.prepend(styleReset);
       // Force light theme for print/export
       const textNodes = clone.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,div,li,th,td,strong,em');
       textNodes.forEach(el => { el.style.color = '#111'; });
