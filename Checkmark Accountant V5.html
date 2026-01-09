@@ -109,6 +109,25 @@
       #analytics-content .card canvas {
         max-height: 250px;
       }
+      nav.tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      nav.tabs button {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .date-preset-btn {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+      }
+      main {
+        padding: 16px;
+      }
+    }
+    canvas {
+      max-width: 100%;
+      height: auto !important;
     }
     input, select, textarea {
       width: 100%;
@@ -1533,6 +1552,12 @@
     const setTab = (tab) => {
       $$('nav.tabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
       $$('section[data-section]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.section !== tab));
+      if (tab === 'analytics' && file) {
+        setTimeout(() => {
+          setDatePreset('month');
+          renderAnalytics();
+        }, 100);
+      }
     };
 
     const openPanel = (title, bodyHtml) => {
@@ -3058,6 +3083,555 @@
       reader.readAsText(fileObj);
     };
 
+    // ---------- Analytics ----------
+    let analyticsCharts = {};
+    const isDarkMode = () => document.documentElement.classList.contains('dark');
+    const getChartColors = () => {
+      const isDark = isDarkMode();
+      return {
+        text: isDark ? '#f5f7fb' : '#1c1e26',
+        grid: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+        income: '#1fb37a',
+        expense: '#e25555',
+        profit: '#3a7ff5',
+        accent: isDark ? '#5aa3ff' : '#3a7ff5'
+      };
+    };
+
+    const getDateRange = () => {
+      const start = $('#analytics-start').value || '1900-01-01';
+      const end = $('#analytics-end').value || '2999-12-31';
+      return { start, end };
+    };
+
+    const setDatePreset = (preset) => {
+      const today = new Date();
+      const startInput = $('#analytics-start');
+      const endInput = $('#analytics-end');
+      let start, end;
+
+      switch(preset) {
+        case 'today':
+          start = end = today.toISOString().split('T')[0];
+          break;
+        case 'week':
+          const weekStart = new Date(today);
+          weekStart.setDate(today.getDate() - today.getDay());
+          start = weekStart.toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'month':
+          start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'quarter':
+          const quarter = Math.floor(today.getMonth() / 3);
+          start = new Date(today.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'year':
+          start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'all':
+          start = '1900-01-01';
+          end = '2999-12-31';
+          break;
+        default:
+          return;
+      }
+
+      startInput.value = start;
+      endInput.value = end;
+      $$('.date-preset-btn').forEach(btn => btn.classList.remove('active'));
+      $(`.date-preset-btn[data-preset="${preset}"]`)?.classList.add('active');
+    };
+
+    const getFilteredLines = () => {
+      const { start, end } = getDateRange();
+      const posted = postedLines();
+      return posted.filter(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        return entry && entry.entry_date >= start && entry.entry_date <= end;
+      });
+    };
+
+    const destroyChart = (chartId) => {
+      if (analyticsCharts[chartId]) {
+        analyticsCharts[chartId].destroy();
+        delete analyticsCharts[chartId];
+      }
+    };
+
+    const renderIncomeExpenseChart = () => {
+      destroyChart('incomeExpense');
+      const lines = getFilteredLines();
+      const monthlyData = {};
+      
+      lines.forEach(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        if (!entry) return;
+        const month = entry.entry_date.substring(0, 7);
+        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+        
+        const acct = file.accounts.find(a => a.code === l.account_code);
+        if (!acct) return;
+        
+        if (acct.type === 'income') {
+          monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+        } else if (acct.type === 'expense') {
+          monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+        }
+      });
+
+      const months = Object.keys(monthlyData).sort();
+      const chartEl = document.getElementById('income-expense-chart');
+      if (!chartEl) return;
+      if (!months.length) {
+        chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+        return;
+      }
+      const colors = getChartColors();
+      const ctx = chartEl.getContext('2d');
+      
+      analyticsCharts['incomeExpense'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [{
+            label: 'Income',
+            data: months.map(m => monthlyData[m].income / 100),
+            borderColor: colors.income,
+            backgroundColor: colors.income + '20',
+            tension: 0.4,
+            fill: true
+          }, {
+            label: 'Expenses',
+            data: months.map(m => monthlyData[m].expense / 100),
+            borderColor: colors.expense,
+            backgroundColor: colors.expense + '20',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: colors.text } },
+            tooltip: {
+              callbacks: {
+                label: (context) => fmt(context.parsed.y * 100, file.business.base_currency)
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+            y: { 
+              ticks: { 
+                color: colors.text,
+                callback: (value) => fmt(value * 100, file.business.base_currency)
+              }, 
+              grid: { color: colors.grid } 
+            }
+          }
+        }
+      });
+    };
+
+    const renderProfitLossChart = () => {
+      destroyChart('profitLoss');
+      const lines = getFilteredLines();
+      let income = 0, expense = 0;
+      
+      lines.forEach(l => {
+        const acct = file.accounts.find(a => a.code === l.account_code);
+        if (!acct) return;
+        if (acct.type === 'income') income += (l.credit_cents || 0) - (l.debit_cents || 0);
+        if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+      });
+
+      const profit = income - expense;
+      const colors = getChartColors();
+      const ctx = document.getElementById('profit-loss-chart').getContext('2d');
+      
+      analyticsCharts['profitLoss'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Income', 'Expenses', 'Profit'],
+          datasets: [{
+            data: [income / 100, expense / 100, Math.max(0, profit) / 100],
+            backgroundColor: [colors.income, colors.expense, colors.profit],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: colors.text } },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const label = context.label || '';
+                  const value = fmt(context.parsed * 100, file.business.base_currency);
+                  return `${label}: ${value}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    };
+
+    const renderExpenseCategoryChart = () => {
+      destroyChart('expenseCategory');
+      const lines = getFilteredLines();
+      const categoryMap = {};
+      
+      lines.forEach(l => {
+        const acct = file.accounts.find(a => a.code === l.account_code);
+        if (!acct || acct.type !== 'expense') return;
+        const amount = (l.debit_cents || 0) - (l.credit_cents || 0);
+        categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
+      });
+
+      const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      if (!entries.length) return;
+
+      const colors = getChartColors();
+      const ctx = document.getElementById('expense-category-chart').getContext('2d');
+      const chartColors = [
+        '#e25555', '#ff8b8b', '#ff6b6b', '#ff5252', '#ff4444',
+        '#ff3333', '#ff2222', '#ff1111', '#ff0000', '#ee0000'
+      ];
+      
+      analyticsCharts['expenseCategory'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: entries.map(([name]) => name.length > 20 ? name.substring(0, 20) + '...' : name),
+          datasets: [{
+            label: 'Expenses',
+            data: entries.map(([, amount]) => amount / 100),
+            backgroundColor: chartColors,
+            borderColor: chartColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => fmt(context.parsed.x * 100, file.business.base_currency)
+              }
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { 
+                color: colors.text,
+                callback: (value) => fmt(value * 100, file.business.base_currency)
+              }, 
+              grid: { color: colors.grid } 
+            },
+            y: { ticks: { color: colors.text }, grid: { color: colors.grid } }
+          }
+        }
+      });
+    };
+
+    const renderIncomeCategoryChart = () => {
+      destroyChart('incomeCategory');
+      const lines = getFilteredLines();
+      const categoryMap = {};
+      
+      lines.forEach(l => {
+        const acct = file.accounts.find(a => a.code === l.account_code);
+        if (!acct || acct.type !== 'income') return;
+        const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
+        categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
+      });
+
+      const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      const chartEl = document.getElementById('income-category-chart');
+      if (!chartEl) return;
+      if (!entries.length) {
+        chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No income data available</div>';
+        return;
+      }
+
+      const colors = getChartColors();
+      const ctx = chartEl.getContext('2d');
+      const chartColors = [
+        '#1fb37a', '#3dd09c', '#4dd0a1', '#66d9b3', '#7de2c5',
+        '#8eebd1', '#9ff4dd', '#b0fde9', '#c1fff5', '#d2fff1'
+      ];
+      
+      analyticsCharts['incomeCategory'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: entries.map(([name]) => name.length > 20 ? name.substring(0, 20) + '...' : name),
+          datasets: [{
+            label: 'Income',
+            data: entries.map(([, amount]) => amount / 100),
+            backgroundColor: chartColors,
+            borderColor: chartColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => fmt(context.parsed.x * 100, file.business.base_currency)
+              }
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { 
+                color: colors.text,
+                callback: (value) => fmt(value * 100, file.business.base_currency)
+              }, 
+              grid: { color: colors.grid } 
+            },
+            y: { ticks: { color: colors.text }, grid: { color: colors.grid } }
+          }
+        }
+      });
+    };
+
+    const renderClientRevenueChart = () => {
+      destroyChart('clientRevenue');
+      const lines = getFilteredLines();
+      const clientMap = {};
+      
+      file.payment_applications.forEach(pa => {
+        const inv = file.invoices.find(i => i.invoice_id === pa.invoice_id);
+        if (!inv) return;
+        const entry = file.ledger_entries.find(e => e.entry_date === inv.issue_date);
+        if (!entry) return;
+        const { start, end } = getDateRange();
+        if (entry.entry_date < start || entry.entry_date > end) return;
+        
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        const name = party?.name || 'Unknown';
+        clientMap[name] = (clientMap[name] || 0) + pa.amount_cents;
+      });
+
+      const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      const chartEl = document.getElementById('client-revenue-chart');
+      if (!chartEl) return;
+      if (!entries.length) {
+        chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
+        return;
+      }
+
+      const colors = getChartColors();
+      const ctx = chartEl.getContext('2d');
+      
+      analyticsCharts['clientRevenue'] = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+          datasets: [{
+            data: entries.map(([, amount]) => amount / 100),
+            backgroundColor: [
+              '#3a7ff5', '#5aa3ff', '#7ab5ff', '#9ac7ff', '#bad9ff',
+              '#daebff', '#f0f7ff', '#ffd9ff', '#ffc7ff', '#ffb5ff'
+            ],
+            borderWidth: 2,
+            borderColor: isDarkMode() ? '#111624' : '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: colors.text } },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const label = context.label || '';
+                  const value = fmt(context.parsed * 100, file.business.base_currency);
+                  const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                  const percent = ((context.parsed * 100 / total) * 100).toFixed(1);
+                  return `${label}: ${value} (${percent}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    };
+
+    const renderMonthlySummaryChart = () => {
+      destroyChart('monthlySummary');
+      const lines = getFilteredLines();
+      const monthlyData = {};
+      
+      lines.forEach(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        if (!entry) return;
+        const month = entry.entry_date.substring(0, 7);
+        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+        
+        const acct = file.accounts.find(a => a.code === l.account_code);
+        if (!acct) return;
+        
+        if (acct.type === 'income') {
+          const amt = (l.credit_cents || 0) - (l.debit_cents || 0);
+          monthlyData[month].income += amt;
+        } else if (acct.type === 'expense') {
+          const amt = (l.debit_cents || 0) - (l.credit_cents || 0);
+          monthlyData[month].expense += amt;
+        }
+      });
+
+      Object.keys(monthlyData).forEach(month => {
+        monthlyData[month].profit = monthlyData[month].income - monthlyData[month].expense;
+      });
+
+      const months = Object.keys(monthlyData).sort();
+      const colors = getChartColors();
+      const ctx = document.getElementById('monthly-summary-chart').getContext('2d');
+      
+      analyticsCharts['monthlySummary'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: months,
+          datasets: [{
+            label: 'Income',
+            data: months.map(m => monthlyData[m].income / 100),
+            backgroundColor: colors.income + '80',
+            borderColor: colors.income,
+            borderWidth: 1
+          }, {
+            label: 'Expenses',
+            data: months.map(m => monthlyData[m].expense / 100),
+            backgroundColor: colors.expense + '80',
+            borderColor: colors.expense,
+            borderWidth: 1
+          }, {
+            label: 'Profit',
+            data: months.map(m => monthlyData[m].profit / 100),
+            backgroundColor: colors.profit + '80',
+            borderColor: colors.profit,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: colors.text } },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const label = context.dataset.label || '';
+                  const value = fmt(context.parsed.y * 100, file.business.base_currency);
+                  return `${label}: ${value}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+            y: { 
+              ticks: { 
+                color: colors.text,
+                callback: (value) => fmt(value * 100, file.business.base_currency)
+              }, 
+              grid: { color: colors.grid } 
+            }
+          }
+        }
+      });
+    };
+
+    const renderAnalytics = () => {
+      if (!file) return;
+      renderIncomeExpenseChart();
+      renderProfitLossChart();
+      renderExpenseCategoryChart();
+      renderIncomeCategoryChart();
+      renderClientRevenueChart();
+      renderMonthlySummaryChart();
+    };
+
+    const exportAnalyticsPDF = async () => {
+      const { jsPDF } = window.jspdf;
+      const content = document.getElementById('analytics-content');
+      const { start, end } = getDateRange();
+      
+      try {
+        const canvas = await html2canvas(content, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: isDarkMode() ? '#111624' : '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        const dateRange = start === '1900-01-01' && end === '2999-12-31' 
+          ? 'All Time' 
+          : `${start} to ${end}`;
+        pdf.save(`Analytics_${dateRange.replace(/\s/g, '_')}.pdf`);
+      } catch (error) {
+        alert('Error generating PDF: ' + error.message);
+      }
+    };
+
+    const printAnalytics = () => {
+      const content = document.getElementById('analytics-content').cloneNode(true);
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Analytics Report</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 20px; }
+            .card { margin-bottom: 20px; page-break-inside: avoid; }
+            canvas { max-width: 100%; height: auto !important; }
+          </style>
+        </head>
+        <body>
+          <h1>Analytics Report</h1>
+          <p>Date Range: ${$('#analytics-start').value} to ${$('#analytics-end').value}</p>
+          ${content.innerHTML}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.onload = () => printWindow.print();
+    };
+
     // ---------- Dashboard ----------
     const renderDashboard = () => {
       if (!file) return;
@@ -3129,7 +3703,19 @@
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
         const runProjectSummary = $('#run-project-summary'); if (runProjectSummary) runProjectSummary.onclick = () => renderSummary(projectProfit(), $('#report-project'));
         const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderSummary(taxSummary(), $('#report-tax'));
-        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); } };
+        // Analytics event handlers
+        $$('.date-preset-btn').forEach(btn => {
+          btn.onclick = () => {
+            setDatePreset(btn.dataset.preset);
+            renderAnalytics();
+          };
+        });
+        const refreshAnalytics = $('#refresh-analytics'); if (refreshAnalytics) refreshAnalytics.onclick = renderAnalytics;
+        const exportAnalyticsPDFBtn = $('#export-analytics-pdf'); if (exportAnalyticsPDFBtn) exportAnalyticsPDFBtn.onclick = exportAnalyticsPDF;
+        const printAnalyticsBtn = $('#print-analytics'); if (printAnalyticsBtn) printAnalyticsBtn.onclick = printAnalytics;
+        const analyticsStart = $('#analytics-start'); if (analyticsStart) analyticsStart.onchange = () => { $$('.date-preset-btn').forEach(b => b.classList.remove('active')); };
+        const analyticsEnd = $('#analytics-end'); if (analyticsEnd) analyticsEnd.onchange = () => { $$('.date-preset-btn').forEach(b => b.classList.remove('active')); };
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
         const motionSelect = $('#motion-select'); if (motionSelect) motionSelect.onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
