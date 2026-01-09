@@ -4030,6 +4030,14 @@
       container.style.background = '#ffffff';
       container.style.minHeight = '60px';
       const canvas = document.getElementById(canvasId);
+      // Nudge chart legend color darker before capture
+      if (window.Chart && Chart.getChart) {
+        const ch = Chart.getChart(canvasId);
+        if (ch?.options?.plugins?.legend?.labels) {
+          ch.options.plugins.legend.labels.color = '#111';
+          ch.update('none');
+        }
+      }
       const imgSrc = getCanvasImage(canvas);
       if (imgSrc) {
         const img = document.createElement('img');
