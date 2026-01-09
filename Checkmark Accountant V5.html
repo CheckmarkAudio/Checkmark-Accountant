@@ -127,8 +127,7 @@
       left: 0;
       right: 0;
       height: 100%;
-      object-fit: cover;
-      opacity: 0.1;
+      width: 100%;
       z-index: 0;
       pointer-events: none;
     }
@@ -698,7 +697,6 @@
         <div class="row" style="gap:8px">
           <select id="business-selector"></select>
           <button id="new-business" class="ghost">+ New</button>
-          <button id="delete-business" class="ghost" style="color:var(--danger)" title="Delete current business">Delete</button>
           <span class="saved-flag" id="saved-flag">Saved</span>
         </div>
       </div>
@@ -864,6 +862,20 @@
           <label>Custom Header Image (Optional)</label>
           <input type="file" id="header-image" accept="image/*">
           <div id="header-image-preview" style="margin-top:10px"></div>
+          <label style="margin-top:16px">Header Image Fit</label>
+          <select id="header-image-fit">
+            <option value="cover">Cover (Fill)</option>
+            <option value="contain">Contain (Fit)</option>
+            <option value="fill">Fill (Stretch)</option>
+            <option value="none">None (Original)</option>
+          </select>
+          <label style="margin-top:16px">Header Image Opacity</label>
+          <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
+          <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.875rem; color:var(--muted)">
+            <span>0%</span>
+            <span id="header-opacity-value">10%</span>
+            <span>100%</span>
+          </div>
           <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
         <div class="card">
@@ -877,6 +889,12 @@
             <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
             <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
           </div>
+        </div>
+        <div class="card">
+          <h3>Business</h3>
+          <div id="business-info" class="stack"></div>
+          <button id="delete-business" style="background:var(--danger); color:#fff; border:none; margin-top:20px">Delete Current Business</button>
+          <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
         </div>
         <div class="card">
           <h3>Migration</h3>
@@ -1034,6 +1052,8 @@
       logoLightDataUrl: null,
       logoDarkDataUrl: null,
       headerImageDataUrl: null,
+      headerImageFit: 'cover',
+      headerImageOpacity: 10,
       default_cash_account_code: '1010',
       default_income_account_code: '4000',
       default_uncategorized_expense_code: '6900',
@@ -1168,6 +1188,10 @@
         if (headerImage) {
           headerImgEl.src = headerImage;
           headerImgEl.style.display = 'block';
+          const fit = file?.settings?.headerImageFit || 'cover';
+          const opacity = (file?.settings?.headerImageOpacity || 10) / 100;
+          headerImgEl.style.objectFit = fit;
+          headerImgEl.style.opacity = opacity;
         } else {
           headerImgEl.src = '';
           headerImgEl.style.display = 'none';
@@ -1457,11 +1481,6 @@
       }
       const businessName = $('#business-name');
       if (businessName) businessName.textContent = activeId ? (businessList.find(b=>b.id===activeId)?.name || 'Business') : 'Checkmark Accountant V5';
-      // Show/hide delete button based on whether there's an active business
-      const deleteBtn = $('#delete-business');
-      if (deleteBtn) {
-        deleteBtn.style.display = activeId && businessList.length > 0 ? 'block' : 'none';
-      }
     };
 
     const createBusiness = (name) => {
@@ -2713,14 +2732,25 @@
       const preview = $('#header-image-preview');
       const removeBtn = $('#remove-header-image');
       const headerImage = file.settings?.headerImageDataUrl;
+      const fitSelect = $('#header-image-fit');
+      const opacitySlider = $('#header-image-opacity');
+      const opacityValue = $('#header-opacity-value');
       
       if (preview) {
         if (headerImage) {
-          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px">`;
+          const fit = file.settings?.headerImageFit || 'cover';
+          const opacity = file.settings?.headerImageOpacity || 10;
+          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px; object-fit:${fit}">`;
           if (removeBtn) removeBtn.style.display = 'block';
+          if (fitSelect) fitSelect.value = fit;
+          if (opacitySlider) opacitySlider.value = opacity;
+          if (opacityValue) opacityValue.textContent = opacity + '%';
         } else {
           preview.innerHTML = '';
           if (removeBtn) removeBtn.style.display = 'none';
+          if (fitSelect) fitSelect.value = 'cover';
+          if (opacitySlider) opacitySlider.value = 10;
+          if (opacityValue) opacityValue.textContent = '10%';
         }
       }
     };
@@ -2967,11 +2997,31 @@
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
+            if (!file.settings.headerImageFit) file.settings.headerImageFit = 'cover';
+            if (!file.settings.headerImageOpacity) file.settings.headerImageOpacity = 10;
             saveFile(); 
             applyTheme(); 
             updateHeaderImagePreview();
           } 
         });
+        const headerImageFit = $('#header-image-fit'); if (headerImageFit) headerImageFit.onchange = (e) => {
+          if(file) {
+            file.settings.headerImageFit = e.target.value;
+            saveFile();
+            applyTheme();
+          }
+        };
+        const headerImageOpacity = $('#header-image-opacity'); if (headerImageOpacity) {
+          headerImageOpacity.oninput = (e) => {
+            const value = parseInt(e.target.value);
+            $('#header-opacity-value').textContent = value + '%';
+            if(file) {
+              file.settings.headerImageOpacity = value;
+              saveFile();
+              applyTheme();
+            }
+          };
+        }
         const removeHeaderImage = $('#remove-header-image'); if (removeHeaderImage) removeHeaderImage.onclick = () => {
           if(file) {
             file.settings.headerImageDataUrl = null;
@@ -3095,6 +3145,20 @@
           }
           deleteBusiness(activeId);
         };
+        const renderBusinessInfo = () => {
+          const info = $('#business-info');
+          if (!info || !file) return;
+          const business = file.business;
+          info.innerHTML = `
+            <div><strong>Name:</strong> ${business.name || '—'}</div>
+            <div><strong>Currency:</strong> ${business.base_currency || 'USD'}</div>
+            <div><strong>Created:</strong> ${business.created_at ? new Date(business.created_at).toLocaleDateString() : '—'}</div>
+            <div><strong>Updated:</strong> ${business.updated_at ? new Date(business.updated_at).toLocaleDateString() : '—'}</div>
+          `;
+          if (deleteBusinessBtn) {
+            deleteBusinessBtn.style.display = activeId && businessList.length > 0 ? 'block' : 'none';
+          }
+        };
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
         
@@ -3206,6 +3270,7 @@
       if (motionSelect) motionSelect.value = file.settings.motion;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       updateHeaderImagePreview();
+      renderBusinessInfo();
       renderMigrationBlock();
       // #region agent log
       logDebug('renderAll:complete','renderAll completed',{},'F');
