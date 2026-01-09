@@ -2934,23 +2934,11 @@
           const calculatorWindow = $('#calculator-window');
           const calculatorMinimized = $('#calculator-minimized');
           
-          // #region agent log
-          if (target.id === 'calculator-restore' || (calculatorMinimized && calculatorMinimized.contains(target))) {
-            fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bindUI-doc-handler:entry',message:'bindUI document handler fired',data:{targetId:target.id,targetTag:target.tagName,calcMinimizedFound:!!calculatorMinimized,calcMinimizedHidden:calculatorMinimized?calculatorMinimized.classList.contains('hidden'):null,contains:calculatorMinimized?calculatorMinimized.contains(target):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          }
-          // #endregion
-          
           // Always exclude calculator window and minimized calculator from closing logic
           if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bindUI-doc-handler:excluded-calc-window',message:'Excluded calculator window click',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             return;
           }
           if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bindUI-doc-handler:excluded-calc-minimized',message:'Excluded calculator minimized click',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             return;
           }
           
@@ -3320,23 +3308,14 @@
       const calcMinimized = $('#calculator-minimized');
       if (calcMinimized) {
         calcMinimized.classList.remove('hidden');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'minimizeCalculator:after-show',message:'Minimized box made visible',data:{elementExists:!!calcMinimized,elementHidden:calcMinimized.classList.contains('hidden'),elementDisplay:window.getComputedStyle(calcMinimized).display,elementPointerEvents:window.getComputedStyle(calcMinimized).pointerEvents,hasOnclick:!!calcMinimized.onclick,restoreBtn:!!calcMinimized.querySelector('#calculator-restore')},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         // Re-attach handlers when element becomes visible to ensure they work
         calcMinimized.onclick = function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-minimized-onclick-reattach:entry',message:'Reattached onclick handler fired',data:{targetId:e.target.id,targetTag:e.target.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           e.stopPropagation();
           restoreCalculator();
         };
         const restoreBtn = calcMinimized.querySelector('#calculator-restore');
         if (restoreBtn) {
           restoreBtn.onclick = function(e) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restore-btn-onclick-reattach:entry',message:'Reattached restore button onclick fired',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             e.stopPropagation();
             restoreCalculator();
           };
@@ -3346,21 +3325,12 @@
     };
 
     const restoreCalculator = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restoreCalculator:entry',message:'restoreCalculator called',data:{currentState:JSON.stringify(calculatorState)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       calculatorState.minimized = false;
       calculatorState.open = true;
       const calcWindow = $('#calculator-window');
       const calcMinimized = $('#calculator-minimized');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restoreCalculator:before-dom',message:'Before DOM manipulation',data:{calcWindowFound:!!calcWindow,calcMinimizedFound:!!calcMinimized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (calcWindow) calcWindow.classList.remove('hidden');
       if (calcMinimized) calcMinimized.classList.add('hidden');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restoreCalculator:after-dom',message:'After DOM manipulation',data:{calcWindowHidden:calcWindow?calcWindow.classList.contains('hidden'):null,calcMinimizedHidden:calcMinimized?calcMinimized.classList.contains('hidden'):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       updateCalculatorPosition();
       updateCalculatorSize();
       saveCalculatorState();
@@ -3377,9 +3347,6 @@
     };
 
     const initCalculatorWindow = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initCalculatorWindow:entry',message:'initCalculatorWindow called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       loadCalculatorState();
       initCalculator();
       updateCalculatorPosition();
@@ -3390,10 +3357,6 @@
       const minimizeBtn = $('#calculator-minimize');
       const closeBtn = $('#calculator-close');
       const restoreBtn = $('#calculator-restore');
-      // #region agent log
-      const calcMinimizedEl = $('#calculator-minimized');
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initCalculatorWindow:after-elements',message:'Elements found',data:{restoreBtnExists:!!restoreBtn,calcMinimizedExists:!!calcMinimizedEl,calcMinimizedHidden:calcMinimizedEl?calcMinimizedEl.classList.contains('hidden'):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       if (header) {
         header.addEventListener('mousedown', startDrag);
@@ -3415,7 +3378,6 @@
       }
       // Make the entire minimized box clickable to restore calculator
       // Use event delegation on document with capture phase to ensure it runs first
-      // This handler ALWAYS checks for calculator clicks, regardless of element state
       document.addEventListener('click', function(e) {
         const target = e.target;
         const calcMinimizedEl = $('#calculator-minimized');
@@ -3424,21 +3386,7 @@
         const isInsideCalcMinimized = calcMinimizedEl && calcMinimizedEl.contains(target);
         const isCalcRelated = isCalcRestoreBtn || isCalcMinimized || isInsideCalcMinimized;
         
-        // #region agent log
-        // Log ALL clicks in bottom-right area to see what's being clicked
-        const rect = calcMinimizedEl ? calcMinimizedEl.getBoundingClientRect() : null;
-        const clickX = e.clientX;
-        const clickY = e.clientY;
-        const isNearBottomRight = clickX > window.innerWidth - 200 && clickY > window.innerHeight - 200;
-        if (isNearBottomRight || isCalcRelated) {
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:entry',message:'Document click handler fired (capture)',data:{targetTag:target.tagName,targetId:target.id,targetClass:target.className,clickX,clickY,isNearBottomRight,isCalcRestoreBtn,isCalcMinimized,isInsideCalcMinimized,calcMinimizedExists:!!calcMinimizedEl,calcMinimizedHidden:calcMinimizedEl?calcMinimizedEl.classList.contains('hidden'):null,calcMinimizedRect:rect?{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'B'})}).catch(()=>{});
-        }
-        // #endregion
-        
         if (isCalcRelated && calcMinimizedEl && !calcMinimizedEl.classList.contains('hidden')) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:before-restore',message:'About to call restoreCalculator from delegation handler',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           e.stopPropagation();
           e.stopImmediatePropagation();
           restoreCalculator();
@@ -3450,59 +3398,24 @@
       const calculatorMinimized = $('#calculator-minimized');
       if (calculatorMinimized) {
         calculatorMinimized.style.cursor = 'pointer';
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initCalculatorWindow:before-onclick',message:'About to attach onclick to minimized box',data:{elementExists:!!calculatorMinimized,elementId:calculatorMinimized.id,elementHidden:calculatorMinimized.classList.contains('hidden'),elementDisplay:window.getComputedStyle(calculatorMinimized).display,elementPointerEvents:window.getComputedStyle(calculatorMinimized).pointerEvents},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         calculatorMinimized.onclick = function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-minimized-onclick:entry',message:'Direct minimized box onclick fired',data:{targetId:e.target.id,targetTag:e.target.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           e.stopPropagation();
           restoreCalculator();
         };
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initCalculatorWindow:after-onclick',message:'Direct onclick handler attached',data:{hasOnclick:!!calculatorMinimized.onclick},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        // Also try addEventListener as additional backup
         calculatorMinimized.addEventListener('click', function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-minimized-addeventlistener:entry',message:'addEventListener handler fired on minimized box',data:{targetId:e.target.id,targetTag:e.target.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           e.stopPropagation();
           restoreCalculator();
-        });
-        // Try mousedown as well
-        calculatorMinimized.addEventListener('mousedown', function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-minimized-mousedown:entry',message:'mousedown handler fired on minimized box',data:{targetId:e.target.id,targetTag:e.target.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
         });
       }
       
       if (restoreBtn) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'initCalculatorWindow:before-restore-btn',message:'About to attach onclick to restore button',data:{elementExists:!!restoreBtn,elementId:restoreBtn.id,elementParent:restoreBtn.parentElement?restoreBtn.parentElement.id:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         restoreBtn.onclick = function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restore-btn-onclick:entry',message:'Restore button onclick fired',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           e.stopPropagation();
           restoreCalculator();
         };
-        // Also try addEventListener
         restoreBtn.addEventListener('click', function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restore-btn-addeventlistener:entry',message:'addEventListener handler fired on restore button',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           e.stopPropagation();
           restoreCalculator();
-        });
-        // Try mousedown as well
-        restoreBtn.addEventListener('mousedown', function(e) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restore-btn-mousedown:entry',message:'mousedown handler fired on restore button',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
         });
       }
 
