@@ -907,11 +907,12 @@
               <button class="date-preset-btn" data-preset="all" data-for="analytics">All Time</button>
             </div>
             <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
-              <input type="date" id="analytics-start" style="flex: 1; min-width: 140px;">
-              <span style="color: var(--muted);">to</span>
-              <input type="date" id="analytics-end" style="flex: 1; min-width: 140px;">
+              <label style="margin: 0; font-size: 0.9rem; color: var(--muted); font-weight: 500;">From:</label>
+              <input type="date" id="analytics-start" style="flex: 1; min-width: 140px;" title="Start date">
+              <label style="margin: 0; font-size: 0.9rem; color: var(--muted); font-weight: 500;">To:</label>
+              <input type="date" id="analytics-end" style="flex: 1; min-width: 140px;" title="End date">
             </div>
-            <button id="refresh-analytics" class="primary">Refresh</button>
+            <button id="refresh-analytics" class="primary" title="Refresh analytics with current date range">Refresh</button>
           </div>
         </div>
         <div class="row" style="justify-content: flex-end; margin-bottom: 20px; gap: 12px;">
@@ -3400,348 +3401,487 @@
     };
 
     const renderProfitLossChart = () => {
-      destroyChart('profitLoss');
-      const lines = getFilteredLines();
-      let income = 0, expense = 0;
-      
-      lines.forEach(l => {
-        const acct = file.accounts.find(a => a.code === l.account_code);
-        if (!acct) return;
-        if (acct.type === 'income') income += (l.credit_cents || 0) - (l.debit_cents || 0);
-        if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
-      });
+      try {
+        destroyChart('profitLoss');
+        const lines = getFilteredLines();
+        let income = 0, expense = 0;
+        
+        lines.forEach(l => {
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income') income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+        });
 
-      // Add invoice income
-      const invoiceIncome = getInvoiceIncome();
-      Object.values(invoiceIncome).forEach(amt => income += amt);
+        // Add invoice income
+        const invoiceIncome = getInvoiceIncome();
+        Object.values(invoiceIncome).forEach(amt => income += amt);
 
-      const profit = income - expense;
-      const colors = getChartColors();
-      const ctx = document.getElementById('profit-loss-chart').getContext('2d');
-      
-      analyticsCharts['profitLoss'] = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Income', 'Expenses', 'Profit'],
-          datasets: [{
-            data: [income / 100, expense / 100, Math.max(0, profit) / 100],
-            backgroundColor: [colors.income, colors.expense, colors.profit],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { color: colors.text } },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const label = context.label || '';
-                  const value = fmt(context.parsed * 100, file.business.base_currency);
-                  return `${label}: ${value}`;
+        const profit = income - expense;
+        const total = income + expense + Math.abs(Math.min(0, profit));
+        const chartEl = document.getElementById('profit-loss-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="profit-loss-chart"></canvas>';
+        }
+        
+        if (total === 0) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        
+        analyticsCharts['profitLoss'] = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Income', 'Expenses', profit > 0 ? 'Profit' : 'Loss'],
+            datasets: [{
+              data: [income / 100, expense / 100, Math.abs(profit) / 100],
+              backgroundColor: [colors.income, colors.expense, profit > 0 ? colors.profit : colors.expense],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { 
+                position: 'bottom', 
+                labels: { 
+                  color: colors.text,
+                  padding: 12,
+                  usePointStyle: true
+                } 
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percent = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
                 }
               }
             }
           }
+        });
+      } catch (error) {
+        console.error('Error rendering profit loss chart:', error);
+        const chartEl = document.getElementById('profit-loss-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
-      });
+      }
     };
 
     const renderExpenseCategoryChart = () => {
-      destroyChart('expenseCategory');
-      const lines = getFilteredLines();
-      const categoryMap = {};
-      
-      lines.forEach(l => {
-        const acct = file.accounts.find(a => a.code === l.account_code);
-        if (!acct || acct.type !== 'expense') return;
-        const amount = (l.debit_cents || 0) - (l.credit_cents || 0);
-        categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
-      });
+      try {
+        destroyChart('expenseCategory');
+        const lines = getFilteredLines();
+        const categoryMap = {};
+        
+        lines.forEach(l => {
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct || acct.type !== 'expense') return;
+          const amount = (l.debit_cents || 0) - (l.credit_cents || 0);
+          if (amount > 0) {
+            categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
+          }
+        });
 
-      const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      if (!entries.length) return;
+        const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const chartEl = document.getElementById('expense-category-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="expense-category-chart"></canvas>';
+        }
+        
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No expense data available</div>';
+          return;
+        }
 
-      const colors = getChartColors();
-      const ctx = document.getElementById('expense-category-chart').getContext('2d');
-      const chartColors = [
-        '#e25555', '#ff8b8b', '#ff6b6b', '#ff5252', '#ff4444',
-        '#ff3333', '#ff2222', '#ff1111', '#ff0000', '#ee0000'
-      ];
-      
-      analyticsCharts['expenseCategory'] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: entries.map(([name]) => name.length > 20 ? name.substring(0, 20) + '...' : name),
-          datasets: [{
-            label: 'Expenses',
-            data: entries.map(([, amount]) => amount / 100),
-            backgroundColor: chartColors,
-            borderColor: chartColors,
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (context) => fmt(context.parsed.x * 100, file.business.base_currency)
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const chartColors = [
+          '#e25555', '#ff8b8b', '#ff6b6b', '#ff5252', '#ff4444',
+          '#ff3333', '#ff2222', '#ff1111', '#ff0000', '#ee0000'
+        ];
+        
+        analyticsCharts['expenseCategory'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              label: 'Expenses',
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: chartColors.slice(0, entries.length),
+              borderColor: chartColors.slice(0, entries.length),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed.x * 100 / total) * 100).toFixed(1) : 0;
+                    return `${fmt(context.parsed.x * 100, file.business.base_currency)} (${percent}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency),
+                  maxRotation: 0
+                }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  font: { size: 11 }
+                }, 
+                grid: { color: colors.grid } 
               }
             }
-          },
-          scales: {
-            x: { 
-              ticks: { 
-                color: colors.text,
-                callback: (value) => fmt(value * 100, file.business.base_currency)
-              }, 
-              grid: { color: colors.grid } 
-            },
-            y: { ticks: { color: colors.text }, grid: { color: colors.grid } }
           }
+        });
+      } catch (error) {
+        console.error('Error rendering expense category chart:', error);
+        const chartEl = document.getElementById('expense-category-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
-      });
+      }
     };
 
     const renderIncomeCategoryChart = () => {
-      destroyChart('incomeCategory');
-      const lines = getFilteredLines();
-      const categoryMap = {};
-      
-      // Add income from ledger entries
-      lines.forEach(l => {
-        const acct = file.accounts.find(a => a.code === l.account_code);
-        if (!acct || acct.type !== 'income') return;
-        const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
-        categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
-      });
+      try {
+        destroyChart('incomeCategory');
+        const lines = getFilteredLines();
+        const categoryMap = {};
+        
+        // Add income from ledger entries
+        lines.forEach(l => {
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct || acct.type !== 'income') return;
+          const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
+          if (amount > 0) {
+            categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
+          }
+        });
 
-      // Add income from invoices
-      const invoiceCategoryMap = getInvoiceIncomeByCategory();
-      Object.keys(invoiceCategoryMap).forEach(cat => {
-        categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
-      });
+        // Add income from invoices
+        const invoiceCategoryMap = getInvoiceIncomeByCategory();
+        Object.keys(invoiceCategoryMap).forEach(cat => {
+          categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
+        });
 
-      const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      const chartEl = document.getElementById('income-category-chart');
-      if (!chartEl) return;
-      if (!entries.length) {
-        chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No income data available</div>';
-        return;
-      }
+        const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const chartEl = document.getElementById('income-category-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="income-category-chart"></canvas>';
+        }
+        
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No income data available</div>';
+          return;
+        }
 
-      const colors = getChartColors();
-      const ctx = chartEl.getContext('2d');
-      const chartColors = [
-        '#1fb37a', '#3dd09c', '#4dd0a1', '#66d9b3', '#7de2c5',
-        '#8eebd1', '#9ff4dd', '#b0fde9', '#c1fff5', '#d2fff1'
-      ];
-      
-      analyticsCharts['incomeCategory'] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: entries.map(([name]) => name.length > 20 ? name.substring(0, 20) + '...' : name),
-          datasets: [{
-            label: 'Income',
-            data: entries.map(([, amount]) => amount / 100),
-            backgroundColor: chartColors,
-            borderColor: chartColors,
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (context) => fmt(context.parsed.x * 100, file.business.base_currency)
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const chartColors = [
+          '#1fb37a', '#3dd09c', '#4dd0a1', '#66d9b3', '#7de2c5',
+          '#8eebd1', '#9ff4dd', '#b0fde9', '#c1fff5', '#d2fff1'
+        ];
+        
+        analyticsCharts['incomeCategory'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              label: 'Income',
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: chartColors.slice(0, entries.length),
+              borderColor: chartColors.slice(0, entries.length),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed.x * 100 / total) * 100).toFixed(1) : 0;
+                    return `${fmt(context.parsed.x * 100, file.business.base_currency)} (${percent}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency),
+                  maxRotation: 0
+                }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  font: { size: 11 }
+                }, 
+                grid: { color: colors.grid } 
               }
             }
-          },
-          scales: {
-            x: { 
-              ticks: { 
-                color: colors.text,
-                callback: (value) => fmt(value * 100, file.business.base_currency)
-              }, 
-              grid: { color: colors.grid } 
-            },
-            y: { ticks: { color: colors.text }, grid: { color: colors.grid } }
           }
+        });
+      } catch (error) {
+        console.error('Error rendering income category chart:', error);
+        const chartEl = document.getElementById('income-category-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
-      });
+      }
     };
 
     const renderClientRevenueChart = () => {
-      destroyChart('clientRevenue');
-      const { start, end } = getDateRange();
-      const clientMap = {};
-      
-      // Add revenue from invoices (based on invoice date, not payment date)
-      const invoices = getFilteredInvoices();
-      invoices.forEach(inv => {
-        const party = file.parties.find(p => p.party_id === inv.party_id);
-        const name = party?.name || 'Unknown';
-        clientMap[name] = (clientMap[name] || 0) + (inv.total_cents || 0);
-      });
-
-      // Also add from payment applications (paid invoices)
-      file.payment_applications.forEach(pa => {
-        const inv = file.invoices.find(i => i.invoice_id === pa.invoice_id);
-        if (!inv) return;
-        // Only count if payment date is in range
-        const payment = file.payments.find(p => p.payment_id === pa.payment_id);
-        if (!payment || payment.payment_date < start || payment.payment_date > end) return;
+      try {
+        destroyChart('clientRevenue');
+        const { start, end } = getDateRange();
+        const clientMap = {};
         
-        const party = file.parties.find(p => p.party_id === inv.party_id);
-        const name = party?.name || 'Unknown';
-        // Don't double count - invoices already counted above, so only add if this is a different period
-        // Actually, let's just use invoice data for consistency
-      });
+        // Add revenue from invoices (based on invoice date, not payment date)
+        const invoices = getFilteredInvoices();
+        invoices.forEach(inv => {
+          const party = file.parties.find(p => p.party_id === inv.party_id);
+          const name = party?.name || 'Unknown';
+          if (inv.total_cents > 0) {
+            clientMap[name] = (clientMap[name] || 0) + (inv.total_cents || 0);
+          }
+        });
 
-      const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      const chartEl = document.getElementById('client-revenue-chart');
-      if (!chartEl) return;
-      if (!entries.length) {
-        chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
-        return;
-      }
+        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const chartEl = document.getElementById('client-revenue-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="client-revenue-chart"></canvas>';
+        }
+        
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
+          return;
+        }
 
-      const colors = getChartColors();
-      const ctx = chartEl.getContext('2d');
-      
-      analyticsCharts['clientRevenue'] = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
-          datasets: [{
-            data: entries.map(([, amount]) => amount / 100),
-            backgroundColor: [
-              '#3a7ff5', '#5aa3ff', '#7ab5ff', '#9ac7ff', '#bad9ff',
-              '#daebff', '#f0f7ff', '#ffd9ff', '#ffc7ff', '#ffb5ff'
-            ],
-            borderWidth: 2,
-            borderColor: isDarkMode() ? '#111624' : '#ffffff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { color: colors.text } },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const label = context.label || '';
-                  const value = fmt(context.parsed * 100, file.business.base_currency);
-                  const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
-                  const percent = ((context.parsed * 100 / total) * 100).toFixed(1);
-                  return `${label}: ${value} (${percent}%)`;
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const pieColors = [
+          '#3a7ff5', '#5aa3ff', '#7ab5ff', '#9ac7ff', '#bad9ff',
+          '#daebff', '#f0f7ff', '#ffd9ff', '#ffc7ff', '#ffb5ff'
+        ];
+        
+        analyticsCharts['clientRevenue'] = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: pieColors.slice(0, entries.length),
+              borderWidth: 2,
+              borderColor: isDarkMode() ? '#111624' : '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { 
+                position: 'bottom', 
+                labels: { 
+                  color: colors.text,
+                  padding: 12,
+                  usePointStyle: true,
+                  font: { size: 11 }
+                } 
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed * 100 / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
                 }
               }
             }
           }
+        });
+      } catch (error) {
+        console.error('Error rendering client revenue chart:', error);
+        const chartEl = document.getElementById('client-revenue-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
-      });
+      }
     };
 
     const renderMonthlySummaryChart = () => {
-      destroyChart('monthlySummary');
-      const lines = getFilteredLines();
-      const monthlyData = {};
-      
-      lines.forEach(l => {
-        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-        if (!entry) return;
-        const month = entry.entry_date.substring(0, 7);
-        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+      try {
+        destroyChart('monthlySummary');
+        const lines = getFilteredLines();
+        const monthlyData = {};
         
-        const acct = file.accounts.find(a => a.code === l.account_code);
-        if (!acct) return;
+        lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          
+          if (acct.type === 'income') {
+            const amt = (l.credit_cents || 0) - (l.debit_cents || 0);
+            monthlyData[month].income += amt;
+          } else if (acct.type === 'expense') {
+            const amt = (l.debit_cents || 0) - (l.credit_cents || 0);
+            monthlyData[month].expense += amt;
+          }
+        });
+
+        // Add invoice income
+        const invoiceIncome = getInvoiceIncome();
+        Object.keys(invoiceIncome).forEach(month => {
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          monthlyData[month].income += invoiceIncome[month];
+        });
+
+        Object.keys(monthlyData).forEach(month => {
+          monthlyData[month].profit = monthlyData[month].income - monthlyData[month].expense;
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const chartEl = document.getElementById('monthly-summary-chart');
+        if (!chartEl) return;
         
-        if (acct.type === 'income') {
-          const amt = (l.credit_cents || 0) - (l.debit_cents || 0);
-          monthlyData[month].income += amt;
-        } else if (acct.type === 'expense') {
-          const amt = (l.debit_cents || 0) - (l.credit_cents || 0);
-          monthlyData[month].expense += amt;
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="monthly-summary-chart"></canvas>';
         }
-      });
-
-      // Add invoice income
-      const invoiceIncome = getInvoiceIncome();
-      Object.keys(invoiceIncome).forEach(month => {
-        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
-        monthlyData[month].income += invoiceIncome[month];
-      });
-
-      Object.keys(monthlyData).forEach(month => {
-        monthlyData[month].profit = monthlyData[month].income - monthlyData[month].expense;
-      });
-
-      const months = Object.keys(monthlyData).sort();
-      const colors = getChartColors();
-      const ctx = document.getElementById('monthly-summary-chart').getContext('2d');
-      
-      analyticsCharts['monthlySummary'] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: months,
-          datasets: [{
-            label: 'Income',
-            data: months.map(m => monthlyData[m].income / 100),
-            backgroundColor: colors.income + '80',
-            borderColor: colors.income,
-            borderWidth: 1
-          }, {
-            label: 'Expenses',
-            data: months.map(m => monthlyData[m].expense / 100),
-            backgroundColor: colors.expense + '80',
-            borderColor: colors.expense,
-            borderWidth: 1
-          }, {
-            label: 'Profit',
-            data: months.map(m => monthlyData[m].profit / 100),
-            backgroundColor: colors.profit + '80',
-            borderColor: colors.profit,
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: colors.text } },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const label = context.dataset.label || '';
-                  const value = fmt(context.parsed.y * 100, file.business.base_currency);
-                  return `${label}: ${value}`;
+        
+        if (!months.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        
+        analyticsCharts['monthlySummary'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              backgroundColor: colors.income + '80',
+              borderColor: colors.income,
+              borderWidth: 1
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              backgroundColor: colors.expense + '80',
+              borderColor: colors.expense,
+              borderWidth: 1
+            }, {
+              label: 'Profit',
+              data: months.map(m => monthlyData[m].profit / 100),
+              backgroundColor: colors.profit + '80',
+              borderColor: colors.profit,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: { 
+                labels: { 
+                  color: colors.text,
+                  usePointStyle: true
+                },
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.dataset.label || '';
+                    const value = fmt(context.parsed.y * 100, file.business.base_currency);
+                    return `${label}: ${value}`;
+                  }
                 }
               }
-            }
-          },
-          scales: {
-            x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
-            y: { 
-              ticks: { 
-                color: colors.text,
-                callback: (value) => fmt(value * 100, file.business.base_currency)
-              }, 
-              grid: { color: colors.grid } 
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  color: colors.text,
+                  maxRotation: 45,
+                  minRotation: 0
+                }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                }, 
+                grid: { color: colors.grid } 
+              }
             }
           }
+        });
+      } catch (error) {
+        console.error('Error rendering monthly summary chart:', error);
+        const chartEl = document.getElementById('monthly-summary-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
-      });
+      }
     };
 
     const renderAnalytics = () => {
@@ -4114,7 +4254,7 @@
       }
       
       // Show loading indicator
-      const loadingToast = showToast('Generating PDF...', null);
+      showToast('Generating PDF...');
       
       printable.style.position = 'absolute';
       printable.style.left = '-9999px';
@@ -4154,7 +4294,7 @@
         
         const dateStr = new Date().toISOString().split('T')[0];
         pdf.save(`Analytics_Report_${dateStr}.pdf`);
-        showToast('PDF exported successfully!');
+        setTimeout(() => showToast('PDF exported successfully!'), 500);
       } catch (error) {
         console.error('PDF export error:', error);
         document.body.removeChild(printable);
@@ -4395,26 +4535,51 @@
         $$('.date-preset-btn[data-for="analytics"]').forEach(btn => {
           btn.onclick = () => {
             setDatePreset(btn.dataset.preset, 'analytics');
-            renderAnalytics();
+            showToast('Updating analytics...');
+            setTimeout(() => renderAnalytics(), 100);
           };
         });
-        const refreshAnalytics = $('#refresh-analytics'); if (refreshAnalytics) refreshAnalytics.onclick = renderAnalytics;
+        const refreshAnalytics = $('#refresh-analytics'); 
+        if (refreshAnalytics) {
+          refreshAnalytics.onclick = () => {
+            showToast('Refreshing analytics...');
+            setTimeout(() => renderAnalytics(), 100);
+          };
+        }
         const exportAnalyticsPDFBtn = $('#export-analytics-pdf'); if (exportAnalyticsPDFBtn) exportAnalyticsPDFBtn.onclick = exportAnalyticsPDF;
         const printAnalyticsBtn = $('#print-analytics'); if (printAnalyticsBtn) printAnalyticsBtn.onclick = printAnalytics;
         const analyticsStart = $('#analytics-start'); 
         if (analyticsStart) {
           analyticsStart.onchange = () => { 
             $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); 
+            // Validate date range
+            const endInput = $('#analytics-end');
+            if (endInput && analyticsStart.value && endInput.value && analyticsStart.value > endInput.value) {
+              showToast('Start date cannot be after end date');
+              return;
+            }
             // Auto-refresh analytics when date changes
-            if (file) renderAnalytics();
+            if (file) {
+              showToast('Updating analytics...');
+              setTimeout(() => renderAnalytics(), 100);
+            }
           };
         }
         const analyticsEnd = $('#analytics-end'); 
         if (analyticsEnd) {
           analyticsEnd.onchange = () => { 
             $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); 
+            // Validate date range
+            const startInput = $('#analytics-start');
+            if (startInput && analyticsEnd.value && startInput.value && startInput.value > analyticsEnd.value) {
+              showToast('End date cannot be before start date');
+              return;
+            }
             // Auto-refresh analytics when date changes
-            if (file) renderAnalytics();
+            if (file) {
+              showToast('Updating analytics...');
+              setTimeout(() => renderAnalytics(), 100);
+            }
           };
         }
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
