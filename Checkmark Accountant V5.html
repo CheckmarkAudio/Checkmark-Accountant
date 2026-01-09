@@ -1067,10 +1067,28 @@
         throw e;
       }
     };
+    const migrateProjectPartyIds = (file) => {
+      // Migrate projects from party_id to party_ids array for backward compatibility
+      if (file && file.projects) {
+        file.projects.forEach(pr => {
+          if (pr.party_id && !pr.party_ids) {
+            pr.party_ids = [pr.party_id];
+            delete pr.party_id;
+          } else if (!pr.party_ids) {
+            pr.party_ids = [];
+          }
+        });
+      }
+      return file;
+    };
+
     const loadFile = (id) => {
       const raw = localStorage.getItem(STORAGE.v5Data(id));
       if (!raw) return null;
-      try { return JSON.parse(raw); } catch { return null; }
+      try {
+        const loaded = JSON.parse(raw);
+        return migrateProjectPartyIds(loaded);
+      } catch { return null; }
     };
     const saveFile = () => {
       if (!file) return;
@@ -1083,6 +1101,7 @@
       if (!file) return;
       if (!file.accounts || file.accounts.length === 0) file.accounts = seedAccounts();
       if (!file.settings) file.settings = defaultSettings();
+      migrateProjectPartyIds(file);
     };
 
     // ---------- Theme / Logo ----------
@@ -1488,7 +1507,11 @@
       const lines = inv.lines || [];
       const lineItems = lines.map(l => lineRow(l)).join('');
       const selectedPartyId = inv.party_id || null;
-      const filteredProjects = selectedPartyId ? file.projects.filter(p=>p.party_id===selectedPartyId) : [];
+      const filteredProjects = selectedPartyId ? file.projects.filter(p=>{
+        // Handle backward compatibility: convert party_id to party_ids array
+        const partyIds = p.party_ids || (p.party_id ? [p.party_id] : []);
+        return partyIds.includes(selectedPartyId);
+      }) : [];
       return `
         <form id="invoice-form" class="stack">
           <label>Client</label>
@@ -1550,7 +1573,11 @@
       const currentProjectId = invoice.project_id;
       partySelect.addEventListener('change', () => {
         const selectedPartyId = partySelect.value;
-        const filteredProjects = selectedPartyId ? file.projects.filter(p=>p.party_id===selectedPartyId) : [];
+        const filteredProjects = selectedPartyId ? file.projects.filter(p=>{
+          // Handle backward compatibility: convert party_id to party_ids array
+          const partyIds = p.party_ids || (p.party_id ? [p.party_id] : []);
+          return partyIds.includes(selectedPartyId);
+        }) : [];
         projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${p.project_id}">${p.name}</option>`).join('');
         // Try to preserve the current project if it's still valid
         if (currentProjectId && filteredProjects.find(p=>p.project_id===currentProjectId)) {
@@ -2218,9 +2245,12 @@
       tbody.innerHTML = '';
       if (!file.projects.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
       file.projects.forEach(pr => {
-        const party = file.parties.find(p=>p.party_id===pr.party_id);
+        // Handle backward compatibility: convert party_id to party_ids array
+        const partyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
+        const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
+        const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${pr.name}</td><td>${party?.name||'—'}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${pr.name}</td><td>${clientNames}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editProject(pr);
         tr.querySelector('[data-del]').onclick = () => { file.projects = file.projects.filter(x=>x.project_id!==pr.project_id); saveFile(); renderProjects(); };
         tbody.appendChild(tr);
@@ -2229,24 +2259,35 @@
 
     const editProject = (pr={}) => {
       if (!file) return;
-      const partyOptions = file.parties.map(p=>`<option value="${p.party_id}" ${p.party_id===pr.party_id?'selected':''}>${p.name}</option>`).join('');
+      // Handle backward compatibility: convert party_id to party_ids array
+      const currentPartyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
+      const partyCheckboxes = file.parties.map(p=>{
+        const checked = currentPartyIds.includes(p.party_id) ? 'checked' : '';
+        return `<label style="display:flex; align-items:center; gap:8px; margin:8px 0; cursor:pointer;"><input type="checkbox" name="party_ids" value="${p.party_id}" ${checked} style="width:auto;">${p.name}</label>`;
+      }).join('');
       openPanel('Project', `
         <form id="project-form" class="stack">
           <label>Name</label><input name="name" value="${pr.name||''}">
-          <label>Client</label><select name="party_id"><option value="">None</option>${partyOptions}</select>
+          <label>Clients</label>
+          <div style="border:1px solid var(--border); border-radius:12px; padding:16px; background:var(--surface-soft); max-height:300px; overflow-y:auto;">
+            ${partyCheckboxes || '<div class="muted">No clients available. Add clients first.</div>'}
+          </div>
           <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-project">Cancel</button></div>
         </form>
       `);
       $('#project-form').onsubmit = (e)=> {
         e.preventDefault();
         const data = new FormData(e.target);
+        const selectedPartyIds = data.getAll('party_ids').filter(id => id);
         const saved = {
           project_id: pr.project_id || uuid(),
           name: data.get('name'),
-          party_id: data.get('party_id') || null,
+          party_ids: selectedPartyIds.length > 0 ? selectedPartyIds : [],
           created_at: pr.created_at || nowIso(),
           updated_at: nowIso()
         };
+        // Remove old party_id if it exists (backward compatibility)
+        if (saved.party_id !== undefined) delete saved.party_id;
         if (!file.projects.find(x=>x.project_id===saved.project_id)) file.projects.push(saved);
         else file.projects = file.projects.map(x=>x.project_id===saved.project_id?saved:x);
         saveFile(); renderProjects(); closePanel();
