@@ -190,3 +190,22 @@
 {"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767988315001,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
 {"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767988315002,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
 {"location":"initApp:complete","message":"initApp completed successfully","data":{},"timestamp":1767988315002,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"script:load","message":"Script loaded, waiting for DOMContentLoaded","data":{"readyState":"loading"},"timestamp":1767988381979,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"DOMContentLoaded:fired","message":"DOMContentLoaded event fired","data":{},"timestamp":1767988382006,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"initApp:entry","message":"initApp called - app initialization started","data":{},"timestamp":1767988382007,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"bindUI:entry","message":"bindUI called","data":{},"timestamp":1767988382008,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"bindUI:tabs","message":"Tab buttons found","data":{"count":7},"timestamp":1767988382009,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"$:null","message":"querySelector returned null for: #export-all","data":{"selector":"#export-all"},"timestamp":1767988382009,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"bindUI:complete","message":"bindUI completed successfully","data":{},"timestamp":1767988382010,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"initApp:after-bindUI","message":"bindUI completed","data":{},"timestamp":1767988382010,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"loadList:entry","message":"loadList called","data":{},"timestamp":1767988382012,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"loadList:success","message":"Business list loaded","data":{"count":7,"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109"},"timestamp":1767988382015,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"initApp:after-loadList","message":"loadList completed","data":{"businessListLength":7,"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109"},"timestamp":1767988382016,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"loadActive:entry","message":"loadActive called","data":{"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109","businessListLength":7},"timestamp":1767988382016,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:before-renderAll","message":"About to call renderAll","data":{"fileExists":true},"timestamp":1767988382017,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"renderAll:entry","message":"renderAll called","data":{"fileExists":true},"timestamp":1767988382017,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"$:null","message":"querySelector returned null for: #invoice-draft","data":{"selector":"#invoice-draft"},"timestamp":1767988382026,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"renderAll:complete","message":"renderAll completed","data":{},"timestamp":1767988382028,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767988382029,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767988382029,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"initApp:complete","message":"initApp completed successfully","data":{},"timestamp":1767988382030,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
