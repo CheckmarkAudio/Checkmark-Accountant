@@ -1,0 +1,1658 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkmark Accountant V5</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-soft: #f2f3f7;
+      --text: #1c1e26;
+      --muted: #6b7080;
+      --border: #e3e5eb;
+      --accent: #3a7ff5;
+      --accent-2: #111827;
+      --success: #1fb37a;
+      --danger: #e25555;
+      --shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --radius: 12px;
+      --motion-scale: 1;
+      --logo-bg: #eef1f5;
+    }
+    html.dark {
+      --bg: #0d1017;
+      --surface: #111624;
+      --surface-soft: #161c2c;
+      --text: #f5f7fb;
+      --muted: #98a0b5;
+      --border: #1f2737;
+      --accent: #5aa3ff;
+      --accent-2: #0b101a;
+      --success: #3dd09c;
+      --danger: #ff8b8b;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --logo-bg: #1a2234;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    button {
+      font: inherit;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, opacity 140ms ease;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      box-shadow: 0 8px 20px rgba(58,127,245,0.3);
+    }
+    button.ghost { background: transparent; }
+    button:active { transform: scale(calc(1 - 0.02 * var(--motion-scale))); }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    label { display: block; font-weight: 600; margin: 12px 0 6px; }
+    .app {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+    header.topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .logo-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--logo-bg);
+      border: 1px solid var(--border);
+      min-width: 48px;
+      min-height: 36px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+    }
+    .logo-chip img { height: 24px; width: 24px; object-fit: contain; }
+    nav.tabs {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 62px;
+      z-index: 10;
+    }
+    nav.tabs button {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 8px 12px;
+      border-radius: 10px;
+      color: var(--muted);
+    }
+    nav.tabs button.active {
+      background: var(--surface-soft);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    main { padding: 16px; }
+    .grid { display: grid; gap: 16px; }
+    .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .card h3 { margin-top: 0; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    th { color: var(--muted); font-size: 0.9rem; position: sticky; top: 0; background: var(--surface); }
+    tr:hover { background: var(--surface-soft); transition: background 150ms ease; }
+    .hidden { display: none !important; }
+    .pill { padding: 4px 8px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-size: 0.85rem; }
+    .stack { display: flex; flex-direction: column; gap: 8px; }
+    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .space { margin-top: 12px; }
+    .side-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: min(420px, 90vw);
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      box-shadow: -8px 0 24px rgba(0,0,0,0.2);
+      transform: translateX(100%);
+      opacity: 0;
+      transition: transform 220ms ease, opacity 180ms ease;
+      z-index: 50;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .side-panel.open { transform: translateX(0); opacity: 1; }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: transform 180ms ease, opacity 180ms ease;
+      z-index: 60;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .badge { padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; background: var(--surface-soft); border: 1px solid var(--border); }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; }
+    .status-posted { background: var(--success); }
+    .status-draft { background: var(--muted); }
+    .status-void { background: var(--danger); }
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    .saved-flag {
+      margin-left: auto;
+      padding: 6px 10px;
+      background: var(--surface-soft);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      backdrop-filter: blur(2px);
+    }
+    .overlay.show { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px;
+      width: min(420px, 90vw);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .recent-chip { background: var(--surface-soft); border: 1px solid var(--border); padding: 4px 8px; border-radius: 8px; }
+    @media (prefers-reduced-motion: reduce) {
+      :root { --motion-scale: 0; }
+      * { transition: none !important; animation: none !important; }
+    }
+    .motion-off *, .motion-reduced * {
+      transition: none !important;
+      animation: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="logo-chip" id="logo-chip"><img id="logo-img" alt="Logo"></div>
+      <div class="stack" style="gap:2px">
+        <strong id="business-name">Checkmark Accountant V5</strong>
+        <div class="row" style="gap:6px">
+          <select id="business-selector"></select>
+          <button id="new-business" class="ghost">+ New</button>
+          <span class="saved-flag" id="saved-flag">Saved</span>
+        </div>
+      </div>
+      <div class="row" style="margin-left:auto; gap:8px">
+        <button id="quick-add-invoice" class="primary">Quick Invoice</button>
+        <button id="quick-add-transaction">Quick Txn</button>
+        <button id="open-settings" class="ghost">Settings</button>
+      </div>
+    </header>
+    <nav class="tabs">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="invoices">Invoices</button>
+      <button data-tab="transactions">Transactions</button>
+      <button data-tab="clients">Clients</button>
+      <button data-tab="services">Services</button>
+      <button data-tab="reports">Reports</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <main>
+      <section data-section="dashboard" class="grid cols-2">
+        <div class="card">
+          <h3>Overview</h3>
+          <div class="grid cols-2" id="dashboard-kpis"></div>
+        </div>
+        <div class="card">
+          <h3>Recent Activity</h3>
+          <div id="dashboard-activity" class="stack"></div>
+        </div>
+      </section>
+
+      <section data-section="invoices" class="grid cols-2 hidden">
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <h3>Invoices</h3>
+            <button id="add-invoice" class="primary">New Invoice</button>
+          </div>
+          <div class="stack">
+            <table>
+              <thead><tr><th>#</th><th>Client</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
+              <tbody id="invoice-rows"></tbody>
+            </table>
+            <div class="empty hidden" id="invoice-empty">No invoices yet. Create your first invoice.</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Draft</h3>
+          <div id="invoice-draft"></div>
+        </div>
+      </section>
+
+      <section data-section="transactions" class="grid cols-2 hidden">
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <h3>Transactions</h3>
+            <button id="add-transaction" class="primary">Add</button>
+          </div>
+          <div class="stack">
+            <div class="row">
+              <select id="txn-filter">
+                <option value="all">All</option>
+                <option value="uncat">Uncategorized</option>
+              </select>
+            </div>
+            <table>
+              <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th></th></tr></thead>
+              <tbody id="txn-rows"></tbody>
+            </table>
+            <div class="empty hidden" id="txn-empty">No transactions yet.</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Draft</h3>
+          <div id="txn-draft"></div>
+        </div>
+      </section>
+
+      <section data-section="clients" class="grid cols-2 hidden">
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <h3>Clients / Parties</h3>
+            <button id="add-client" class="primary">Add</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
+            <tbody id="client-rows"></tbody>
+          </table>
+          <div class="empty hidden" id="client-empty">No parties yet.</div>
+        </div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <h3>Projects</h3>
+            <button id="add-project" class="primary">Add</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Client</th><th></th></tr></thead>
+            <tbody id="project-rows"></tbody>
+          </table>
+          <div class="empty hidden" id="project-empty">No projects yet.</div>
+        </div>
+      </section>
+
+      <section data-section="services" class="hidden">
+        <div class="card">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <h3>Services Catalog</h3>
+            <button id="add-service" class="primary">Add Service</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Rate</th><th></th></tr></thead>
+            <tbody id="service-rows"></tbody>
+          </table>
+          <div class="empty hidden" id="service-empty">No services yet.</div>
+        </div>
+      </section>
+
+      <section data-section="reports" class="grid cols-2 hidden">
+        <div class="card">
+          <h3>Profit & Loss</h3>
+          <div class="row">
+            <input type="date" id="pl-start">
+            <input type="date" id="pl-end">
+            <button id="run-pl">Run</button>
+          </div>
+          <div id="pl-output" class="stack space"></div>
+        </div>
+        <div class="card">
+          <h3>Other Reports</h3>
+          <div class="stack">
+            <button id="run-expense-summary">Expense by Category</button>
+            <div id="report-expense"></div>
+            <button id="run-client-summary">Client Revenue</button>
+            <div id="report-client"></div>
+            <button id="run-project-summary">Project Profitability</button>
+            <div id="report-project"></div>
+            <button id="run-tax-summary">Tax Summary</button>
+            <div id="report-tax"></div>
+          </div>
+        </div>
+      </section>
+
+      <section data-section="settings" class="grid cols-2 hidden">
+        <div class="card">
+          <h3>Appearance</h3>
+          <label>Theme</label>
+          <select id="theme-select">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <label>Motion</label>
+          <select id="motion-select">
+            <option value="full">Full</option>
+            <option value="reduced">Reduced</option>
+            <option value="off">Off</option>
+          </select>
+          <label>Logo (Light)</label>
+          <input type="file" id="logo-light" accept="image/*">
+          <label>Logo (Dark)</label>
+          <input type="file" id="logo-dark" accept="image/*">
+          <label>Logo Variant</label>
+          <select id="logo-variant">
+            <option value="auto">Auto</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+        <div class="card">
+          <h3>Data</h3>
+          <button id="export-json">Backup / Export</button>
+          <input type="file" id="import-json" class="hidden" accept="application/json">
+          <button id="import-json-btn">Import</button>
+          <button id="integrity-check">Integrity Check</button>
+          <div id="integrity-output" class="stack space"></div>
+        </div>
+        <div class="card">
+          <h3>Migration</h3>
+          <div id="migration-block" class="stack"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="side-panel" id="side-panel">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <h3 id="panel-title"></h3>
+      <button id="close-panel" class="ghost">Close</button>
+    </div>
+    <div id="panel-body"></div>
+  </div>
+
+  <div class="overlay" id="modal-overlay">
+    <div class="modal" id="modal-body"></div>
+  </div>
+
+  <div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo" class="ghost">Undo</button></div>
+
+  <script>
+    // ---------- Utilities ----------
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    const nowIso = () => new Date().toISOString();
+    const today = () => new Date().toISOString().slice(0,10);
+    const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
+      return v.toString(16);
+    });
+    const moneyToCents = (val) => Math.round((Number(val) || 0) * 100);
+    const centsToMoney = (c) => (c || 0) / 100;
+    const fmt = (cents, currency='USD') => {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(centsToMoney(cents));
+    };
+    const clone = (obj) => JSON.parse(JSON.stringify(obj));
+
+    // ---------- Storage + State ----------
+    const STORAGE = {
+      v5List: 'ck5_businesses',
+      v5Active: 'ck5_active',
+      v5Data: (id) => `ck5_business_${id}`,
+      v4List: 'checkmark_accounts',
+      v4Active: 'checkmark_active_account',
+      v4Data: (id) => `checkmark_account_data_${id}`,
+      draftInvoice: (id) => `ck5_draft_invoice_${id}`,
+      draftTxn: (id) => `ck5_draft_txn_${id}`
+    };
+
+    const seedAccounts = () => ([
+      { code:'1000', name:'Cash', type:'asset' },
+      { code:'1010', name:'Bank Checking', type:'asset' },
+      { code:'1020', name:'Savings', type:'asset' },
+      { code:'1030', name:'Undeposited Funds', type:'asset' },
+      { code:'1100', name:'Accounts Receivable', type:'asset' },
+      { code:'1500', name:'Equipment', type:'asset' },
+      { code:'1590', name:'Accum Depreciation', type:'contra-asset' },
+      { code:'2100', name:'Credit Card Payable', type:'liability' },
+      { code:'2200', name:'Taxes Payable', type:'liability' },
+      { code:'3000', name:'Owner Equity', type:'equity' },
+      { code:'3100', name:'Owner Draws', type:'equity' },
+      { code:'3200', name:'Opening Balance Equity', type:'equity' },
+      { code:'4000', name:'Service Income', type:'income' },
+      { code:'4010', name:'Production Income', type:'income' },
+      { code:'4100', name:'Royalties', type:'income' },
+      { code:'4200', name:'Licensing/Sync', type:'income' },
+      { code:'4300', name:'Merchandise Sales', type:'income' },
+      { code:'4900', name:'Other Income', type:'income' },
+      { code:'6000', name:'Studio Rent', type:'expense' },
+      { code:'6010', name:'Utilities', type:'expense' },
+      { code:'6100', name:'Marketing', type:'expense' },
+      { code:'6110', name:'Website/Hosting', type:'expense' },
+      { code:'6200', name:'Contract Labor', type:'expense' },
+      { code:'6300', name:'Travel', type:'expense' },
+      { code:'6310', name:'Meals', type:'expense' },
+      { code:'6400', name:'Bank Fees', type:'expense' },
+      { code:'6410', name:'Payment Processing Fees', type:'expense' },
+      { code:'6520', name:'Education/Training', type:'expense' },
+      { code:'6600', name:'Depreciation Expense', type:'expense' },
+      { code:'6700', name:'Mileage Expense', type:'expense' },
+      { code:'6900', name:'Uncategorized Expense', type:'expense' },
+      { code:'8000', name:'Suspense/Clearing', type:'other' },
+      { code:'8100', name:'Transfers Clearing', type:'other' },
+    ]);
+
+    const defaultSettings = () => ({
+      accounting_basis: 'cash',
+      theme: 'system',
+      motion: 'full',
+      logoVariant: 'auto',
+      logoLightDataUrl: null,
+      logoDarkDataUrl: null,
+      default_cash_account_code: '1010',
+      default_income_account_code: '4000',
+      default_uncategorized_expense_code: '6900',
+      mileage_model: 'tax_only',
+      depreciation_model: 'report_only'
+    });
+
+    const newBusinessFile = (name='My Business') => ({
+      schema_version: 5,
+      business: {
+        business_id: uuid(),
+        name,
+        base_currency: 'USD',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        created_at: nowIso(),
+        updated_at: nowIso()
+      },
+      settings: defaultSettings(),
+      parties: [],
+      projects: [],
+      services: [],
+      accounts: seedAccounts(),
+      invoices: [],
+      invoice_lines: [],
+      payments: [],
+      payment_applications: [],
+      transactions: [],
+      assets: [],
+      depreciation_events: [],
+      mileage_trips: [],
+      ledger_entries: [],
+      ledger_lines: [],
+      attachments: [],
+      change_log: []
+    });
+
+    let businessList = [];
+    let activeId = null;
+    let file = null;
+    let undoStack = [];
+    let motionSetting = 'full';
+
+    const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
+    const saveActive = () => activeId ? localStorage.setItem(STORAGE.v5Active, activeId) : localStorage.removeItem(STORAGE.v5Active);
+    const loadList = () => {
+      businessList = JSON.parse(localStorage.getItem(STORAGE.v5List) || '[]');
+      activeId = localStorage.getItem(STORAGE.v5Active);
+    };
+    const loadFile = (id) => {
+      const raw = localStorage.getItem(STORAGE.v5Data(id));
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    };
+    const saveFile = () => {
+      if (!file) return;
+      file.business.updated_at = nowIso();
+      localStorage.setItem(STORAGE.v5Data(activeId), JSON.stringify(file));
+      showSaved();
+    };
+
+    const ensureFile = () => {
+      if (!file) return;
+      if (!file.accounts || file.accounts.length === 0) file.accounts = seedAccounts();
+      if (!file.settings) file.settings = defaultSettings();
+    };
+
+    // ---------- Theme / Logo ----------
+    const applyTheme = () => {
+      const theme = file?.settings?.theme || 'system';
+      const motion = file?.settings?.motion || 'full';
+      motionSetting = motion;
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = theme === 'dark' || (theme === 'system' && prefersDark);
+      document.documentElement.classList.toggle('dark', dark);
+      document.documentElement.classList.toggle('motion-off', motion === 'off');
+      document.documentElement.classList.toggle('motion-reduced', motion === 'reduced');
+      const scale = motion === 'full' ? 1 : (motion === 'reduced' ? 0.5 : 0);
+      document.documentElement.style.setProperty('--motion-scale', scale);
+      const logoVariant = file?.settings?.logoVariant || 'auto';
+      const lightLogo = file?.settings?.logoLightDataUrl;
+      const darkLogo = file?.settings?.logoDarkDataUrl;
+      const logoEl = $('#logo-img');
+      const chip = $('#logo-chip');
+      chip.style.background = 'var(--logo-bg)';
+      let useLogo = lightLogo || darkLogo || '';
+      if (logoVariant === 'light') useLogo = lightLogo || darkLogo || '';
+      else if (logoVariant === 'dark') useLogo = darkLogo || lightLogo || '';
+      else useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      if (!useLogo) {
+        logoEl.src = '';
+        logoEl.alt = 'CK';
+        logoEl.textContent = 'CK';
+      } else {
+        logoEl.src = useLogo;
+      }
+    };
+
+    const showSaved = () => {
+      const flag = $('#saved-flag');
+      flag.textContent = 'Saved';
+      flag.style.opacity = '1';
+      setTimeout(() => flag.style.opacity = '0.6', 1200);
+    };
+
+    // ---------- Migration from V4 ----------
+    const detectV4 = () => {
+      const list = JSON.parse(localStorage.getItem(STORAGE.v4List) || '[]');
+      return list.length > 0;
+    };
+
+    const migrateV4Business = (v4Id, v4DataRaw) => {
+      const v4 = v4DataRaw || {};
+      const bf = newBusinessFile(v4.settings?.businessName || 'Migrated Business');
+      bf.business.legacy_id = v4Id;
+      bf.settings.logoLightDataUrl = v4.settings?.logoLight || null;
+      bf.settings.logoDarkDataUrl = v4.settings?.logoDark || null;
+      if (v4.settings?.theme) bf.settings.theme = v4.settings.theme;
+      // Parties
+      (v4.clients || []).forEach(c => bf.parties.push({
+        party_id: uuid(),
+        legacy_id: c.id,
+        name: c.name || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        address: c.address || '',
+        created_at: nowIso(),
+        updated_at: nowIso()
+      }));
+      // Services
+      (v4.templates || []).forEach(s => bf.services.push({
+        service_id: uuid(),
+        legacy_id: s.id,
+        name: s.name || '',
+        default_rate_cents: moneyToCents(s.price || 0),
+        default_description: s.name || '',
+        created_at: nowIso(),
+        updated_at: nowIso()
+      }));
+      // Invoices + lines
+      (v4.invoices || []).forEach(inv => {
+        const invoiceId = uuid();
+        bf.invoices.push({
+          invoice_id: invoiceId,
+          legacy_id: inv.id,
+          party_id: (bf.parties.find(p => p.legacy_id == inv.clientId)||{}).party_id || null,
+          number: inv.number,
+          issue_date: inv.date,
+          status: inv.status?.toLowerCase() || 'draft',
+          total_cents: moneyToCents(inv.total || 0),
+          created_at: nowIso(),
+          updated_at: nowIso()
+        });
+        (inv.items || []).forEach(it => {
+          bf.invoice_lines.push({
+            invoice_line_id: uuid(),
+            invoice_id: invoiceId,
+            service_name: it.desc,
+            quantity: Number(it.qty) || 0,
+            rate_cents: moneyToCents(it.price || 0),
+            line_total_cents: moneyToCents((Number(it.qty)||0)*(Number(it.price)||0)),
+            income_account_code: bf.settings.default_income_account_code,
+            created_at: nowIso(),
+            updated_at: nowIso()
+          });
+        });
+        if (inv.status === 'Paid') {
+          // warn: V4 lacks payment detail; no ledger posting here
+          bf.change_log.push({ type:'warn', message:'Paid invoice without payment detail from V4', ref: invoiceId, created_at: nowIso() });
+        }
+      });
+      // Transactions -> ledger + txn
+      (v4.transactions || []).forEach(t => {
+        const txnId = uuid();
+        const amountCents = moneyToCents(t.amount || 0);
+        const type = (t.type || '').toLowerCase();
+        const category = t.category || '';
+        bf.transactions.push({
+          transaction_id: txnId,
+          legacy_id: t.id,
+          date: t.date,
+          memo: t.desc || '',
+          amount_cents: amountCents,
+          type: type === 'income' ? 'income' : (type === 'expense' ? 'expense' : 'transfer'),
+          category: category,
+          created_at: nowIso(),
+          updated_at: nowIso()
+        });
+        const entryId = uuid();
+        const debitAccount = type === 'income' ? bf.settings.default_cash_account_code
+                          : type === 'transfer' ? '8000'
+                          : bf.settings.default_uncategorized_expense_code;
+        const creditAccount = type === 'income' ? (bf.settings.default_income_account_code)
+                           : type === 'transfer' ? bf.settings.default_cash_account_code
+                           : bf.settings.default_cash_account_code;
+        const sign = type === 'income' ? 1 : -1;
+        const amount = Math.abs(amountCents);
+        bf.ledger_entries.push({
+          ledger_entry_id: entryId,
+          source: 'migration',
+          linked_transaction_id: txnId,
+          status: 'posted',
+          entry_type: 'transaction',
+          entry_date: t.date,
+          created_at: nowIso(),
+          updated_at: nowIso()
+        });
+        bf.ledger_lines.push({ ledger_line_id: uuid(), ledger_entry_id: entryId, account_code: debitAccount, debit_cents: sign>0?amount:0, credit_cents: sign<0?amount:0 });
+        bf.ledger_lines.push({ ledger_line_id: uuid(), ledger_entry_id: entryId, account_code: creditAccount, debit_cents: sign<0?amount:0, credit_cents: sign>0?amount:0 });
+      });
+      ensureFile();
+      return bf;
+    };
+
+    const runMigration = () => {
+      const v4List = JSON.parse(localStorage.getItem(STORAGE.v4List) || '[]');
+      if (!v4List.length) return;
+      v4List.forEach(acc => {
+        const data = JSON.parse(localStorage.getItem(STORAGE.v4Data(acc.id)) || '{}');
+        const migrated = migrateV4Business(acc.id, data);
+        const id = migrated.business.business_id;
+        businessList.push({ id, name: migrated.business.name });
+        localStorage.setItem(STORAGE.v5Data(id), JSON.stringify(migrated));
+      });
+      saveList();
+      localStorage.removeItem(STORAGE.v4Active);
+      alert('Migration complete. Select a migrated business to continue.');
+      renderBusinessSelector();
+      renderMigrationBlock();
+    };
+
+    // ---------- Ledger Engine ----------
+    const requireBalanced = (lines) => {
+      const debits = lines.reduce((s,l)=>s+(l.debit_cents||0),0);
+      const credits = lines.reduce((s,l)=>s+(l.credit_cents||0),0);
+      if (debits !== credits) throw new Error('Entry not balanced');
+    };
+
+    const removeLinkedEntries = ({ transaction_id=null, payment_id=null }) => {
+      if (!transaction_id && !payment_id) return;
+      const keepIds = [];
+      file.ledger_entries = file.ledger_entries.filter(e=>{
+        const match = (transaction_id && e.linked_transaction_id===transaction_id) || (payment_id && e.linked_payment_id===payment_id);
+        if (match) return false;
+        keepIds.push(e.ledger_entry_id);
+        return true;
+      });
+      file.ledger_lines = file.ledger_lines.filter(l => keepIds.includes(l.ledger_entry_id) || (!transaction_id && !payment_id));
+    };
+
+    const postEntry = (entry) => {
+      requireBalanced(entry.lines);
+      const entryId = uuid();
+      file.ledger_entries.push({
+        ledger_entry_id: entryId,
+        entry_type: entry.type,
+        entry_date: entry.date || today(),
+        status: 'posted',
+        source: entry.source || 'ui',
+        project_id: entry.project_id || null,
+        linked_invoice_id: entry.linked_invoice_id || null,
+        linked_payment_id: entry.linked_payment_id || null,
+        linked_transaction_id: entry.linked_transaction_id || null,
+        created_at: nowIso(),
+        updated_at: nowIso()
+      });
+      entry.lines.forEach(l => file.ledger_lines.push({
+        ledger_line_id: uuid(),
+        ledger_entry_id: entryId,
+        account_code: l.account,
+        debit_cents: l.debit || 0,
+        credit_cents: l.credit || 0
+      }));
+    };
+
+    const postTransaction = (txn) => {
+      removeLinkedEntries({ transaction_id: txn.transaction_id });
+      const cash = file.settings.default_cash_account_code;
+      const income = file.settings.default_income_account_code;
+      const uncat = file.settings.default_uncategorized_expense_code;
+      const amt = Math.abs(txn.amount_cents);
+      if (txn.type === 'income') {
+        postEntry({ type:'transaction.income', date: txn.date, linked_transaction_id: txn.transaction_id, project_id: txn.project_id, lines:[
+          { account: cash, debit: amt },
+          { account: income, credit: amt }
+        ]});
+      } else if (txn.type === 'expense') {
+        const expAcct = findAccountCode(txn.category) || uncat;
+        postEntry({ type:'transaction.expense', date: txn.date, linked_transaction_id: txn.transaction_id, project_id: txn.project_id, lines:[
+          { account: expAcct, debit: amt },
+          { account: cash, credit: amt }
+        ]});
+      } else if (txn.type === 'transfer') {
+        const toAcct = findAccountCode(txn.to_account_code) || cash;
+        const fromAcct = findAccountCode(txn.from_account_code) || cash;
+        postEntry({ type:'transaction.transfer', date: txn.date, linked_transaction_id: txn.transaction_id, project_id: txn.project_id, lines:[
+          { account: toAcct, debit: amt },
+          { account: fromAcct, credit: amt }
+        ]});
+      }
+    };
+
+    const postInvoicePayment = (invoice, payment) => {
+      removeLinkedEntries({ payment_id: payment.payment_id });
+      const income = file.settings.default_income_account_code;
+      const deposit = payment.deposit_account_code || file.settings.default_cash_account_code;
+      const amount = payment.amount_cents;
+      postEntry({ type:'invoice.pay', date: payment.payment_date, linked_invoice_id: invoice.invoice_id, linked_payment_id: payment.payment_id, project_id: invoice.project_id, lines:[
+        { account: deposit, debit: amount },
+        { account: income, credit: amount }
+      ]});
+    };
+
+    const findAccountCode = (codeOrName) => {
+      if (!codeOrName) return null;
+      const acc = file.accounts.find(a => a.code === codeOrName || a.name === codeOrName);
+      return acc ? acc.code : null;
+    };
+
+    // ---------- UI helpers ----------
+    const setTab = (tab) => {
+      $$('nav.tabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+      $$('section[data-section]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.section !== tab));
+    };
+
+    const openPanel = (title, bodyHtml) => {
+      $('#panel-title').textContent = title;
+      $('#panel-body').innerHTML = bodyHtml;
+      $('#side-panel').classList.add('open');
+    };
+    const closePanel = () => $('#side-panel').classList.remove('open');
+
+    const showToast = (msg, undoFn=null) => {
+      $('#toast-msg').textContent = msg;
+      const undoBtn = $('#toast-undo');
+      if (undoFn) {
+        undoBtn.classList.remove('hidden');
+        undoBtn.onclick = () => { undoFn(); hideToast(); };
+      } else undoBtn.classList.add('hidden');
+      $('#toast').classList.add('show');
+      setTimeout(() => hideToast(), 4000);
+    };
+    const hideToast = () => $('#toast').classList.remove('show');
+
+    const showModal = (html, onConfirm) => {
+      $('#modal-body').innerHTML = html;
+      $('#modal-overlay').classList.add('show');
+      const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+      const cancelBtn = $('#modal-body').querySelector('[data-cancel]');
+      cancelBtn.onclick = closeModal;
+      confirmBtn.onclick = () => { onConfirm(); closeModal(); };
+    };
+    const closeModal = () => $('#modal-overlay').classList.remove('show');
+
+    // ---------- Business selector ----------
+    const renderBusinessSelector = () => {
+      const sel = $('#business-selector');
+      sel.innerHTML = '';
+      businessList.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.id; opt.textContent = b.name;
+        if (b.id === activeId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      if (!businessList.length) {
+        const opt = document.createElement('option');
+        opt.textContent = 'No business yet';
+        sel.appendChild(opt);
+      }
+      $('#business-name').textContent = activeId ? (businessList.find(b=>b.id===activeId)?.name || 'Business') : 'Checkmark Accountant V5';
+    };
+
+    const createBusiness = (name) => {
+      const id = uuid();
+      businessList.push({ id, name });
+      saveList();
+      localStorage.setItem(STORAGE.v5Data(id), JSON.stringify(newBusinessFile(name)));
+      activeId = id; saveActive();
+      loadActive();
+    };
+
+    const loadActive = () => {
+      if (!activeId && businessList.length) activeId = businessList[0].id;
+      if (!activeId) return;
+      file = loadFile(activeId);
+      if (!file) { file = newBusinessFile('New Business'); saveFile(); }
+      ensureFile();
+      renderBusinessSelector();
+      applyTheme();
+      renderAll();
+      setTab('dashboard');
+    };
+
+    // ---------- Invoices ----------
+    const renderInvoices = () => {
+      const tbody = $('#invoice-rows'); tbody.innerHTML = '';
+      if (!file.invoices.length) $('#invoice-empty').classList.remove('hidden'); else $('#invoice-empty').classList.add('hidden');
+      file.invoices.forEach(inv => {
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${inv.number||'—'}</td><td>${party?.name||'—'}</td><td>${inv.issue_date||''}</td>
+        <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${inv.status||'draft'}</td>
+        <td>${fmt(inv.total_cents||0,file.business.base_currency)}</td>
+        <td class="row">
+          <button data-action="pay">Mark Paid</button>
+          <button data-action="edit">Edit</button>
+          <button data-action="void">Void</button>
+          <button data-action="del">Delete</button>
+        </td>`;
+        tr.querySelector('[data-action="edit"]').onclick = () => editInvoice(inv);
+        tr.querySelector('[data-action="del"]').onclick = () => deleteInvoice(inv);
+        tr.querySelector('[data-action="pay"]').onclick = () => promptMarkPaid(inv);
+        tr.querySelector('[data-action="void"]').onclick = () => voidInvoice(inv);
+        tbody.appendChild(tr);
+      });
+    };
+
+    const renderInvoiceDraft = () => {
+      const container = $('#invoice-draft');
+      const draft = JSON.parse(localStorage.getItem(STORAGE.draftInvoice(activeId)) || 'null');
+      if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
+      container.innerHTML = `
+        <div class="stack">
+          <div><strong>Client:</strong> ${draft.party_name||'—'}</div>
+          <div><strong>Date:</strong> ${draft.issue_date||today()}</div>
+          <div><strong>Total:</strong> ${fmt(draft.total_cents||0,file.business.base_currency)}</div>
+          <button id="resume-draft">Resume</button>
+        </div>`;
+      $('#resume-draft').onclick = () => editInvoice(draft, true);
+    };
+
+    const invoiceForm = (inv={}) => {
+      const partyOptions = file.parties.map(p=>`<option value="${p.party_id}" ${p.party_id===inv.party_id?'selected':''}>${p.name}</option>`).join('');
+      const serviceRecent = file.services.slice(-3).reverse();
+      const lines = inv.lines || [];
+      const lineItems = lines.map(l => lineRow(l)).join('');
+      return `
+        <form id="invoice-form" class="stack">
+          <label>Client</label>
+          <select name="party_id">${partyOptions}</select>
+          <label>Date</label>
+          <input name="issue_date" type="date" value="${inv.issue_date||today()}">
+          <label>Project</label>
+          <select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
+          <div class="row" style="gap:6px; flex-wrap:wrap">
+            <span class="muted">Recent services:</span>
+            ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${s.service_id}">${s.name}</button>`).join('')}
+            <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
+          </div>
+          <div id="line-container" class="stack">${lineItems || '<div class="empty">No lines. Add a service.</div>'}</div>
+          <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(inv.total_cents||0,file.business.base_currency)}</div></div>
+          <div class="row">
+            <button class="primary" type="submit">Save</button>
+            <button type="button" id="cancel-invoice">Cancel</button>
+          </div>
+        </form>`;
+    };
+
+    const lineRow = (line) => {
+      return `<div class="card" data-line="${line.invoice_line_id||uuid()}" style="padding:12px; box-shadow:none">
+        <div class="row">
+          <input class="line-name" placeholder="Service / Description" value="${line.service_name||''}">
+          <input class="line-qty" type="number" step="0.01" value="${line.quantity||1}" style="width:80px">
+          <input class="line-rate" type="number" step="0.01" value="${centsToMoney(line.rate_cents||0)}" style="width:100px">
+          <button type="button" data-remove>Delete</button>
+        </div>
+      </div>`;
+    };
+
+    const editInvoice = (inv, isDraft=false) => {
+      const invoice = isDraft ? inv : {
+        invoice_id: inv.invoice_id || uuid(),
+        party_id: inv.party_id || (file.parties[0]?.party_id || null),
+        project_id: inv.project_id || null,
+        issue_date: inv.issue_date || today(),
+        status: inv.status || 'draft',
+        lines: (file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id).map(clone)) || []
+      };
+      openPanel('Invoice', invoiceForm(invoice));
+      const container = $('#line-container');
+      const form = $('#invoice-form');
+      const recents = form.querySelectorAll('.recent-chip');
+      recents.forEach(btn => btn.onclick = () => {
+        const svc = file.services.find(s=>s.service_id===btn.dataset.service);
+        if (svc) addLineFromService(container, svc);
+      });
+      $('#add-service-inline').onclick = () => {
+        showServiceInline(container);
+      };
+      form.addEventListener('input', () => updateInvoiceTotal(container));
+      const persistDraft = () => {
+        const draftLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+          service_name: div.querySelector('.line-name').value,
+          quantity: Number(div.querySelector('.line-qty').value)||0,
+          rate_cents: moneyToCents(div.querySelector('.line-rate').value),
+          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)
+        }));
+        const draftObj = {
+          ...invoice,
+          party_id: form.querySelector('[name="party_id"]').value,
+          project_id: form.querySelector('[name="project_id"]').value || null,
+          issue_date: form.querySelector('[name="issue_date"]').value,
+          total_cents: draftLines.reduce((s,l)=>s+l.line_total_cents,0),
+          lines: draftLines,
+          party_name: file.parties.find(p=>p.party_id===form.querySelector('[name="party_id"]').value)?.name
+        };
+        localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify(draftObj));
+      };
+      form.addEventListener('input', persistDraft);
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const lines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+          invoice_line_id: div.dataset.line,
+          service_name: div.querySelector('.line-name').value,
+          quantity: Number(div.querySelector('.line-qty').value)||0,
+          rate_cents: moneyToCents(div.querySelector('.line-rate').value),
+          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
+          income_account_code: file.settings.default_income_account_code,
+          invoice_id: invoice.invoice_id,
+          project_id: form.querySelector('[name="project_id"]').value || null,
+          created_at: nowIso(),
+          updated_at: nowIso()
+        }));
+        const total = lines.reduce((s,l)=>s+l.line_total_cents,0);
+        const saved = {
+          invoice_id: invoice.invoice_id,
+          party_id: data.get('party_id'),
+          project_id: data.get('project_id') || null,
+          number: inv.number || (file.invoices.length+1),
+          issue_date: data.get('issue_date') || today(),
+          status: invoice.status || 'draft',
+          total_cents: total,
+          created_at: invoice.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        if (!file.invoices.find(i=>i.invoice_id===saved.invoice_id)) file.invoices.push(saved);
+        else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
+        file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
+        localStorage.removeItem(STORAGE.draftInvoice(activeId));
+        saveFile();
+        renderInvoices();
+        closePanel();
+      };
+      $('#cancel-invoice').onclick = () => {
+        localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify({
+          ...invoice,
+          project_id: form.querySelector('[name="project_id"]').value || null,
+          lines: Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+            service_name: div.querySelector('.line-name').value,
+            quantity: Number(div.querySelector('.line-qty').value)||0,
+            rate_cents: moneyToCents(div.querySelector('.line-rate').value),
+            line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)
+          }))
+        }));
+        closePanel();
+      };
+      container.addEventListener('click', (e) => {
+        if (e.target.dataset.remove !== undefined) {
+          const div = e.target.closest('[data-line]');
+          const removed = div;
+          div.remove();
+          const undoLines = container.innerHTML;
+          showToast('Line removed', () => { container.innerHTML = undoLines; });
+          updateInvoiceTotal(container);
+        }
+      });
+      updateInvoiceTotal(container);
+    };
+
+    const updateInvoiceTotal = (container) => {
+      const total = Array.from(container.querySelectorAll('[data-line]')).reduce((s,div)=>{
+        const qty = Number(div.querySelector('.line-qty').value)||0;
+        const rate = Number(div.querySelector('.line-rate').value)||0;
+        return s + moneyToCents(qty*rate);
+      },0);
+      $('#inv-total').textContent = fmt(total,file.business.base_currency);
+    };
+
+    const addLineFromService = (container, svc) => {
+      if (container.querySelector('.empty')) container.innerHTML='';
+      container.insertAdjacentHTML('beforeend', lineRow({ service_name: svc.name, quantity: 1, rate_cents: svc.default_rate_cents, invoice_line_id: uuid() }));
+      updateInvoiceTotal(container);
+    };
+
+    const showServiceInline = (container) => {
+      openPanel('Add Service', `
+        <form id="svc-inline" class="stack">
+          <label>Name</label><input name="name">
+          <label>Rate</label><input name="rate" type="number" step="0.01">
+          <label>Description</label><textarea name="desc"></textarea>
+          <div class="row">
+            <button type="submit" class="primary">Save & Add</button>
+            <button type="button" id="cancel-svc">Cancel</button>
+          </div>
+        </form>
+      `);
+      $('#cancel-svc').onclick = closePanel;
+      $('#svc-inline').onsubmit = (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const svc = {
+          service_id: uuid(),
+          name: data.get('name'),
+          default_rate_cents: moneyToCents(data.get('rate')),
+          default_description: data.get('desc'),
+          created_at: nowIso(),
+          updated_at: nowIso()
+        };
+        file.services.push(svc); saveFile(); renderServices();
+        closePanel();
+        addLineFromService(container, svc);
+      };
+    };
+
+    const deleteInvoice = (inv) => {
+      const removedLines = file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id);
+      file.invoices = file.invoices.filter(i=>i.invoice_id!==inv.invoice_id);
+      file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==inv.invoice_id);
+      saveFile(); renderInvoices();
+      showToast('Invoice deleted', () => {
+        file.invoices.push(inv); file.invoice_lines = file.invoice_lines.concat(removedLines); saveFile(); renderInvoices();
+      });
+    };
+
+    const voidInvoice = (inv) => {
+      const prevStatus = inv.status;
+      inv.status = 'void';
+      saveFile(); renderInvoices();
+      showToast('Invoice voided', () => { inv.status = prevStatus; saveFile(); renderInvoices(); });
+    };
+
+    const promptMarkPaid = (inv) => {
+      const depositOptions = file.accounts.filter(a=>a.type==='asset').map(a=>`<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
+      const recent = recentSelections('deposit');
+      showModal(`
+        <div class="stack">
+          <h3>Mark Paid</h3>
+          <label>Deposit to</label>
+          <select id="deposit">${depositOptions}</select>
+          <div class="row" style="gap:6px; flex-wrap:wrap">${recent.map(r=>`<button type="button" class="recent-chip" data-dep="${r}">${r}</button>`).join('')}</div>
+          <label>Date</label>
+          <input id="pay-date" type="date" value="${today()}">
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel type="button">Cancel</button>
+            <button data-confirm class="primary" type="button">Post</button>
+          </div>
+        </div>
+      `, () => {
+        const dep = $('#deposit').value;
+        pushRecent('deposit', dep);
+        const pay = {
+          payment_id: uuid(),
+          invoice_id: inv.invoice_id,
+          deposit_account_code: dep,
+          payment_date: $('#pay-date').value,
+          amount_cents: inv.total_cents
+        };
+        file.payments.push(pay);
+        file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: inv.total_cents });
+        postInvoicePayment(inv, pay);
+        inv.status = 'paid';
+        saveFile(); renderInvoices();
+      });
+      $('#modal-body').querySelectorAll('[data-dep]').forEach(btn=>btn.onclick=()=>{$('#deposit').value=btn.dataset.dep;});
+    };
+
+    // ---------- Transactions ----------
+    const renderTransactions = () => {
+      const tbody = $('#txn-rows'); tbody.innerHTML = '';
+      const filter = $('#txn-filter').value;
+      const rows = file.transactions.filter(t => filter==='uncat' ? !t.category : true);
+      if (!rows.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
+      rows.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category||'—'}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
+        <td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.querySelector('[data-edit]').onclick = () => editTxn(t);
+        tr.querySelector('[data-del]').onclick = () => delTxn(t);
+        tbody.appendChild(tr);
+      });
+    };
+
+    const renderTxnDraft = () => {
+      const draft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
+      const container = $('#txn-draft');
+      if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
+      container.innerHTML = `<div class="stack"><div><strong>${draft.type}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
+      <div>${draft.memo||''}</div><button id="resume-txn">Resume</button></div>`;
+      $('#resume-txn').onclick = () => editTxn(draft,true);
+    };
+
+    const txnForm = (t={}) => {
+      const recentCats = recentSelections('category');
+      return `
+        <form id="txn-form" class="stack">
+          <label>Date</label><input name="date" type="date" value="${t.date||today()}">
+          <label>Type</label><select name="type">
+            ${['income','expense','transfer'].map(v=>`<option value="${v}" ${t.type===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <label>Category</label>
+          <input name="category" value="${t.category||''}" list="cat-list">
+          <datalist id="cat-list">${file.accounts.map(a=>`<option value="${a.code} - ${a.name}">`).join('')}</datalist>
+          <div class="row" style="gap:6px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${c}">${c}</button>`).join('')}</div>
+          <label>Amount</label><input name="amount" type="number" step="0.01" value="${centsToMoney(t.amount_cents||0)}">
+          <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${p.project_id}" ${p.project_id===t.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
+          <label>Memo</label><input name="memo" value="${t.memo||''}">
+          <div class="row" style="gap:8px">
+            <button type="submit" class="primary">Save</button>
+            <button type="button" id="cancel-txn">Cancel</button>
+          </div>
+        </form>
+      `;
+    };
+
+    const recentSelections = (key) => {
+      const arr = JSON.parse(localStorage.getItem('ck5_recent_'+key) || '[]');
+      return arr.slice(-3).reverse();
+    };
+    const pushRecent = (key, val) => {
+      if (!val) return;
+      const arr = recentSelections(key);
+      if (!arr.includes(val)) arr.push(val);
+      localStorage.setItem('ck5_recent_'+key, JSON.stringify(arr.slice(-6)));
+    };
+
+    const editTxn = (t, isDraft=false) => {
+      const txn = isDraft ? t : { ...t };
+      openPanel('Transaction', txnForm(txn));
+      const form = $('#txn-form');
+      form.querySelectorAll('[data-cat]').forEach(btn => btn.onclick = () => form.category.value = btn.dataset.cat);
+      const persistDraft = () => {
+        const data = new FormData(form);
+        const draft = {
+          transaction_id: txn.transaction_id || uuid(),
+          date: data.get('date') || today(),
+          type: data.get('type'),
+          category: data.get('category'),
+          amount_cents: moneyToCents(data.get('amount')),
+          project_id: data.get('project_id') || null,
+          memo: data.get('memo') || ''
+        };
+        localStorage.setItem(STORAGE.draftTxn(activeId), JSON.stringify(draft));
+      };
+      form.addEventListener('input', persistDraft);
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const saved = {
+          transaction_id: txn.transaction_id || uuid(),
+          date: data.get('date') || today(),
+          type: data.get('type'),
+          category: data.get('category'),
+          amount_cents: moneyToCents(data.get('amount')),
+          project_id: data.get('project_id') || null,
+          memo: data.get('memo') || '',
+          created_at: txn.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        pushRecent('category', saved.category);
+        if (!file.transactions.find(x=>x.transaction_id===saved.transaction_id)) file.transactions.push(saved);
+        else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
+        postTransaction(saved);
+        localStorage.removeItem(STORAGE.draftTxn(activeId));
+        saveFile(); renderTransactions();
+        closePanel();
+      };
+      $('#cancel-txn').onclick = () => {
+        localStorage.setItem(STORAGE.draftTxn(activeId), JSON.stringify(txn));
+        closePanel();
+      };
+    };
+
+    const delTxn = (t) => {
+      file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
+      saveFile(); renderTransactions();
+      showToast('Transaction deleted', () => { file.transactions.push(t); saveFile(); renderTransactions(); });
+    };
+
+    // ---------- Clients / Services ----------
+    const renderClients = () => {
+      const tbody = $('#client-rows'); tbody.innerHTML = '';
+      if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
+      file.parties.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.name}</td><td>${p.email||''}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.querySelector('[data-edit]').onclick = () => editClient(p);
+        tr.querySelector('[data-del]').onclick = () => {
+          file.parties = file.parties.filter(x=>x.party_id!==p.party_id); saveFile(); renderClients();
+        };
+        tbody.appendChild(tr);
+      });
+    };
+
+    const editClient = (p={}) => {
+      openPanel('Client', `
+        <form id="client-form" class="stack">
+          <label>Name</label><input name="name" value="${p.name||''}">
+          <label>Email</label><input name="email" value="${p.email||''}">
+          <label>Phone</label><input name="phone" value="${p.phone||''}">
+          <label>Address</label><textarea name="address">${p.address||''}</textarea>
+          <div class="row"><button type="submit" class="primary">Save</button><button type="button" id="cancel-client">Cancel</button></div>
+        </form>
+      `);
+      $('#client-form').onsubmit = (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const saved = {
+          party_id: p.party_id || uuid(),
+          name: data.get('name'),
+          email: data.get('email'),
+          phone: data.get('phone'),
+          address: data.get('address'),
+          created_at: p.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        if (!file.parties.find(x=>x.party_id===saved.party_id)) file.parties.push(saved);
+        else file.parties = file.parties.map(x=>x.party_id===saved.party_id?saved:x);
+        saveFile(); renderClients(); closePanel();
+      };
+      $('#cancel-client').onclick = closePanel;
+    };
+
+    const renderProjects = () => {
+      const tbody = $('#project-rows'); if (!tbody) return;
+      tbody.innerHTML = '';
+      if (!file.projects.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
+      file.projects.forEach(pr => {
+        const party = file.parties.find(p=>p.party_id===pr.party_id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${pr.name}</td><td>${party?.name||'—'}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.querySelector('[data-edit]').onclick = () => editProject(pr);
+        tr.querySelector('[data-del]').onclick = () => { file.projects = file.projects.filter(x=>x.project_id!==pr.project_id); saveFile(); renderProjects(); };
+        tbody.appendChild(tr);
+      });
+    };
+
+    const editProject = (pr={}) => {
+      const partyOptions = file.parties.map(p=>`<option value="${p.party_id}" ${p.party_id===pr.party_id?'selected':''}>${p.name}</option>`).join('');
+      openPanel('Project', `
+        <form id="project-form" class="stack">
+          <label>Name</label><input name="name" value="${pr.name||''}">
+          <label>Client</label><select name="party_id"><option value="">None</option>${partyOptions}</select>
+          <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-project">Cancel</button></div>
+        </form>
+      `);
+      $('#project-form').onsubmit = (e)=> {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const saved = {
+          project_id: pr.project_id || uuid(),
+          name: data.get('name'),
+          party_id: data.get('party_id') || null,
+          created_at: pr.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        if (!file.projects.find(x=>x.project_id===saved.project_id)) file.projects.push(saved);
+        else file.projects = file.projects.map(x=>x.project_id===saved.project_id?saved:x);
+        saveFile(); renderProjects(); closePanel();
+      };
+      $('#cancel-project').onclick = closePanel;
+    };
+
+    const renderServices = () => {
+      const tbody = $('#service-rows'); tbody.innerHTML = '';
+      if (!file.services.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
+      file.services.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${s.name}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.querySelector('[data-edit]').onclick = () => editService(s);
+        tr.querySelector('[data-del]').onclick = () => {
+          file.services = file.services.filter(x=>x.service_id!==s.service_id); saveFile(); renderServices();
+        };
+        tbody.appendChild(tr);
+      });
+    };
+
+    const editService = (s={}) => {
+      openPanel('Service', `
+        <form id="service-form" class="stack">
+          <label>Name</label><input name="name" value="${s.name||''}">
+          <label>Default rate</label><input name="rate" type="number" step="0.01" value="${centsToMoney(s.default_rate_cents||0)}">
+          <label>Description</label><textarea name="desc">${s.default_description||''}</textarea>
+          <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-service">Cancel</button></div>
+        </form>
+      `);
+      $('#service-form').onsubmit = (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const saved = {
+          service_id: s.service_id || uuid(),
+          name: data.get('name'),
+          default_rate_cents: moneyToCents(data.get('rate')),
+          default_description: data.get('desc'),
+          created_at: s.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        if (!file.services.find(x=>x.service_id===saved.service_id)) file.services.push(saved);
+        else file.services = file.services.map(x=>x.service_id===saved.service_id?saved:x);
+        saveFile(); renderServices(); closePanel();
+      };
+      $('#cancel-service').onclick = closePanel;
+    };
+
+    // ---------- Reports ----------
+    const postedLines = () => {
+      const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
+      return file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
+    };
+
+    const runPL = () => {
+      const start = $('#pl-start').value || '1900-01-01';
+      const end = $('#pl-end').value || '2999-12-31';
+      const lines = postedLines().filter(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        return entry && entry.entry_date >= start && entry.entry_date <= end;
+      });
+      let income=0, expense=0;
+      lines.forEach(l=>{
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct) return;
+        if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
+        if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
+      });
+      $('#pl-output').innerHTML = `
+        <div class="row" style="justify-content:space-between"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
+        <hr>
+        <div class="row" style="justify-content:space-between"><span>Net</span><strong>${fmt(income-expense,file.business.base_currency)}</strong></div>
+      `;
+    };
+
+    const summaryByAccount = (type) => {
+      const map = {};
+      postedLines().forEach(l=>{
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct || acct.type!==type) return;
+        const delta = (l.debit_cents||0)-(l.credit_cents||0);
+        map[acct.name] = (map[acct.name]||0) + delta;
+      });
+      return map;
+    };
+
+    const renderSummary = (map, target) => {
+      const entries = Object.entries(map);
+      if (!entries.length) { target.innerHTML = '<div class="empty">No data</div>'; return; }
+      target.innerHTML = entries.map(([k,v])=>`<div class="row" style="justify-content:space-between"><span>${k}</span><strong>${fmt(v,file.business.base_currency)}</strong></div>`).join('');
+    };
+
+    const clientRevenue = () => {
+      const result = {};
+      file.payment_applications.forEach(pa=>{
+        const inv = file.invoices.find(i=>i.invoice_id===pa.invoice_id);
+        if (!inv) return;
+        const party = file.parties.find(p=>p.party_id===inv.party_id);
+        const name = party?.name || 'Unknown';
+        result[name] = (result[name]||0) + pa.amount_cents;
+      });
+      return result;
+    };
+
+    const projectProfit = () => {
+      const map = {};
+      postedLines().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry?.project_id) return;
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct) return;
+        const proj = file.projects.find(p=>p.project_id===entry.project_id);
+        const name = proj?.name || 'Unassigned';
+        if (!map[name]) map[name]=0;
+        if (acct.type==='income') map[name] += (l.credit_cents||0)-(l.debit_cents||0);
+        if (acct.type==='expense') map[name] -= (l.debit_cents||0)-(l.credit_cents||0);
+      });
+      return map;
+    };
+
+    const taxSummary = () => {
+      // simple mapping: taxes payable account
+      const map = {};
+      postedLines().forEach(l=>{
+        if (l.account_code === '2200') {
+          const delta = (l.credit_cents||0)-(l.debit_cents||0);
+          map['Taxes Payable'] = (map['Taxes Payable']||0) + delta;
+        }
+      });
+      return map;
+    };
+
+    // ---------- Settings ----------
+    const renderMigrationBlock = () => {
+      const block = $('#migration-block');
+      if (detectV4()) block.innerHTML = `<div class="stack"><div>V4 data detected.</div><button id="migrate-btn" class="primary">Migrate to V5</button></div>`;
+      else block.innerHTML = '<div class="muted">No V4 data found.</div>';
+      const btn = $('#migrate-btn'); if (btn) btn.onclick = runMigration;
+    };
+
+    const runIntegrity = () => {
+      const unbalanced = [];
+      const orphan = [];
+      file.ledger_entries.forEach(e=>{
+        const lines = file.ledger_lines.filter(l=>l.ledger_entry_id===e.ledger_entry_id);
+        const deb = lines.reduce((s,l)=>s+(l.debit_cents||0),0);
+        const cred = lines.reduce((s,l)=>s+(l.credit_cents||0),0);
+        if (deb!==cred) unbalanced.push(e.ledger_entry_id);
+        if (!lines.length) orphan.push(e.ledger_entry_id);
+      });
+      $('#integrity-output').innerHTML = `
+        <div>Unbalanced entries: ${unbalanced.length}</div>
+        <div>Orphaned entries: ${orphan.length}</div>
+        <div>Missing links: manual review</div>
+      `;
+    };
+
+    const handleImport = (fileObj) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (data.schema_version !== 5) throw new Error('Unsupported schema');
+          localStorage.setItem(STORAGE.v5Data(activeId), JSON.stringify(data));
+          loadActive();
+        } catch (e) { alert('Invalid file'); }
+      };
+      reader.readAsText(fileObj);
+    };
+
+    // ---------- Dashboard ----------
+    const renderDashboard = () => {
+      const kpi = $('#dashboard-kpis'); kpi.innerHTML = '';
+      const posted = postedLines();
+      const income = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
+        .reduce((s,l)=>s+(l.credit_cents||0)-(l.debit_cents||0),0);
+      const expense = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='expense')
+        .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
+      const net = income - expense;
+      const openInvoices = file.invoices.filter(i=>i.status!=='paid').length;
+      const cards = [
+        { label:'Income', value:fmt(income,file.business.base_currency) },
+        { label:'Expenses', value:fmt(expense,file.business.base_currency) },
+        { label:'Net', value:fmt(net,file.business.base_currency) },
+        { label:'Open Invoices', value:openInvoices }
+      ];
+      cards.forEach(c=>{
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.style.padding = '14px';
+        div.innerHTML = `<div class="muted">${c.label}</div><div style="font-size:1.4rem;font-weight:700">${c.value}</div>`;
+        kpi.appendChild(div);
+      });
+      const act = $('#dashboard-activity'); act.innerHTML = '';
+      const activity = [];
+      file.invoices.forEach(i=>activity.push({ date:i.issue_date, text:`Invoice #${i.number} ${i.status}`, amount:i.total_cents }));
+      file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
+      activity.sort((a,b)=>a.date>b.date?-1:1);
+      activity.slice(0,8).forEach(a=>{
+        const row = document.createElement('div');
+        row.className='row';
+        row.style.justifyContent='space-between';
+        row.innerHTML=`<span>${a.text}</span><span>${fmt(a.amount,file.business.base_currency)}</span>`;
+        act.appendChild(row);
+      });
+    };
+
+    // ---------- Event wiring ----------
+    const bindUI = () => {
+      $$('nav.tabs button').forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
+      $('#add-invoice').onclick = () => editInvoice({});
+      $('#quick-add-invoice').onclick = () => editInvoice({});
+      $('#add-transaction').onclick = () => editTxn({});
+      $('#quick-add-transaction').onclick = () => editTxn({});
+      $('#add-client').onclick = () => editClient({});
+      $('#add-project').onclick = () => editProject({});
+      $('#add-service').onclick = () => editService({});
+      $('#close-panel').onclick = closePanel;
+      $('#txn-filter').onchange = renderTransactions;
+      $('#run-pl').onclick = runPL;
+      $('#run-expense-summary').onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
+      $('#run-client-summary').onclick = () => renderSummary(clientRevenue(), $('#report-client'));
+      $('#run-project-summary').onclick = () => renderSummary(projectProfit(), $('#report-project'));
+      $('#run-tax-summary').onclick = () => renderSummary(taxSummary(), $('#report-tax'));
+      $('#theme-select').onchange = (e)=>{ file.settings.theme = e.target.value; saveFile(); applyTheme(); };
+      $('#motion-select').onchange = (e)=>{ file.settings.motion = e.target.value; saveFile(); applyTheme(); };
+      $('#logo-variant').onchange = (e)=>{ file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); };
+      $('#logo-light').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); });
+      $('#logo-dark').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); });
+      $('#export-json').onclick = () => download(JSON.stringify(file,null,2), `${file.business.name}-v5.json`);
+      $('#import-json-btn').onclick = () => $('#import-json').click();
+      $('#import-json').onchange = (e)=> handleImport(e.target.files[0]);
+      $('#integrity-check').onclick = runIntegrity;
+      $('#new-business').onclick = () => {
+        const name = prompt('Business name');
+        if (name) createBusiness(name);
+      };
+      $('#business-selector').onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
+      $('#open-settings').onclick = ()=> setTab('settings');
+    };
+
+    const readFileAsDataUrl = (file, cb) => {
+      if (!file) return;
+      const r = new FileReader();
+      r.onload = ()=>cb(r.result);
+      r.readAsDataURL(file);
+    };
+
+    const download = (data, filename) => {
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // ---------- Render all ----------
+    const renderAll = () => {
+      renderInvoices();
+      renderInvoiceDraft();
+      renderTransactions();
+      renderTxnDraft();
+      renderClients();
+      renderProjects();
+      renderServices();
+      renderDashboard();
+      $('#theme-select').value = file.settings.theme;
+      $('#motion-select').value = file.settings.motion;
+      $('#logo-variant').value = file.settings.logoVariant;
+      renderMigrationBlock();
+    };
+
+    // ---------- Init ----------
+    const initApp = () => {
+      bindUI();
+      loadList();
+      if (!businessList.length && detectV4()) {
+        renderMigrationBlock();
+        setTab('settings');
+      } else if (!businessList.length) {
+        createBusiness('My Business');
+      } else {
+        loadActive();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
