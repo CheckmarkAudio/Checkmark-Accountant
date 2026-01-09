@@ -190,17 +190,24 @@
       text-align: left;
     }
     #invoice-rows td {
-      padding: 10px 12px;
+      padding: 14px 16px;
       white-space: nowrap;
+      vertical-align: middle;
     }
     #invoice-rows td:nth-child(2) {
       white-space: normal;
-      max-width: 200px;
+      max-width: 220px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     #invoice-rows td:last-child {
       white-space: nowrap;
+    }
+    #invoice-rows tbody tr {
+      transition: background 150ms ease;
+    }
+    #invoice-rows tbody tr:hover {
+      background: var(--surface-soft);
     }
     #invoice-rows td.row {
       flex-wrap: nowrap;
@@ -270,6 +277,14 @@
       gap: 20px;
       padding-bottom: 20px;
       border-bottom: 2px solid var(--border);
+    }
+    .invoice-logo {
+      margin-bottom: 16px;
+    }
+    .invoice-logo img {
+      max-height: 60px;
+      max-width: 200px;
+      object-fit: contain;
     }
     .invoice-from h2 {
       font-size: 1.4em;
@@ -696,7 +711,7 @@
         </div>
       </section>
 
-      <section data-section="invoices" class="grid cols-2 hidden">
+      <section data-section="invoices" class="hidden">
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Invoices</h3>
@@ -709,10 +724,6 @@
             </table>
             <div class="empty hidden" id="invoice-empty">No invoices yet. Create your first invoice.</div>
           </div>
-        </div>
-        <div class="card">
-          <h3>Draft</h3>
-          <div id="invoice-draft"></div>
         </div>
       </section>
 
@@ -1681,6 +1692,15 @@
       const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
+      const settings = file.settings || {};
+      const isDark = document.documentElement.classList.contains('dark');
+      const logoVariant = settings.logoVariant || 'auto';
+      const lightLogo = settings.logoLightDataUrl;
+      const darkLogo = settings.logoDarkDataUrl;
+      let logoUrl = '';
+      if (logoVariant === 'light') logoUrl = lightLogo || darkLogo || '';
+      else if (logoVariant === 'dark') logoUrl = darkLogo || lightLogo || '';
+      else logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
@@ -1693,6 +1713,7 @@
           <div class="invoice-content">
             <div class="invoice-header-info">
               <div class="invoice-from">
+                ${logoUrl ? `<div class="invoice-logo"><img src="${logoUrl}" alt="${business.name || 'Logo'}" /></div>` : ''}
                 <h2>${business.name || 'Business'}</h2>
                 ${business.address ? `<div>${business.address}</div>` : ''}
                 ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
@@ -1777,6 +1798,12 @@
       const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
+      const settings = file.settings || {};
+      const logoVariant = settings.logoVariant || 'auto';
+      const lightLogo = settings.logoLightDataUrl;
+      const darkLogo = settings.logoDarkDataUrl;
+      // For print, prefer light logo, fallback to dark
+      const logoUrl = lightLogo || darkLogo || '';
       
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -1802,6 +1829,14 @@
               margin-bottom: 40px;
               padding-bottom: 20px;
               border-bottom: 2px solid #e3e5eb;
+            }
+            .invoice-logo {
+              margin-bottom: 16px;
+            }
+            .invoice-logo img {
+              max-height: 60px;
+              max-width: 200px;
+              object-fit: contain;
             }
             .invoice-from h2 {
               font-size: 1.5em;
@@ -1884,6 +1919,7 @@
           <div class="invoice-print">
             <div class="invoice-header-info">
               <div class="invoice-from">
+                ${logoUrl ? `<div class="invoice-logo"><img src="${logoUrl}" alt="${business.name || 'Logo'}" /></div>` : ''}
                 <h2>${business.name || 'Business'}</h2>
                 ${business.address ? `<div>${business.address}</div>` : ''}
                 ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
