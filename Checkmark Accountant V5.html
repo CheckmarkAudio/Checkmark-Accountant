@@ -189,6 +189,28 @@
       border-bottom: 1px solid var(--border);
       text-align: left;
     }
+    #invoice-rows td {
+      padding: 10px 12px;
+      white-space: nowrap;
+    }
+    #invoice-rows td:nth-child(2) {
+      white-space: normal;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #invoice-rows td:last-child {
+      white-space: nowrap;
+    }
+    #invoice-rows td.row {
+      flex-wrap: nowrap;
+      gap: 8px;
+    }
+    #invoice-rows td.row button {
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      white-space: nowrap;
+    }
     th { 
       color: var(--muted); 
       font-size: 0.8rem; 
