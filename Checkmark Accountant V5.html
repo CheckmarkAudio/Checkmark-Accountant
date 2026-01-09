@@ -640,7 +640,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      z-index: 55;
+      z-index: 65;
     }
     .calculator-minimized.hidden {
       display: none;
@@ -3418,35 +3418,31 @@
       // This handler ALWAYS checks for calculator clicks, regardless of element state
       document.addEventListener('click', function(e) {
         const target = e.target;
+        const calcMinimizedEl = $('#calculator-minimized');
         const isCalcRestoreBtn = target.id === 'calculator-restore';
         const isCalcMinimized = target.id === 'calculator-minimized';
-        const isInsideCalcMinimized = target.closest && target.closest('#calculator-minimized');
+        const isInsideCalcMinimized = calcMinimizedEl && calcMinimizedEl.contains(target);
         const isCalcRelated = isCalcRestoreBtn || isCalcMinimized || isInsideCalcMinimized;
         
         // #region agent log
-        if (isCalcRelated) {
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:entry',message:'Document click handler fired (capture) - CALC RELATED',data:{targetTag:target.tagName,targetId:target.id,targetClass:target.className,isCalcRestoreBtn,isCalcMinimized,isInsideCalcMinimized:!!isInsideCalcMinimized},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})}).catch(()=>{});
+        // Log ALL clicks in bottom-right area to see what's being clicked
+        const rect = calcMinimizedEl ? calcMinimizedEl.getBoundingClientRect() : null;
+        const clickX = e.clientX;
+        const clickY = e.clientY;
+        const isNearBottomRight = clickX > window.innerWidth - 200 && clickY > window.innerHeight - 200;
+        if (isNearBottomRight || isCalcRelated) {
+          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:entry',message:'Document click handler fired (capture)',data:{targetTag:target.tagName,targetId:target.id,targetClass:target.className,clickX,clickY,isNearBottomRight,isCalcRestoreBtn,isCalcMinimized,isInsideCalcMinimized,calcMinimizedExists:!!calcMinimizedEl,calcMinimizedHidden:calcMinimizedEl?calcMinimizedEl.classList.contains('hidden'):null,calcMinimizedRect:rect?{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'B'})}).catch(()=>{});
         }
         // #endregion
         
-        if (isCalcRelated) {
-          const calculatorMinimized = $('#calculator-minimized');
+        if (isCalcRelated && calcMinimizedEl && !calcMinimizedEl.classList.contains('hidden')) {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:after-find',message:'Element lookup result - CALC RELATED',data:{found:!!calculatorMinimized,hidden:calculatorMinimized?calculatorMinimized.classList.contains('hidden'):null,contains:calculatorMinimized?calculatorMinimized.contains(target):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:before-restore',message:'About to call restoreCalculator from delegation handler',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
           // #endregion
-          
-          if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden')) {
-            // Check if click is on the minimized calculator box or its button
-            if (calculatorMinimized.contains(target)) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/251e5d5a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calc-delegation-handler:before-restore',message:'About to call restoreCalculator from delegation handler',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
-              // #endregion
-              e.stopPropagation();
-              e.stopImmediatePropagation();
-              restoreCalculator();
-              return;
-            }
-          }
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          restoreCalculator();
+          return;
         }
       }, true); // Use capture phase to run before other handlers
       
