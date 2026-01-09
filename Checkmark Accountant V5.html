@@ -409,6 +409,9 @@
       overflow-x: hidden;
       min-height: 0;
     }
+    .calculator-window[style*="height"] .calculator-body {
+      min-height: 0;
+    }
     .calculator-display {
       background: var(--surface-soft);
       border: 1px solid var(--border);
@@ -2523,8 +2526,9 @@
       if (!isResizing) return;
       const deltaX = e.clientX - resizeStart.x;
       const deltaY = e.clientY - resizeStart.y;
-      const minWidth = 280;
-      const minHeight = 400;
+      // Minimum size: just header + display (approximately 200px width, 180px height)
+      const minWidth = 200;
+      const minHeight = 180;
       calculatorState.width = Math.max(minWidth, resizeStart.width + deltaX);
       calculatorState.height = Math.max(minHeight, resizeStart.height + deltaY);
       updateCalculatorSize();
@@ -2573,6 +2577,7 @@
 
     const minimizeCalculator = () => {
       calculatorState.minimized = true;
+      calculatorState.open = true; // Keep open=true so toggle knows it's minimized but not closed
       $('#calculator-window').classList.add('hidden');
       $('#calculator-minimized').classList.remove('hidden');
       saveCalculatorState();
@@ -2580,6 +2585,7 @@
 
     const restoreCalculator = () => {
       calculatorState.minimized = false;
+      calculatorState.open = true;
       $('#calculator-window').classList.remove('hidden');
       $('#calculator-minimized').classList.add('hidden');
       updateCalculatorPosition();
