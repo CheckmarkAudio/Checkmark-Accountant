@@ -106,8 +106,15 @@
     }
     @media (max-width: 768px) {
       .grid.cols-2 { grid-template-columns: 1fr; }
+      #analytics-content .card {
+        padding: 20px;
+      }
       #analytics-content .card canvas {
         max-height: 250px;
+      }
+      #analytics-content .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
       }
       nav.tabs {
         overflow-x: auto;
@@ -124,10 +131,46 @@
       main {
         padding: 16px;
       }
+      .card {
+        padding: 20px;
+      }
+      #analytics-content .row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #analytics-content .row > div {
+        width: 100%;
+      }
+      #analytics-content input[type="date"] {
+        width: 100%;
+        min-width: auto;
+      }
+    }
+    @media (max-width: 480px) {
+      #analytics-content .card canvas {
+        max-height: 200px;
+      }
+      .date-preset-btn {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+      }
     }
     canvas {
       max-width: 100%;
       height: auto !important;
+    }
+    #analytics-content .card {
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+    }
+    #analytics-content .card > div {
+      flex: 1;
+      min-height: 300px;
+      position: relative;
+    }
+    #analytics-content .card > div[style*="position: relative"] {
+      min-height: 300px;
     }
     input, select, textarea {
       width: 100%;
@@ -1569,8 +1612,18 @@
       $$('section[data-section]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.section !== tab));
       if (tab === 'analytics' && file) {
         setTimeout(() => {
-          setDatePreset('month');
-          renderAnalytics();
+          // Initialize date inputs if not already set
+          const startInput = $('#analytics-start');
+          const endInput = $('#analytics-end');
+          if (startInput && !startInput.value) {
+            setDatePreset('month', 'analytics');
+          } else if (startInput && endInput) {
+            // If dates are set, just render
+            renderAnalytics();
+          } else {
+            setDatePreset('month', 'analytics');
+            renderAnalytics();
+          }
         }, 100);
       }
     };
@@ -3239,87 +3292,111 @@
     };
 
     const renderIncomeExpenseChart = () => {
-      destroyChart('incomeExpense');
-      const lines = getFilteredLines();
-      const monthlyData = {};
-      
-      // Add income from ledger entries
-      lines.forEach(l => {
-        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-        if (!entry) return;
-        const month = entry.entry_date.substring(0, 7);
-        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+      try {
+        destroyChart('incomeExpense');
+        const lines = getFilteredLines();
+        const monthlyData = {};
         
-        const acct = file.accounts.find(a => a.code === l.account_code);
-        if (!acct) return;
+        // Add income from ledger entries
+        lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          
+          if (acct.type === 'income') {
+            monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          } else if (acct.type === 'expense') {
+            monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+
+        // Add income from invoices (even if not paid yet)
+        const invoiceIncome = getInvoiceIncome();
+        Object.keys(invoiceIncome).forEach(month => {
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          monthlyData[month].income += invoiceIncome[month];
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const chartEl = document.getElementById('income-expense-chart');
+        if (!chartEl) return;
         
-        if (acct.type === 'income') {
-          monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
-        } else if (acct.type === 'expense') {
-          monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+        // Restore canvas if it was replaced
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="income-expense-chart"></canvas>';
         }
-      });
-
-      // Add income from invoices (even if not paid yet)
-      const invoiceIncome = getInvoiceIncome();
-      Object.keys(invoiceIncome).forEach(month => {
-        if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
-        monthlyData[month].income += invoiceIncome[month];
-      });
-
-      const months = Object.keys(monthlyData).sort();
-      const chartEl = document.getElementById('income-expense-chart');
-      if (!chartEl) return;
-      if (!months.length) {
-        chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
-        return;
-      }
-      const colors = getChartColors();
-      const ctx = chartEl.getContext('2d');
-      
-      analyticsCharts['incomeExpense'] = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [{
-            label: 'Income',
-            data: months.map(m => monthlyData[m].income / 100),
-            borderColor: colors.income,
-            backgroundColor: colors.income + '20',
-            tension: 0.4,
-            fill: true
-          }, {
-            label: 'Expenses',
-            data: months.map(m => monthlyData[m].expense / 100),
-            borderColor: colors.expense,
-            backgroundColor: colors.expense + '20',
-            tension: 0.4,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: colors.text } },
-            tooltip: {
-              callbacks: {
-                label: (context) => fmt(context.parsed.y * 100, file.business.base_currency)
+        
+        if (!months.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        
+        analyticsCharts['incomeExpense'] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              borderColor: colors.income,
+              backgroundColor: colors.income + '20',
+              tension: 0.4,
+              fill: true
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              borderColor: colors.expense,
+              backgroundColor: colors.expense + '20',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: { 
+                labels: { color: colors.text },
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${fmt(context.parsed.y * 100, file.business.base_currency)}`
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { color: colors.text, maxRotation: 45, minRotation: 0 }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                }, 
+                grid: { color: colors.grid } 
               }
             }
-          },
-          scales: {
-            x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
-            y: { 
-              ticks: { 
-                color: colors.text,
-                callback: (value) => fmt(value * 100, file.business.base_currency)
-              }, 
-              grid: { color: colors.grid } 
-            }
           }
+        });
+      } catch (error) {
+        console.error('Error rendering income expense chart:', error);
+        const chartEl = document.getElementById('income-expense-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
-      });
+      }
     };
 
     const renderProfitLossChart = () => {
@@ -3668,13 +3745,24 @@
     };
 
     const renderAnalytics = () => {
-      if (!file) return;
-      renderIncomeExpenseChart();
-      renderProfitLossChart();
-      renderExpenseCategoryChart();
-      renderIncomeCategoryChart();
-      renderClientRevenueChart();
-      renderMonthlySummaryChart();
+      if (!file) {
+        console.warn('Cannot render analytics: no file loaded');
+        return;
+      }
+      try {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          renderIncomeExpenseChart();
+          renderProfitLossChart();
+          renderExpenseCategoryChart();
+          renderIncomeCategoryChart();
+          renderClientRevenueChart();
+          renderMonthlySummaryChart();
+        }, 50);
+      } catch (error) {
+        console.error('Error rendering analytics:', error);
+        showToast('Error loading analytics. Please try again.');
+      }
     };
 
     // ---------- Print-friendly builders ----------
@@ -3806,10 +3894,12 @@
       if (imgSrc) {
         const img = document.createElement('img');
         img.src = imgSrc;
-        img.style.width = '100%';
-        img.style.height = 'auto';
-        img.style.maxHeight = '200px';
+        img.style.width = '260px';
+        img.style.height = '260px';
+        img.style.maxWidth = '100%';
+        img.style.objectFit = 'contain';
         img.style.display = 'block';
+        img.style.margin = '0 auto';
         container.appendChild(img);
         const legend = chartLegend(canvasId);
         if (legend) container.appendChild(legend);
@@ -3828,9 +3918,8 @@
       wrap.style.flexWrap = 'wrap';
       wrap.style.gap = '8px 12px';
       wrap.style.marginTop = '8px';
-      chart.data.datasets.forEach(ds => {
-        const color = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[0] : ds.backgroundColor || '#1d4ed8';
-        const val = Array.isArray(ds.data) ? ds.data.reduce((s,n)=>s+(Number(n)||0),0) : (Number(ds.data)||0);
+      const currency = file?.business?.base_currency || 'USD';
+      const addItem = (label, color, val) => {
         const item = document.createElement('div');
         item.style.display = 'flex';
         item.style.alignItems = 'center';
@@ -3839,15 +3928,29 @@
         swatch.style.width = '10px';
         swatch.style.height = '10px';
         swatch.style.borderRadius = '50%';
-        swatch.style.background = color;
+        swatch.style.background = color || '#1d4ed8';
         swatch.style.border = '1px solid #ccc';
         const text = document.createElement('span');
-        text.textContent = `${ds.label || 'Series'}${val ? `: ${fmt(val*100, file?.business?.base_currency || 'USD')}` : ''}`;
+        text.textContent = `${label}${val !== undefined ? `: ${fmt((Number(val)||0)*100, currency)}` : ''}`;
         text.style.fontSize = '12px';
         text.style.color = '#111';
         item.appendChild(swatch);
         item.appendChild(text);
         wrap.appendChild(item);
+      };
+
+      chart.data.datasets.forEach(ds => {
+        const colors = Array.isArray(ds.backgroundColor) ? ds.backgroundColor : [ds.backgroundColor || '#1d4ed8'];
+        const dataArray = Array.isArray(ds.data) ? ds.data : [ds.data];
+        const labels = Array.isArray(chart.data.labels) ? chart.data.labels : [];
+        if (chart.config?.type === 'doughnut' || chart.config?.type === 'pie') {
+          dataArray.forEach((val, idx) => {
+            addItem(labels[idx] || ds.label || 'Series', colors[idx % colors.length], val);
+          });
+        } else {
+          const total = dataArray.reduce((s,n)=>s+(Number(n)||0),0);
+          addItem(ds.label || 'Series', colors[0], total);
+        }
       });
       return wrap.childNodes.length ? wrap : null;
     };
@@ -3956,62 +4059,204 @@
       return wrapper;
     };
 
-    const addSinglePageImageToPdf = (pdf, imgData, canvas) => {
+    const addImageToPdf = (pdf, imgData, canvas, margin = 10) => {
       const pageWidth = 210;
-      const pageHeight = 295;
-      const imgWidth = pageWidth;
+      const pageHeight = 297;
+      const imgWidth = pageWidth - (margin * 2);
       const rawHeight = (canvas.height * imgWidth) / canvas.width;
-      const scaleFactor = rawHeight > pageHeight ? pageHeight / rawHeight : 1;
-      const finalHeight = rawHeight * scaleFactor;
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight);
+      const pageHeightUsable = pageHeight - (margin * 2);
+      
+      let remainingHeight = rawHeight;
+      let yPos = margin;
+      let imgY = 0;
+      
+      while (remainingHeight > 0) {
+        if (yPos + pageHeightUsable > pageHeight) {
+          pdf.addPage();
+          yPos = margin;
+        }
+        
+        const heightToAdd = Math.min(remainingHeight, pageHeightUsable - (yPos - margin));
+        const sourceHeight = (heightToAdd * canvas.height) / rawHeight;
+        
+        pdf.addImage(
+          imgData, 
+          'PNG', 
+          margin, 
+          yPos, 
+          imgWidth, 
+          heightToAdd,
+          undefined,
+          'FAST',
+          0,
+          imgY,
+          canvas.width,
+          sourceHeight
+        );
+        
+        yPos += heightToAdd;
+        imgY += sourceHeight;
+        remainingHeight -= heightToAdd;
+      }
     };
 
     const exportAnalyticsPDF = async () => {
+      if (!window.jspdf || !window.html2canvas) {
+        alert('PDF export libraries not loaded. Please refresh the page.');
+        return;
+      }
+      
       const { jsPDF } = window.jspdf;
       const printable = buildPrintAnalytics();
-      if (!printable) return;
+      if (!printable) {
+        alert('No data to export');
+        return;
+      }
+      
+      // Show loading indicator
+      const loadingToast = showToast('Generating PDF...', null);
+      
       printable.style.position = 'absolute';
       printable.style.left = '-9999px';
+      printable.style.width = '210mm';
+      printable.style.padding = '20px';
       document.body.appendChild(printable);
+      
       try {
         const canvas = await html2canvas(printable, {
           scale: 2,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          width: printable.scrollWidth,
+          height: printable.scrollHeight,
+          windowWidth: printable.scrollWidth,
+          windowHeight: printable.scrollHeight
         });
         document.body.removeChild(printable);
-        const imgData = canvas.toDataURL('image/png');
+        
+        const imgData = canvas.toDataURL('image/png', 0.95);
         const pdf = new jsPDF('p', 'mm', 'a4');
-        addSinglePageImageToPdf(pdf, imgData, canvas);
-        pdf.save('Analytics_Report.pdf');
+        
+        // Add business name if available
+        if (file && file.business && file.business.name) {
+          pdf.setFontSize(16);
+          pdf.text(file.business.name, 10, 15);
+          pdf.setFontSize(10);
+          pdf.text('Analytics Report', 10, 22);
+          const { start, end } = getDateRange();
+          pdf.text(`Date Range: ${start} to ${end}`, 10, 28);
+          pdf.setDrawColor(200, 200, 200);
+          pdf.line(10, 32, 200, 32);
+        }
+        
+        addImageToPdf(pdf, imgData, canvas, file && file.business && file.business.name ? 35 : 10);
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        pdf.save(`Analytics_Report_${dateStr}.pdf`);
+        showToast('PDF exported successfully!');
       } catch (error) {
+        console.error('PDF export error:', error);
         document.body.removeChild(printable);
-        alert('Error generating PDF: ' + error.message);
+        alert('Error generating PDF: ' + (error.message || 'Unknown error'));
       }
     };
 
     const printAnalytics = () => {
       const printable = buildPrintAnalytics();
-      if (!printable) return;
+      if (!printable) {
+        alert('No data to print');
+        return;
+      }
+      
+      // Enhance printable for better printing
+      printable.style.width = '210mm';
+      printable.style.margin = '0 auto';
+      printable.style.padding = '20mm';
+      
       const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert('Please allow popups to print');
+        return;
+      }
+      
+      const { start, end } = getDateRange();
+      const businessName = file && file.business && file.business.name ? file.business.name : 'Analytics Report';
+      
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Analytics Report</title>
+          <title>Analytics Report - ${businessName}</title>
+          <meta charset="utf-8">
           <style>
-            @page { size: A4 portrait; margin: 12mm; }
-            body { font-family: system-ui, sans-serif; padding: 0; background: #ffffff; color: #111; }
-            img { max-width: 100%; }
-            table { border-collapse: collapse; }
+            @page { 
+              size: A4 portrait; 
+              margin: 12mm; 
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body { 
+              font-family: system-ui, -apple-system, "Segoe UI", sans-serif; 
+              padding: 0; 
+              margin: 0;
+              background: #ffffff; 
+              color: #111; 
+              line-height: 1.6;
+            }
+            img { 
+              max-width: 100%; 
+              height: auto;
+              display: block;
+              margin: 0 auto;
+            }
+            table { 
+              border-collapse: collapse; 
+              width: 100%;
+              margin: 10px 0;
+            }
+            table td, table th {
+              padding: 8px;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            h1, h2 {
+              margin: 16px 0 8px 0;
+            }
+            section {
+              page-break-inside: avoid;
+              margin-bottom: 20px;
+            }
+            @media print {
+              body { 
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+              section {
+                page-break-inside: avoid;
+              }
+            }
           </style>
         </head>
-        <body>${printable.outerHTML}</body>
+        <body>
+          <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+            <h1 style="margin: 0; font-size: 24px;">${businessName}</h1>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Analytics Report</p>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Date Range: ${start} to ${end}</p>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 11px;">Generated: ${new Date().toLocaleString()}</p>
+          </div>
+          ${printable.outerHTML}
+        </body>
         </html>
       `);
       printWindow.document.close();
-      printWindow.onload = () => printWindow.print();
+      
+      // Wait for images to load before printing
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      };
     };
 
     const exportReportsPDF = async () => {
@@ -4156,8 +4401,22 @@
         const refreshAnalytics = $('#refresh-analytics'); if (refreshAnalytics) refreshAnalytics.onclick = renderAnalytics;
         const exportAnalyticsPDFBtn = $('#export-analytics-pdf'); if (exportAnalyticsPDFBtn) exportAnalyticsPDFBtn.onclick = exportAnalyticsPDF;
         const printAnalyticsBtn = $('#print-analytics'); if (printAnalyticsBtn) printAnalyticsBtn.onclick = printAnalytics;
-        const analyticsStart = $('#analytics-start'); if (analyticsStart) analyticsStart.onchange = () => { $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); };
-        const analyticsEnd = $('#analytics-end'); if (analyticsEnd) analyticsEnd.onchange = () => { $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); };
+        const analyticsStart = $('#analytics-start'); 
+        if (analyticsStart) {
+          analyticsStart.onchange = () => { 
+            $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); 
+            // Auto-refresh analytics when date changes
+            if (file) renderAnalytics();
+          };
+        }
+        const analyticsEnd = $('#analytics-end'); 
+        if (analyticsEnd) {
+          analyticsEnd.onchange = () => { 
+            $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); 
+            // Auto-refresh analytics when date changes
+            if (file) renderAnalytics();
+          };
+        }
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
         const motionSelect = $('#motion-select'); if (motionSelect) motionSelect.onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
