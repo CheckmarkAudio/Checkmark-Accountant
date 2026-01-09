@@ -935,7 +935,11 @@
             <button id="refresh-reports" class="primary">Refresh</button>
           </div>
         </div>
-        <div class="grid cols-2">
+        <div class="row" style="justify-content: flex-end; margin-bottom: 20px; gap: 12px;">
+          <button id="export-reports-pdf" class="primary">Export PDF</button>
+          <button id="print-reports">Print</button>
+        </div>
+        <div id="reports-content" class="grid cols-2">
           <div class="card">
             <h3>Profit & Loss</h3>
             <div id="pl-output" class="stack space"></div>
@@ -2820,10 +2824,9 @@
       });
       
       $('#pl-output').innerHTML = `
-        <div class="row" style="justify-content:space-between"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
-        <div class="row" style="justify-content:space-between"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
-        <hr>
-        <div class="row" style="justify-content:space-between"><span>Net</span><strong>${fmt(income-expense,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between; padding: 12px 0; margin-top: 8px; font-weight: 600; font-size: 1.1rem"><span>Net</span><strong style="color: var(--accent)">${fmt(income-expense,file.business.base_currency)}</strong></div>
       `;
     };
 
@@ -3739,6 +3742,77 @@
       printWindow.onload = () => printWindow.print();
     };
 
+    const exportReportsPDF = async () => {
+      const { jsPDF } = window.jspdf;
+      const content = document.getElementById('reports-content');
+      const { start, end } = getReportsDateRange();
+      
+      try {
+        const canvas = await html2canvas(content, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: isDarkMode() ? '#111624' : '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        const dateRange = start === '1900-01-01' && end === '2999-12-31' 
+          ? 'All Time' 
+          : `${start} to ${end}`;
+        pdf.save(`Reports_${dateRange.replace(/\s/g, '_')}.pdf`);
+      } catch (error) {
+        alert('Error generating PDF: ' + error.message);
+      }
+    };
+
+    const printReports = () => {
+      const content = document.getElementById('reports-content').cloneNode(true);
+      const printWindow = window.open('', '_blank');
+      const { start, end } = getReportsDateRange();
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Reports</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 20px; }
+            .card { margin-bottom: 20px; page-break-inside: avoid; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+            h3 { margin-top: 0; color: #333; }
+            .row { display: flex; justify-content: space-between; padding: 8px 0; }
+            button { display: none; }
+            .stack { display: flex; flex-direction: column; gap: 12px; }
+            strong { font-weight: 600; }
+            .empty { color: #999; font-style: italic; }
+          </style>
+        </head>
+        <body>
+          <h1>Financial Reports</h1>
+          <p><strong>Date Range:</strong> ${start} to ${end}</p>
+          ${content.innerHTML}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.onload = () => printWindow.print();
+    };
+
     // ---------- Dashboard ----------
     const renderDashboard = () => {
       if (!file) return;
@@ -3820,6 +3894,8 @@
         const refreshReportsBtn = $('#refresh-reports'); if (refreshReportsBtn) refreshReportsBtn.onclick = refreshReports;
         const reportsStart = $('#reports-start'); if (reportsStart) reportsStart.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
         const reportsEnd = $('#reports-end'); if (reportsEnd) reportsEnd.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
+        const exportReportsPDFBtn = $('#export-reports-pdf'); if (exportReportsPDFBtn) exportReportsPDFBtn.onclick = exportReportsPDF;
+        const printReportsBtn = $('#print-reports'); if (printReportsBtn) printReportsBtn.onclick = printReports;
         // Analytics event handlers
         $$('.date-preset-btn[data-for="analytics"]').forEach(btn => {
           btn.onclick = () => {
