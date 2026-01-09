@@ -3677,48 +3677,80 @@
       renderMonthlySummaryChart();
     };
 
+    const buildPrintableSection = (sectionId, title, dateRangeLabel) => {
+      const original = document.getElementById(sectionId);
+      if (!original) return null;
+      const clone = original.cloneNode(true);
+      clone.style.display = 'grid';
+      clone.style.gridTemplateColumns = '1fr';
+      clone.style.gap = '16px';
+      clone.querySelectorAll('.card').forEach(card => {
+        card.style.margin = '0';
+        card.style.padding = '16px';
+        card.style.boxShadow = 'none';
+        card.style.border = '1px solid #e5e7eb';
+        card.style.pageBreakInside = 'avoid';
+      });
+      clone.querySelectorAll('canvas').forEach(cv => {
+        cv.style.height = '200px';
+        cv.style.maxWidth = '100%';
+      });
+      const wrapper = document.createElement('div');
+      wrapper.style.padding = '12px';
+      wrapper.style.maxWidth = '900px';
+      wrapper.style.margin = '0 auto';
+      wrapper.innerHTML = `
+        <h1 style="margin:0 0 8px;font-family:system-ui,sans-serif;font-size:1.5rem">${title}</h1>
+        <p style="margin:0 0 16px;color:#555;font-family:system-ui,sans-serif;">${dateRangeLabel}</p>
+      `;
+      wrapper.appendChild(clone);
+      return wrapper;
+    };
+
+    const addSinglePageImageToPdf = (pdf, imgData, canvas) => {
+      const pageWidth = 210;
+      const pageHeight = 295;
+      const imgWidth = pageWidth;
+      const rawHeight = (canvas.height * imgWidth) / canvas.width;
+      const scaleFactor = rawHeight > pageHeight ? pageHeight / rawHeight : 1;
+      const finalHeight = rawHeight * scaleFactor;
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight);
+    };
+
     const exportAnalyticsPDF = async () => {
       const { jsPDF } = window.jspdf;
-      const content = document.getElementById('analytics-content');
       const { start, end } = getDateRange();
+      const dateRangeLabel = `Date Range: ${start} to ${end}`;
+      const printable = buildPrintableSection('analytics-content', 'Analytics Report', dateRangeLabel);
+      if (!printable) return;
+      printable.style.position = 'absolute';
+      printable.style.left = '-9999px';
+      document.body.appendChild(printable);
       
       try {
-        const canvas = await html2canvas(content, {
+        const canvas = await html2canvas(printable, {
           scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: isDarkMode() ? '#111624' : '#ffffff'
         });
-
+        document.body.removeChild(printable);
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210;
-        const pageHeight = 295;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-
-        const dateRange = start === '1900-01-01' && end === '2999-12-31' 
-          ? 'All Time' 
-          : `${start} to ${end}`;
+        addSinglePageImageToPdf(pdf, imgData, canvas);
+        const dateRange = start === '1900-01-01' && end === '2999-12-31' ? 'All Time' : `${start} to ${end}`;
         pdf.save(`Analytics_${dateRange.replace(/\s/g, '_')}.pdf`);
       } catch (error) {
+        document.body.removeChild(printable);
         alert('Error generating PDF: ' + error.message);
       }
     };
 
     const printAnalytics = () => {
-      const content = document.getElementById('analytics-content').cloneNode(true);
+      const { start, end } = getDateRange();
+      const dateRangeLabel = `Date Range: ${start} to ${end}`;
+      const printable = buildPrintableSection('analytics-content', 'Analytics Report', dateRangeLabel);
+      if (!printable) return;
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
         <!DOCTYPE html>
@@ -3726,15 +3758,17 @@
         <head>
           <title>Analytics Report</title>
           <style>
-            body { font-family: system-ui, sans-serif; padding: 20px; }
-            .card { margin-bottom: 20px; page-break-inside: avoid; }
-            canvas { max-width: 100%; height: auto !important; }
+            @page { size: A4 portrait; margin: 12mm; }
+            body { font-family: system-ui, sans-serif; padding: 0; }
+            .card { margin-bottom: 16px; page-break-inside: avoid; border: 1px solid #e5e7eb; padding: 16px; border-radius: 10px; }
+            canvas { max-width: 100%; height: 200px !important; }
+            h1 { margin: 0 0 8px; }
+            p { margin: 0 0 16px; color: #555; }
+            .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
           </style>
         </head>
         <body>
-          <h1>Analytics Report</h1>
-          <p>Date Range: ${$('#analytics-start').value} to ${$('#analytics-end').value}</p>
-          ${content.innerHTML}
+          ${printable.outerHTML}
         </body>
         </html>
       `);
@@ -3744,68 +3778,63 @@
 
     const exportReportsPDF = async () => {
       const { jsPDF } = window.jspdf;
-      const content = document.getElementById('reports-content');
       const { start, end } = getReportsDateRange();
+      const dateRangeLabel = `Date Range: ${start} to ${end}`;
+      const printable = buildPrintableSection('reports-content', 'Financial Reports', dateRangeLabel);
+      if (!printable) return;
+      printable.style.position = 'absolute';
+      printable.style.left = '-9999px';
+      document.body.appendChild(printable);
       
       try {
-        const canvas = await html2canvas(content, {
+        const canvas = await html2canvas(printable, {
           scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: isDarkMode() ? '#111624' : '#ffffff'
         });
-
+        document.body.removeChild(printable);
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210;
-        const pageHeight = 295;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-
+        addSinglePageImageToPdf(pdf, imgData, canvas);
         const dateRange = start === '1900-01-01' && end === '2999-12-31' 
           ? 'All Time' 
           : `${start} to ${end}`;
         pdf.save(`Reports_${dateRange.replace(/\s/g, '_')}.pdf`);
       } catch (error) {
+        document.body.removeChild(printable);
         alert('Error generating PDF: ' + error.message);
       }
     };
 
     const printReports = () => {
-      const content = document.getElementById('reports-content').cloneNode(true);
-      const printWindow = window.open('', '_blank');
       const { start, end } = getReportsDateRange();
+      const dateRangeLabel = `Date Range: ${start} to ${end}`;
+      const printable = buildPrintableSection('reports-content', 'Financial Reports', dateRangeLabel);
+      if (!printable) return;
+      const printWindow = window.open('', '_blank');
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
           <title>Reports</title>
           <style>
-            body { font-family: system-ui, sans-serif; padding: 20px; }
-            .card { margin-bottom: 20px; page-break-inside: avoid; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
-            h3 { margin-top: 0; color: #333; }
+            @page { size: A4 portrait; margin: 12mm; }
+            body { font-family: system-ui, sans-serif; padding: 0; }
+            .card { margin-bottom: 16px; page-break-inside: avoid; border: 1px solid #e5e7eb; padding: 16px; border-radius: 10px; }
+            h1 { margin: 0 0 8px; }
+            h3 { margin: 0 0 12px; color: #333; }
+            p { margin: 0 0 16px; color: #555; }
             .row { display: flex; justify-content: space-between; padding: 8px 0; }
             button { display: none; }
             .stack { display: flex; flex-direction: column; gap: 12px; }
             strong { font-weight: 600; }
             .empty { color: #999; font-style: italic; }
+            .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
           </style>
         </head>
         <body>
-          <h1>Financial Reports</h1>
-          <p><strong>Date Range:</strong> ${start} to ${end}</p>
-          ${content.innerHTML}
+          ${printable.outerHTML}
         </body>
         </html>
       `);
