@@ -320,6 +320,191 @@
       background: var(--border);
       border-color: var(--accent);
     }
+    .calculator-window {
+      position: fixed;
+      width: 320px;
+      height: 400px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      z-index: 55;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      overflow: hidden;
+    }
+    .calculator-window.hidden {
+      display: none;
+    }
+    .calculator-header {
+      background: var(--surface-soft);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+      flex-shrink: 0;
+    }
+    .calculator-header span {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .calculator-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .calculator-btn-minimize,
+    .calculator-btn-close {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .calculator-btn-minimize:hover,
+    .calculator-btn-close:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+    .calculator-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      overflow: hidden;
+    }
+    .calculator-display {
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      text-align: right;
+    }
+    .calculator-display-secondary {
+      font-size: 0.875rem;
+      color: var(--muted);
+      min-height: 20px;
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+    .calculator-display-primary {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-all;
+      line-height: 1.2;
+    }
+    .calculator-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      flex: 1;
+    }
+    .calc-btn {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 100ms ease, background 150ms ease, box-shadow 150ms ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+    }
+    .calc-btn:hover {
+      background: var(--border);
+    }
+    .calc-btn:active {
+      transform: scale(0.95);
+    }
+    .calc-btn-number {
+      background: var(--surface);
+    }
+    .calc-btn-operator {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .calc-btn-operator:hover {
+      background: var(--accent);
+      opacity: 0.9;
+    }
+    .calc-btn-function {
+      background: var(--surface-soft);
+      color: var(--muted);
+    }
+    .calc-btn-equals {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .calc-btn-equals:hover {
+      background: var(--accent);
+      opacity: 0.9;
+    }
+    .calc-btn-zero {
+      grid-column: span 2;
+    }
+    .calculator-resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      background: linear-gradient(-45deg, transparent 30%, var(--border) 30%, var(--border) 35%, transparent 35%, transparent 65%, var(--border) 65%, var(--border) 70%, transparent 70%);
+    }
+    .calculator-resize-handle:hover {
+      background: linear-gradient(-45deg, transparent 30%, var(--accent) 30%, var(--accent) 35%, transparent 35%, transparent 65%, var(--accent) 65%, var(--accent) 70%, transparent 70%);
+    }
+    .calculator-minimized {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 55;
+    }
+    .calculator-minimized.hidden {
+      display: none;
+    }
+    .calculator-minimized button {
+      padding: 12px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(58,127,245,0.3);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+    .calculator-minimized button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(58,127,245,0.4);
+    }
+    .calculator-minimized button:active {
+      transform: translateY(0);
+    }
     @media (prefers-reduced-motion: reduce) {
       :root { --motion-scale: 0; }
       * { transition: none !important; animation: none !important; }
@@ -345,6 +530,7 @@
       <div class="row" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary">Quick Invoice</button>
         <button id="quick-add-transaction">Quick Txn</button>
+        <button id="open-calculator" class="ghost">Calculator</button>
         <button id="open-settings" class="ghost">Settings</button>
       </div>
     </header>
@@ -534,6 +720,48 @@
   </div>
 
   <div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo" class="ghost">Undo</button></div>
+
+  <div class="calculator-window hidden" id="calculator-window">
+    <div class="calculator-header" id="calculator-header">
+      <span>Calculator</span>
+      <div class="calculator-controls">
+        <button class="calculator-btn-minimize" id="calculator-minimize" title="Minimize">−</button>
+        <button class="calculator-btn-close" id="calculator-close" title="Close">×</button>
+      </div>
+    </div>
+    <div class="calculator-body" id="calculator-body">
+      <div class="calculator-display">
+        <div class="calculator-display-secondary" id="calculator-secondary"></div>
+        <div class="calculator-display-primary" id="calculator-primary">0</div>
+      </div>
+      <div class="calculator-buttons">
+        <button class="calc-btn calc-btn-function" data-action="clear">AC</button>
+        <button class="calc-btn calc-btn-function" data-action="clearEntry">C</button>
+        <button class="calc-btn calc-btn-operator" data-action="percent">%</button>
+        <button class="calc-btn calc-btn-operator" data-action="divide">÷</button>
+        <button class="calc-btn calc-btn-number" data-value="7">7</button>
+        <button class="calc-btn calc-btn-number" data-value="8">8</button>
+        <button class="calc-btn calc-btn-number" data-value="9">9</button>
+        <button class="calc-btn calc-btn-operator" data-action="multiply">×</button>
+        <button class="calc-btn calc-btn-number" data-value="4">4</button>
+        <button class="calc-btn calc-btn-number" data-value="5">5</button>
+        <button class="calc-btn calc-btn-number" data-value="6">6</button>
+        <button class="calc-btn calc-btn-operator" data-action="subtract">−</button>
+        <button class="calc-btn calc-btn-number" data-value="1">1</button>
+        <button class="calc-btn calc-btn-number" data-value="2">2</button>
+        <button class="calc-btn calc-btn-number" data-value="3">3</button>
+        <button class="calc-btn calc-btn-operator" data-action="add">+</button>
+        <button class="calc-btn calc-btn-number calc-btn-zero" data-value="0">0</button>
+        <button class="calc-btn calc-btn-number" data-action="decimal">.</button>
+        <button class="calc-btn calc-btn-operator calc-btn-equals" data-action="equals">=</button>
+      </div>
+    </div>
+    <div class="calculator-resize-handle" id="calculator-resize"></div>
+  </div>
+
+  <div class="calculator-minimized hidden" id="calculator-minimized">
+    <button id="calculator-restore" title="Restore Calculator">Calc</button>
+  </div>
 
   <script>
     // ---------- Utilities ----------
