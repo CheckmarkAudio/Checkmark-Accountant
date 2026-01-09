@@ -107,3 +107,43 @@
 {"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767990002162,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
 {"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767990002165,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
 {"location":"initApp:complete","message":"initApp completed successfully","data":{},"timestamp":1767990002172,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"script:load","message":"Script loaded, waiting for DOMContentLoaded","data":{"readyState":"loading"},"timestamp":1767990602807,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"DOMContentLoaded:fired","message":"DOMContentLoaded event fired","data":{},"timestamp":1767990602818,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"bindUI:entry","message":"bindUI called","data":{},"timestamp":1767990602821,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"initApp:entry","message":"initApp called - app initialization started","data":{},"timestamp":1767990602819,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"bindUI:tabs","message":"Tab buttons found","data":{"count":7},"timestamp":1767990602823,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"$:null","message":"querySelector returned null for: #export-all","data":{"selector":"#export-all"},"timestamp":1767990602840,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"bindUI:complete","message":"bindUI completed successfully","data":{},"timestamp":1767990602856,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"initApp:after-bindUI","message":"bindUI completed","data":{},"timestamp":1767990602856,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"loadList:entry","message":"loadList called","data":{},"timestamp":1767990602857,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"loadList:success","message":"Business list loaded","data":{"count":7,"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109"},"timestamp":1767990602858,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"initApp:after-loadList","message":"loadList completed","data":{"businessListLength":7,"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109"},"timestamp":1767990602859,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"loadActive:entry","message":"loadActive called","data":{"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109","businessListLength":7},"timestamp":1767990602861,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:before-renderAll","message":"About to call renderAll","data":{"fileExists":true},"timestamp":1767990602862,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"renderAll:entry","message":"renderAll called","data":{"fileExists":true},"timestamp":1767990602862,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"$:null","message":"querySelector returned null for: #invoice-draft","data":{"selector":"#invoice-draft"},"timestamp":1767990602864,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"renderAll:complete","message":"renderAll completed","data":{},"timestamp":1767990602868,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767990602869,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767990602870,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"initApp:complete","message":"initApp completed successfully","data":{},"timestamp":1767990602870,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"loadActive:before-renderAll","message":"About to call renderAll","data":{"fileExists":true},"timestamp":1767990612706,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:entry","message":"loadActive called","data":{"activeId":"c73f60cc-5fbb-41d1-a67d-86eb0195e8f6","businessListLength":7},"timestamp":1767990612704,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"renderAll:entry","message":"renderAll called","data":{"fileExists":true},"timestamp":1767990612708,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"$:null","message":"querySelector returned null for: #invoice-draft","data":{"selector":"#invoice-draft"},"timestamp":1767990612709,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"renderAll:complete","message":"renderAll completed","data":{},"timestamp":1767990612710,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767990612711,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767990612713,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:before-renderAll","message":"About to call renderAll","data":{"fileExists":true},"timestamp":1767990618093,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:entry","message":"loadActive called","data":{"activeId":"69b2b0c4-2488-4349-af55-8cf3386ae08f","businessListLength":6},"timestamp":1767990618091,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"renderAll:entry","message":"renderAll called","data":{"fileExists":true},"timestamp":1767990618094,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"$:null","message":"querySelector returned null for: #invoice-draft","data":{"selector":"#invoice-draft"},"timestamp":1767990618109,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"renderAll:complete","message":"renderAll completed","data":{},"timestamp":1767990618112,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767990618113,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767990618114,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:entry","message":"loadActive called","data":{"activeId":"59503bb8-04ee-49c3-9a83-548cc1380109","businessListLength":6},"timestamp":1767990646519,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:before-renderAll","message":"About to call renderAll","data":{"fileExists":true},"timestamp":1767990646535,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"renderAll:entry","message":"renderAll called","data":{"fileExists":true},"timestamp":1767990646542,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"$:null","message":"querySelector returned null for: #invoice-draft","data":{"selector":"#invoice-draft"},"timestamp":1767990646546,"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}
+{"location":"renderAll:complete","message":"renderAll completed","data":{},"timestamp":1767990646550,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"loadActive:complete","message":"loadActive completed","data":{},"timestamp":1767990646553,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
+{"location":"loadActive:after-renderAll","message":"renderAll completed","data":{},"timestamp":1767990646552,"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}
