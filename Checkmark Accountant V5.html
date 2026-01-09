@@ -383,7 +383,9 @@
       display: flex;
       flex-direction: column;
       padding: 16px;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 0;
     }
     .calculator-display {
       background: var(--surface-soft);
@@ -392,6 +394,8 @@
       padding: 16px;
       margin-bottom: 16px;
       min-height: 80px;
+      max-height: 100px;
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
@@ -416,7 +420,8 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      flex: 1;
+      flex: 0 0 auto;
+      padding-bottom: 4px;
     }
     .calc-btn {
       border: 1px solid var(--border);
@@ -1231,6 +1236,7 @@
     // ---------- Business selector ----------
     const renderBusinessSelector = () => {
       const sel = $('#business-selector');
+      if (!sel) return;
       sel.innerHTML = '';
       businessList.forEach(b => {
         const opt = document.createElement('option');
@@ -1243,7 +1249,8 @@
         opt.textContent = 'No business yet';
         sel.appendChild(opt);
       }
-      $('#business-name').textContent = activeId ? (businessList.find(b=>b.id===activeId)?.name || 'Business') : 'Checkmark Accountant V5';
+      const businessName = $('#business-name');
+      if (businessName) businessName.textContent = activeId ? (businessList.find(b=>b.id===activeId)?.name || 'Business') : 'Checkmark Accountant V5';
     };
 
     const createBusiness = (name) => {
@@ -2132,97 +2139,108 @@
       // #region agent log
       logDebug('bindUI:entry','bindUI called',{},'B');
       // #endregion
-      const tabButtons = $$('nav.tabs button');
-      // #region agent log
-      logDebug('bindUI:tabs','Tab buttons found',{count:tabButtons.length},'B');
-      // #endregion
-      tabButtons.forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
-      $('#add-invoice').onclick = () => editInvoice({});
-      $('#quick-add-invoice').onclick = () => editInvoice({});
-      $('#add-transaction').onclick = () => editTxn({});
-      $('#quick-add-transaction').onclick = () => editTxn({});
-      $('#open-calculator').onclick = toggleCalculator;
-      $('#add-client').onclick = () => editClient({});
-      $('#add-project').onclick = () => editProject({});
-      $('#add-service').onclick = () => editService({});
-      $('#close-panel').onclick = closePanel;
-      $('#txn-filter').onchange = renderTransactions;
-      $('#run-pl').onclick = runPL;
-      $('#run-expense-summary').onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
-      $('#run-client-summary').onclick = () => renderSummary(clientRevenue(), $('#report-client'));
-      $('#run-project-summary').onclick = () => renderSummary(projectProfit(), $('#report-project'));
-      $('#run-tax-summary').onclick = () => renderSummary(taxSummary(), $('#report-tax'));
-      $('#theme-select').onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); } };
-      $('#motion-select').onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
-      $('#logo-variant').onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
-      $('#logo-light').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
-      $('#logo-dark').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
-      $('#export-json').onclick = () => {
-        if (!file) {
-          showToast('No business data to export');
-          return;
-        }
-        const exportData = {
-          ...file,
-          export_metadata: {
+      try {
+        const tabButtons = $$('nav.tabs button');
+        // #region agent log
+        logDebug('bindUI:tabs','Tab buttons found',{count:tabButtons.length},'B');
+        // #endregion
+        tabButtons.forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
+        const addInvoice = $('#add-invoice'); if (addInvoice) addInvoice.onclick = () => editInvoice({});
+        const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => editInvoice({});
+        const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => editTxn({});
+        const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => editTxn({});
+        const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
+        const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
+        const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
+        const addService = $('#add-service'); if (addService) addService.onclick = () => editService({});
+        const closePanelBtn = $('#close-panel'); if (closePanelBtn) closePanelBtn.onclick = closePanel;
+        const txnFilter = $('#txn-filter'); if (txnFilter) txnFilter.onchange = renderTransactions;
+        const runPl = $('#run-pl'); if (runPl) runPl.onclick = runPL;
+        const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
+        const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
+        const runProjectSummary = $('#run-project-summary'); if (runProjectSummary) runProjectSummary.onclick = () => renderSummary(projectProfit(), $('#report-project'));
+        const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderSummary(taxSummary(), $('#report-tax'));
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); } };
+        const motionSelect = $('#motion-select'); if (motionSelect) motionSelect.onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
+        const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
+        const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
+        const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
+        const exportJson = $('#export-json'); if (exportJson) exportJson.onclick = () => {
+          if (!file) {
+            showToast('No business data to export');
+            return;
+          }
+          const exportData = {
+            ...file,
+            export_metadata: {
+              exported_at: nowIso(),
+              exported_by: 'Checkmark Accountant V5',
+              version: '5.0'
+            }
+          };
+          const filename = `${file.business.name.replace(/[^a-z0-9]/gi, '_')}-v5-${today()}.json`;
+          download(JSON.stringify(exportData, null, 2), filename);
+          showToast('Business data exported successfully');
+        };
+        const exportAll = $('#export-all'); if (exportAll) exportAll.onclick = () => {
+          if (!businessList.length) {
+            showToast('No businesses to export');
+            return;
+          }
+          const allData = {
+            schema_version: 5,
+            export_type: 'all_businesses',
             exported_at: nowIso(),
             exported_by: 'Checkmark Accountant V5',
-            version: '5.0'
+            version: '5.0',
+            businesses: businessList.map(b => ({
+              business_info: b,
+              data: loadFile(b.id)
+            })).filter(b => b.data !== null)
+          };
+          const filename = `all-businesses-v5-${today()}.json`;
+          download(JSON.stringify(allData, null, 2), filename);
+          showToast(`Exported ${allData.businesses.length} business(es)`);
+        };
+        const importJsonBtn = $('#import-json-btn'); if (importJsonBtn) importJsonBtn.onclick = () => {
+          if (!activeId && !businessList.length) {
+            showModal(`
+              <div class="stack">
+                <h3>No Active Business</h3>
+                <p>Please create or select a business before importing data.</p>
+                <div class="row" style="justify-content:flex-end">
+                  <button data-cancel class="primary">OK</button>
+                </div>
+              </div>
+            `, () => {});
+            return;
+          }
+          const importJson = $('#import-json'); if (importJson) importJson.click();
+        };
+        const importJson = $('#import-json'); if (importJson) importJson.onchange = (e) => {
+          if (e.target.files && e.target.files[0]) {
+            handleImport(e.target.files[0]);
+            // Reset input so same file can be imported again if needed
+            e.target.value = '';
           }
         };
-        const filename = `${file.business.name.replace(/[^a-z0-9]/gi, '_')}-v5-${today()}.json`;
-        download(JSON.stringify(exportData, null, 2), filename);
-        showToast('Business data exported successfully');
-      };
-      $('#export-all').onclick = () => {
-        if (!businessList.length) {
-          showToast('No businesses to export');
-          return;
-        }
-        const allData = {
-          schema_version: 5,
-          export_type: 'all_businesses',
-          exported_at: nowIso(),
-          exported_by: 'Checkmark Accountant V5',
-          version: '5.0',
-          businesses: businessList.map(b => ({
-            business_info: b,
-            data: loadFile(b.id)
-          })).filter(b => b.data !== null)
+        const integrityCheck = $('#integrity-check'); if (integrityCheck) integrityCheck.onclick = runIntegrity;
+        const newBusiness = $('#new-business'); if (newBusiness) newBusiness.onclick = () => {
+          const name = prompt('Business name');
+          if (name) createBusiness(name);
         };
-        const filename = `all-businesses-v5-${today()}.json`;
-        download(JSON.stringify(allData, null, 2), filename);
-        showToast(`Exported ${allData.businesses.length} business(es)`);
-      };
-      $('#import-json-btn').onclick = () => {
-        if (!activeId && !businessList.length) {
-          showModal(`
-            <div class="stack">
-              <h3>No Active Business</h3>
-              <p>Please create or select a business before importing data.</p>
-              <div class="row" style="justify-content:flex-end">
-                <button data-cancel class="primary">OK</button>
-              </div>
-            </div>
-          `, () => {});
-          return;
-        }
-        $('#import-json').click();
-      };
-      $('#import-json').onchange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-          handleImport(e.target.files[0]);
-          // Reset input so same file can be imported again if needed
-          e.target.value = '';
-        }
-      };
-      $('#integrity-check').onclick = runIntegrity;
-      $('#new-business').onclick = () => {
-        const name = prompt('Business name');
-        if (name) createBusiness(name);
-      };
-      $('#business-selector').onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
-      $('#open-settings').onclick = ()=> setTab('settings');
+        const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
+        const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
+        // #region agent log
+        logDebug('bindUI:complete','bindUI completed successfully',{},'B');
+        // #endregion
+      } catch(e) {
+        // #region agent log
+        logDebug('bindUI:error','Error in bindUI',{error:e.message,stack:e.stack},'B');
+        // #endregion
+        console.error('bindUI error:', e);
+        throw e;
+      }
     };
 
     const readFileAsDataUrl = (file, cb) => {
@@ -2407,9 +2425,11 @@
     };
 
     const initCalculator = () => {
+      updateCalculatorDisplay();
       const buttons = $$('.calc-btn');
       buttons.forEach(btn => {
-        btn.onclick = () => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
           const value = btn.dataset.value;
           const action = btn.dataset.action;
 
@@ -2482,7 +2502,7 @@
       const deltaX = e.clientX - resizeStart.x;
       const deltaY = e.clientY - resizeStart.y;
       const minWidth = 280;
-      const minHeight = 350;
+      const minHeight = 400;
       calculatorState.width = Math.max(minWidth, resizeStart.width + deltaX);
       calculatorState.height = Math.max(minHeight, resizeStart.height + deltaY);
       updateCalculatorSize();
@@ -2616,9 +2636,6 @@
         logDebug('initApp:after-bindUI','bindUI completed',{},'A');
         // #endregion
         initCalculatorWindow();
-        // #region agent log
-        logDebug('initApp:after-calc','initCalculatorWindow completed',{},'A');
-        // #endregion
         loadList();
         // #region agent log
         logDebug('initApp:after-loadList','loadList completed',{businessListLength:businessList.length,activeId},'A');
