@@ -802,8 +802,12 @@
           { account: cash, credit: amt }
         ]});
       } else if (txn.type === 'transfer') {
-        const toAcct = findAccountCode(txn.to_account_code) || cash;
-        const fromAcct = findAccountCode(txn.from_account_code) || cash;
+        // For transfers, use category field to parse account codes if provided
+        // Format: "from_code - to_code" or just use category as the target account
+        const category = txn.category || '';
+        const parts = category.split(' - ');
+        const toAcct = findAccountCode(parts[parts.length - 1]) || findAccountCode(category) || cash;
+        const fromAcct = findAccountCode(parts[0]) || cash;
         postEntry({ type:'transaction.transfer', date: txn.date, linked_transaction_id: txn.transaction_id, project_id: txn.project_id, lines:[
           { account: toAcct, debit: amt },
           { account: fromAcct, credit: amt }
@@ -824,7 +828,11 @@
 
     const findAccountCode = (codeOrName) => {
       if (!codeOrName) return null;
-      const acc = file.accounts.find(a => a.code === codeOrName || a.name === codeOrName);
+      // Handle "code - name" format from datalist
+      const parts = String(codeOrName).split(' - ');
+      const code = parts[0].trim();
+      const name = parts.length > 1 ? parts.slice(1).join(' - ').trim() : null;
+      const acc = file.accounts.find(a => a.code === code || a.code === codeOrName || a.name === codeOrName || (name && a.name === name));
       return acc ? acc.code : null;
     };
 
@@ -858,8 +866,8 @@
       $('#modal-overlay').classList.add('show');
       const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
       const cancelBtn = $('#modal-body').querySelector('[data-cancel]');
-      cancelBtn.onclick = closeModal;
-      confirmBtn.onclick = () => { onConfirm(); closeModal(); };
+      if (cancelBtn) cancelBtn.onclick = closeModal;
+      if (confirmBtn) confirmBtn.onclick = () => { onConfirm(); closeModal(); };
     };
     const closeModal = () => $('#modal-overlay').classList.remove('show');
 
@@ -928,7 +936,9 @@
     };
 
     const renderInvoiceDraft = () => {
+      if (!file) return;
       const container = $('#invoice-draft');
+      if (!container) return;
       const draft = JSON.parse(localStorage.getItem(STORAGE.draftInvoice(activeId)) || 'null');
       if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
       container.innerHTML = `
@@ -938,7 +948,8 @@
           <div><strong>Total:</strong> ${fmt(draft.total_cents||0,file.business.base_currency)}</div>
           <button id="resume-draft">Resume</button>
         </div>`;
-      $('#resume-draft').onclick = () => editInvoice(draft, true);
+      const resumeBtn = $('#resume-draft');
+      if (resumeBtn) resumeBtn.onclick = () => editInvoice(draft, true);
     };
 
     const invoiceForm = (inv={}) => {
@@ -1082,12 +1093,14 @@
     };
 
     const updateInvoiceTotal = (container) => {
+      if (!file) return;
       const total = Array.from(container.querySelectorAll('[data-line]')).reduce((s,div)=>{
         const qty = Number(div.querySelector('.line-qty').value)||0;
         const rate = Number(div.querySelector('.line-rate').value)||0;
         return s + moneyToCents(qty*rate);
       },0);
-      $('#inv-total').textContent = fmt(total,file.business.base_currency);
+      const totalEl = $('#inv-total');
+      if (totalEl) totalEl.textContent = fmt(total, file.business.base_currency);
     };
 
     const addLineFromService = (container, svc) => {
@@ -1196,12 +1209,15 @@
     };
 
     const renderTxnDraft = () => {
+      if (!file) return;
       const draft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
       const container = $('#txn-draft');
+      if (!container) return;
       if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
       container.innerHTML = `<div class="stack"><div><strong>${draft.type}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
       <div>${draft.memo||''}</div><button id="resume-txn">Resume</button></div>`;
-      $('#resume-txn').onclick = () => editTxn(draft,true);
+      const resumeBtn = $('#resume-txn');
+      if (resumeBtn) resumeBtn.onclick = () => editTxn(draft,true);
     };
 
     const txnForm = (t={}) => {
@@ -1243,7 +1259,10 @@
       const txn = isDraft ? t : { ...t };
       openPanel('Transaction', txnForm(txn));
       const form = $('#txn-form');
-      form.querySelectorAll('[data-cat]').forEach(btn => btn.onclick = () => form.category.value = btn.dataset.cat);
+      form.querySelectorAll('[data-cat]').forEach(btn => btn.onclick = () => {
+        const catInput = form.querySelector('[name="category"]');
+        if (catInput) catInput.value = btn.dataset.cat;
+      });
       const persistDraft = () => {
         const data = new FormData(form);
         const draft = {
@@ -1632,6 +1651,7 @@
 
     // ---------- Render all ----------
     const renderAll = () => {
+      if (!file) return;
       renderInvoices();
       renderInvoiceDraft();
       renderTransactions();
@@ -1640,9 +1660,12 @@
       renderProjects();
       renderServices();
       renderDashboard();
-      $('#theme-select').value = file.settings.theme;
-      $('#motion-select').value = file.settings.motion;
-      $('#logo-variant').value = file.settings.logoVariant;
+      const themeSelect = $('#theme-select');
+      const motionSelect = $('#motion-select');
+      const logoVariant = $('#logo-variant');
+      if (themeSelect) themeSelect.value = file.settings.theme;
+      if (motionSelect) motionSelect.value = file.settings.motion;
+      if (logoVariant) logoVariant.value = file.settings.logoVariant;
       renderMigrationBlock();
     };
 
