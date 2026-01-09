@@ -3807,14 +3807,49 @@
         const img = document.createElement('img');
         img.src = imgSrc;
         img.style.width = '100%';
-        img.style.maxHeight = '180px';
-        img.style.objectFit = 'contain';
+        img.style.height = 'auto';
+        img.style.maxHeight = '200px';
         img.style.display = 'block';
         container.appendChild(img);
+        const legend = chartLegend(canvasId);
+        if (legend) container.appendChild(legend);
       } else {
         container.appendChild(simpleNote('No data'));
       }
       return container;
+    };
+
+    const chartLegend = (canvasId) => {
+      if (!window.Chart || !Chart.getChart) return null;
+      const chart = Chart.getChart(canvasId);
+      if (!chart || !chart.data?.datasets?.length) return null;
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.flexWrap = 'wrap';
+      wrap.style.gap = '8px 12px';
+      wrap.style.marginTop = '8px';
+      chart.data.datasets.forEach(ds => {
+        const color = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[0] : ds.backgroundColor || '#1d4ed8';
+        const val = Array.isArray(ds.data) ? ds.data.reduce((s,n)=>s+(Number(n)||0),0) : (Number(ds.data)||0);
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.gap = '6px';
+        const swatch = document.createElement('span');
+        swatch.style.width = '10px';
+        swatch.style.height = '10px';
+        swatch.style.borderRadius = '50%';
+        swatch.style.background = color;
+        swatch.style.border = '1px solid #ccc';
+        const text = document.createElement('span');
+        text.textContent = `${ds.label || 'Series'}${val ? `: ${fmt(val*100, file?.business?.base_currency || 'USD')}` : ''}`;
+        text.style.fontSize = '12px';
+        text.style.color = '#111';
+        item.appendChild(swatch);
+        item.appendChild(text);
+        wrap.appendChild(item);
+      });
+      return wrap.childNodes.length ? wrap : null;
     };
 
     const postedLinesInRange = () => {
