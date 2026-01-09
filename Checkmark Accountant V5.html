@@ -856,12 +856,12 @@
           <h3 style="margin-bottom: 20px;">Date Range</h3>
           <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
             <div class="row" style="gap: 8px; flex-wrap: wrap;">
-              <button class="date-preset-btn" data-preset="today">Today</button>
-              <button class="date-preset-btn" data-preset="week">This Week</button>
-              <button class="date-preset-btn" data-preset="month">This Month</button>
-              <button class="date-preset-btn" data-preset="quarter">This Quarter</button>
-              <button class="date-preset-btn" data-preset="year">This Year</button>
-              <button class="date-preset-btn" data-preset="all">All Time</button>
+              <button class="date-preset-btn" data-preset="today" data-for="analytics">Today</button>
+              <button class="date-preset-btn" data-preset="week" data-for="analytics">This Week</button>
+              <button class="date-preset-btn" data-preset="month" data-for="analytics">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter" data-for="analytics">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year" data-for="analytics">This Year</button>
+              <button class="date-preset-btn" data-preset="all" data-for="analytics">All Time</button>
             </div>
             <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
               <input type="date" id="analytics-start" style="flex: 1; min-width: 140px;">
@@ -915,27 +915,43 @@
         </div>
       </section>
 
-      <section data-section="reports" class="grid cols-2 hidden">
-        <div class="card">
-          <h3>Profit & Loss</h3>
-          <div class="row">
-            <input type="date" id="pl-start">
-            <input type="date" id="pl-end">
-            <button id="run-pl">Run</button>
+      <section data-section="reports" class="hidden">
+        <div class="card" style="margin-bottom: 28px;">
+          <h3 style="margin-bottom: 20px;">Date Range</h3>
+          <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+            <div class="row" style="gap: 8px; flex-wrap: wrap;">
+              <button class="date-preset-btn" data-preset="today" data-for="reports">Today</button>
+              <button class="date-preset-btn" data-preset="week" data-for="reports">This Week</button>
+              <button class="date-preset-btn" data-preset="month" data-for="reports">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter" data-for="reports">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year" data-for="reports">This Year</button>
+              <button class="date-preset-btn" data-preset="all" data-for="reports">All Time</button>
+            </div>
+            <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
+              <input type="date" id="reports-start" style="flex: 1; min-width: 140px;">
+              <span style="color: var(--muted);">to</span>
+              <input type="date" id="reports-end" style="flex: 1; min-width: 140px;">
+            </div>
+            <button id="refresh-reports" class="primary">Refresh</button>
           </div>
-          <div id="pl-output" class="stack space"></div>
         </div>
-        <div class="card">
-          <h3>Other Reports</h3>
-          <div class="stack">
-            <button id="run-expense-summary">Expense by Category</button>
-            <div id="report-expense"></div>
-            <button id="run-client-summary">Client Revenue</button>
-            <div id="report-client"></div>
-            <button id="run-project-summary">Project Profitability</button>
-            <div id="report-project"></div>
-            <button id="run-tax-summary">Tax Summary</button>
-            <div id="report-tax"></div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>Profit & Loss</h3>
+            <div id="pl-output" class="stack space"></div>
+          </div>
+          <div class="card">
+            <h3>Other Reports</h3>
+            <div class="stack">
+              <button id="run-expense-summary">Expense by Category</button>
+              <div id="report-expense"></div>
+              <button id="run-client-summary">Client Revenue</button>
+              <div id="report-client"></div>
+              <button id="run-project-summary">Project Profitability</button>
+              <div id="report-project"></div>
+              <button id="run-tax-summary">Tax Summary</button>
+              <div id="report-tax"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -2784,8 +2800,7 @@
     };
 
     const runPL = () => {
-      const start = $('#pl-start').value || '1900-01-01';
-      const end = $('#pl-end').value || '2999-12-31';
+      const { start, end } = getReportsDateRange();
       const lines = postedLines().filter(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         return entry && entry.entry_date >= start && entry.entry_date <= end;
@@ -2797,6 +2812,13 @@
         if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
         if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
       });
+      
+      // Also include invoice income for the date range
+      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      invoices.forEach(inv => {
+        income += inv.total_cents || 0;
+      });
+      
       $('#pl-output').innerHTML = `
         <div class="row" style="justify-content:space-between"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
@@ -2823,13 +2845,14 @@
     };
 
     const clientRevenue = () => {
+      const { start, end } = getReportsDateRange();
       const result = {};
-      file.payment_applications.forEach(pa=>{
-        const inv = file.invoices.find(i=>i.invoice_id===pa.invoice_id);
-        if (!inv) return;
+      // Use invoices directly (by issue date) instead of just payments
+      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      invoices.forEach(inv => {
         const party = file.parties.find(p=>p.party_id===inv.party_id);
         const name = party?.name || 'Unknown';
-        result[name] = (result[name]||0) + pa.amount_cents;
+        result[name] = (result[name]||0) + (inv.total_cents || 0);
       });
       return result;
     };
@@ -2851,15 +2874,25 @@
     };
 
     const taxSummary = () => {
-      // simple mapping: taxes payable account
+      const { start, end } = getReportsDateRange();
       const map = {};
       postedLines().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry || entry.entry_date < start || entry.entry_date > end) return;
         if (l.account_code === '2200') {
           const delta = (l.credit_cents||0)-(l.debit_cents||0);
           map['Taxes Payable'] = (map['Taxes Payable']||0) + delta;
         }
       });
       return map;
+    };
+
+    const refreshReports = () => {
+      runPL();
+      renderSummary(summaryByAccount('expense'), $('#report-expense'));
+      renderSummary(clientRevenue(), $('#report-client'));
+      renderSummary(projectProfit(), $('#report-project'));
+      renderSummary(taxSummary(), $('#report-tax'));
     };
 
     // ---------- Settings ----------
@@ -3099,10 +3132,10 @@
       return { start, end };
     };
 
-    const setDatePreset = (preset) => {
+    const setDatePreset = (preset, section = 'analytics') => {
       const today = new Date();
-      const startInput = $('#analytics-start');
-      const endInput = $('#analytics-end');
+      const startInput = section === 'reports' ? $('#reports-start') : $('#analytics-start');
+      const endInput = section === 'reports' ? $('#reports-end') : $('#analytics-end');
       let start, end;
 
       switch(preset) {
@@ -3136,10 +3169,16 @@
           return;
       }
 
-      startInput.value = start;
-      endInput.value = end;
-      $$('.date-preset-btn').forEach(btn => btn.classList.remove('active'));
-      $(`.date-preset-btn[data-preset="${preset}"]`)?.classList.add('active');
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
+      $$(`.date-preset-btn[data-for="${section}"]`).forEach(btn => btn.classList.remove('active'));
+      $(`.date-preset-btn[data-preset="${preset}"][data-for="${section}"]`)?.classList.add('active');
+    };
+
+    const getReportsDateRange = () => {
+      const start = $('#reports-start')?.value || '1900-01-01';
+      const end = $('#reports-end')?.value || '2999-12-31';
+      return { start, end };
     };
 
     const getFilteredLines = () => {
@@ -3771,18 +3810,28 @@
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
         const runProjectSummary = $('#run-project-summary'); if (runProjectSummary) runProjectSummary.onclick = () => renderSummary(projectProfit(), $('#report-project'));
         const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderSummary(taxSummary(), $('#report-tax'));
-        // Analytics event handlers
-        $$('.date-preset-btn').forEach(btn => {
+        // Reports date preset handlers
+        $$('.date-preset-btn[data-for="reports"]').forEach(btn => {
           btn.onclick = () => {
-            setDatePreset(btn.dataset.preset);
+            setDatePreset(btn.dataset.preset, 'reports');
+            refreshReports();
+          };
+        });
+        const refreshReportsBtn = $('#refresh-reports'); if (refreshReportsBtn) refreshReportsBtn.onclick = refreshReports;
+        const reportsStart = $('#reports-start'); if (reportsStart) reportsStart.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
+        const reportsEnd = $('#reports-end'); if (reportsEnd) reportsEnd.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
+        // Analytics event handlers
+        $$('.date-preset-btn[data-for="analytics"]').forEach(btn => {
+          btn.onclick = () => {
+            setDatePreset(btn.dataset.preset, 'analytics');
             renderAnalytics();
           };
         });
         const refreshAnalytics = $('#refresh-analytics'); if (refreshAnalytics) refreshAnalytics.onclick = renderAnalytics;
         const exportAnalyticsPDFBtn = $('#export-analytics-pdf'); if (exportAnalyticsPDFBtn) exportAnalyticsPDFBtn.onclick = exportAnalyticsPDF;
         const printAnalyticsBtn = $('#print-analytics'); if (printAnalyticsBtn) printAnalyticsBtn.onclick = printAnalytics;
-        const analyticsStart = $('#analytics-start'); if (analyticsStart) analyticsStart.onchange = () => { $$('.date-preset-btn').forEach(b => b.classList.remove('active')); };
-        const analyticsEnd = $('#analytics-end'); if (analyticsEnd) analyticsEnd.onchange = () => { $$('.date-preset-btn').forEach(b => b.classList.remove('active')); };
+        const analyticsStart = $('#analytics-start'); if (analyticsStart) analyticsStart.onchange = () => { $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); };
+        const analyticsEnd = $('#analytics-end'); if (analyticsEnd) analyticsEnd.onchange = () => { $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); };
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
         const motionSelect = $('#motion-select'); if (motionSelect) motionSelect.onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
