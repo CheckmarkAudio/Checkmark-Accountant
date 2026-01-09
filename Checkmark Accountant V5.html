@@ -121,6 +121,21 @@
       padding: 20px 28px;
       box-shadow: var(--shadow-soft);
     }
+    header.topbar .custom-header-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.1;
+      z-index: 0;
+      pointer-events: none;
+    }
+    header.topbar > * {
+      position: relative;
+      z-index: 1;
+    }
     .logo-chip {
       display: inline-flex;
       align-items: center;
@@ -676,12 +691,14 @@
 <body>
   <div class="app">
     <header class="topbar">
+      <img id="custom-header-image" class="custom-header-image" alt="" style="display:none">
       <div class="logo-chip" id="logo-chip"><img id="logo-img" alt="Logo"></div>
       <div class="stack" style="gap:4px">
         <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
         <div class="row" style="gap:8px">
           <select id="business-selector"></select>
           <button id="new-business" class="ghost">+ New</button>
+          <button id="delete-business" class="ghost" style="color:var(--danger)" title="Delete current business">Delete</button>
           <span class="saved-flag" id="saved-flag">Saved</span>
         </div>
       </div>
@@ -844,6 +861,10 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+          <label>Custom Header Image (Optional)</label>
+          <input type="file" id="header-image" accept="image/*">
+          <div id="header-image-preview" style="margin-top:10px"></div>
+          <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
         <div class="card">
           <h3>Data</h3>
@@ -852,6 +873,10 @@
           <button id="import-json-btn">Import</button>
           <button id="integrity-check">Integrity Check</button>
           <div id="integrity-output" class="stack space"></div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
+            <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+          </div>
         </div>
         <div class="card">
           <h3>Migration</h3>
@@ -1008,6 +1033,7 @@
       logoVariant: 'auto',
       logoLightDataUrl: null,
       logoDarkDataUrl: null,
+      headerImageDataUrl: null,
       default_cash_account_code: '1010',
       default_income_account_code: '4000',
       default_uncategorized_expense_code: '6900',
@@ -1134,6 +1160,18 @@
         logoEl.textContent = 'CK';
       } else {
         logoEl.src = useLogo;
+      }
+      // Apply custom header image
+      const headerImage = file?.settings?.headerImageDataUrl;
+      const headerImgEl = $('#custom-header-image');
+      if (headerImgEl) {
+        if (headerImage) {
+          headerImgEl.src = headerImage;
+          headerImgEl.style.display = 'block';
+        } else {
+          headerImgEl.src = '';
+          headerImgEl.style.display = 'none';
+        }
       }
     };
 
@@ -1419,6 +1457,11 @@
       }
       const businessName = $('#business-name');
       if (businessName) businessName.textContent = activeId ? (businessList.find(b=>b.id===activeId)?.name || 'Business') : 'Checkmark Accountant V5';
+      // Show/hide delete button based on whether there's an active business
+      const deleteBtn = $('#delete-business');
+      if (deleteBtn) {
+        deleteBtn.style.display = activeId && businessList.length > 0 ? 'block' : 'none';
+      }
     };
 
     const createBusiness = (name) => {
@@ -1428,6 +1471,50 @@
       localStorage.setItem(STORAGE.v5Data(id), JSON.stringify(newBusinessFile(name)));
       activeId = id; saveActive();
       loadActive();
+    };
+
+    const deleteBusiness = (id) => {
+      if (!id) return;
+      const business = businessList.find(b => b.id === id);
+      if (!business) return;
+      
+      showModal(`
+        <div class="stack">
+          <h3>Delete Business</h3>
+          <p><strong>Warning:</strong> This will permanently delete "${business.name}" and all its data.</p>
+          <p>This action cannot be undone.</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary" style="background:var(--danger)">Delete Business</button>
+          </div>
+        </div>
+      `, () => {
+        // Remove from list
+        businessList = businessList.filter(b => b.id !== id);
+        saveList();
+        
+        // Remove data from localStorage
+        localStorage.removeItem(STORAGE.v5Data(id));
+        
+        // If this was the active business, switch to another or clear
+        if (activeId === id) {
+          if (businessList.length > 0) {
+            activeId = businessList[0].id;
+            saveActive();
+            loadActive();
+          } else {
+            activeId = null;
+            saveActive();
+            file = null;
+            renderBusinessSelector();
+            renderAll();
+          }
+        } else {
+          renderBusinessSelector();
+        }
+        
+        showToast(`Business "${business.name}" deleted`);
+      });
     };
 
     const loadActive = () => {
@@ -2621,6 +2708,23 @@
       `;
     };
 
+    const updateHeaderImagePreview = () => {
+      if (!file) return;
+      const preview = $('#header-image-preview');
+      const removeBtn = $('#remove-header-image');
+      const headerImage = file.settings?.headerImageDataUrl;
+      
+      if (preview) {
+        if (headerImage) {
+          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px">`;
+          if (removeBtn) removeBtn.style.display = 'block';
+        } else {
+          preview.innerHTML = '';
+          if (removeBtn) removeBtn.style.display = 'none';
+        }
+      }
+    };
+
     const handleImport = (fileObj) => {
       if (!fileObj) return;
       const reader = new FileReader();
@@ -2860,6 +2964,22 @@
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
+        const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
+          if(file) { 
+            file.settings.headerImageDataUrl=url; 
+            saveFile(); 
+            applyTheme(); 
+            updateHeaderImagePreview();
+          } 
+        });
+        const removeHeaderImage = $('#remove-header-image'); if (removeHeaderImage) removeHeaderImage.onclick = () => {
+          if(file) {
+            file.settings.headerImageDataUrl = null;
+            saveFile();
+            applyTheme();
+            updateHeaderImagePreview();
+          }
+        };
         const exportJson = $('#export-json'); if (exportJson) exportJson.onclick = () => {
           if (!file) {
             showToast('No business data to export');
@@ -2920,9 +3040,60 @@
           }
         };
         const integrityCheck = $('#integrity-check'); if (integrityCheck) integrityCheck.onclick = runIntegrity;
+        const resetAllData = $('#reset-all-data'); if (resetAllData) resetAllData.onclick = () => {
+          showModal(`
+            <div class="stack">
+              <h3>Reset All Data</h3>
+              <p><strong style="color:var(--danger)">WARNING: This will permanently delete ALL businesses and ALL data.</strong></p>
+              <p>This includes:</p>
+              <ul style="margin:10px 0; padding-left:20px">
+                <li>All businesses</li>
+                <li>All invoices</li>
+                <li>All transactions</li>
+                <li>All clients</li>
+                <li>All services</li>
+                <li>All settings</li>
+                <li>Everything else</li>
+              </ul>
+              <p><strong>This action CANNOT be undone.</strong></p>
+              <p>Make sure you have exported backups if you want to keep any data.</p>
+              <div class="row" style="justify-content:flex-end; gap:8px">
+                <button data-cancel>Cancel</button>
+                <button data-confirm class="primary" style="background:var(--danger)">Reset All Data</button>
+              </div>
+            </div>
+          `, () => {
+            // Clear all localStorage items related to the app
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('ck5_') || key.startsWith('checkmark_'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            // Reset state
+            businessList = [];
+            activeId = null;
+            file = null;
+            
+            // Reload
+            loadList();
+            loadActive();
+            showToast('All data has been reset');
+          });
+        };
         const newBusiness = $('#new-business'); if (newBusiness) newBusiness.onclick = () => {
           const name = prompt('Business name');
           if (name) createBusiness(name);
+        };
+        const deleteBusinessBtn = $('#delete-business'); if (deleteBusinessBtn) deleteBusinessBtn.onclick = () => {
+          if (!activeId) {
+            showToast('No business selected');
+            return;
+          }
+          deleteBusiness(activeId);
         };
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
@@ -3034,6 +3205,7 @@
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (motionSelect) motionSelect.value = file.settings.motion;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
+      updateHeaderImagePreview();
       renderMigrationBlock();
       // #region agent log
       logDebug('renderAll:complete','renderAll completed',{},'F');
