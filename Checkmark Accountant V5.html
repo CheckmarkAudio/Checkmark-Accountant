@@ -904,6 +904,7 @@
 
     // ---------- Invoices ----------
     const renderInvoices = () => {
+      if (!file) return;
       const tbody = $('#invoice-rows'); tbody.innerHTML = '';
       if (!file.invoices.length) $('#invoice-empty').classList.remove('hidden'); else $('#invoice-empty').classList.add('hidden');
       file.invoices.forEach(inv => {
@@ -979,6 +980,7 @@
     };
 
     const editInvoice = (inv, isDraft=false) => {
+      if (!file) return;
       const invoice = isDraft ? inv : {
         invoice_id: inv.invoice_id || uuid(),
         party_id: inv.party_id || (file.parties[0]?.party_id || null),
@@ -1178,6 +1180,7 @@
 
     // ---------- Transactions ----------
     const renderTransactions = () => {
+      if (!file) return;
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
       const filter = $('#txn-filter').value;
       const rows = file.transactions.filter(t => filter==='uncat' ? !t.category : true);
@@ -1236,6 +1239,7 @@
     };
 
     const editTxn = (t, isDraft=false) => {
+      if (!file) return;
       const txn = isDraft ? t : { ...t };
       openPanel('Transaction', txnForm(txn));
       const form = $('#txn-form');
@@ -1304,6 +1308,7 @@
     };
 
     const editClient = (p={}) => {
+      if (!file) return;
       openPanel('Client', `
         <form id="client-form" class="stack">
           <label>Name</label><input name="name" value="${p.name||''}">
@@ -1347,6 +1352,7 @@
     };
 
     const editProject = (pr={}) => {
+      if (!file) return;
       const partyOptions = file.parties.map(p=>`<option value="${p.party_id}" ${p.party_id===pr.party_id?'selected':''}>${p.name}</option>`).join('');
       openPanel('Project', `
         <form id="project-form" class="stack">
@@ -1387,6 +1393,7 @@
     };
 
     const editService = (s={}) => {
+      if (!file) return;
       openPanel('Service', `
         <form id="service-form" class="stack">
           <label>Name</label><input name="name" value="${s.name||''}">
@@ -1538,6 +1545,7 @@
 
     // ---------- Dashboard ----------
     const renderDashboard = () => {
+      if (!file) return;
       const kpi = $('#dashboard-kpis'); kpi.innerHTML = '';
       const posted = postedLines();
       const income = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
@@ -1590,12 +1598,12 @@
       $('#run-client-summary').onclick = () => renderSummary(clientRevenue(), $('#report-client'));
       $('#run-project-summary').onclick = () => renderSummary(projectProfit(), $('#report-project'));
       $('#run-tax-summary').onclick = () => renderSummary(taxSummary(), $('#report-tax'));
-      $('#theme-select').onchange = (e)=>{ file.settings.theme = e.target.value; saveFile(); applyTheme(); };
-      $('#motion-select').onchange = (e)=>{ file.settings.motion = e.target.value; saveFile(); applyTheme(); };
-      $('#logo-variant').onchange = (e)=>{ file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); };
-      $('#logo-light').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); });
-      $('#logo-dark').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); });
-      $('#export-json').onclick = () => download(JSON.stringify(file,null,2), `${file.business.name}-v5.json`);
+      $('#theme-select').onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); } };
+      $('#motion-select').onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
+      $('#logo-variant').onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
+      $('#logo-light').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
+      $('#logo-dark').onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
+      $('#export-json').onclick = () => { if(file) download(JSON.stringify(file,null,2), `${file.business.name}-v5.json`); };
       $('#import-json-btn').onclick = () => $('#import-json').click();
       $('#import-json').onchange = (e)=> handleImport(e.target.files[0]);
       $('#integrity-check').onclick = runIntegrity;
