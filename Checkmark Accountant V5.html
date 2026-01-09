@@ -765,7 +765,18 @@
 
   <script>
     // ---------- Utilities ----------
-    const $ = (sel) => document.querySelector(sel);
+    // #region agent log
+    const logDebug = (location, message, data, hypothesisId) => {
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId})}).catch(()=>{});
+    };
+    // #endregion
+    const $ = (sel) => {
+      const result = document.querySelector(sel);
+      // #region agent log
+      if (!result) logDebug('$:null',`querySelector returned null for: ${sel}`,{selector:sel},'C');
+      // #endregion
+      return result;
+    };
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
     const nowIso = () => new Date().toISOString();
     const today = () => new Date().toISOString().slice(0,10);
@@ -880,8 +891,21 @@
     const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
     const saveActive = () => activeId ? localStorage.setItem(STORAGE.v5Active, activeId) : localStorage.removeItem(STORAGE.v5Active);
     const loadList = () => {
-      businessList = JSON.parse(localStorage.getItem(STORAGE.v5List) || '[]');
-      activeId = localStorage.getItem(STORAGE.v5Active);
+      // #region agent log
+      logDebug('loadList:entry','loadList called',{},'D');
+      // #endregion
+      try {
+        businessList = JSON.parse(localStorage.getItem(STORAGE.v5List) || '[]');
+        activeId = localStorage.getItem(STORAGE.v5Active);
+        // #region agent log
+        logDebug('loadList:success','Business list loaded',{count:businessList.length,activeId},'D');
+        // #endregion
+      } catch(e) {
+        // #region agent log
+        logDebug('loadList:error','Error loading business list',{error:e.message},'D');
+        // #endregion
+        throw e;
+      }
     };
     const loadFile = (id) => {
       const raw = localStorage.getItem(STORAGE.v5Data(id));
@@ -1224,15 +1248,32 @@
     };
 
     const loadActive = () => {
+      // #region agent log
+      logDebug('loadActive:entry','loadActive called',{activeId,businessListLength:businessList.length},'E');
+      // #endregion
       if (!activeId && businessList.length) activeId = businessList[0].id;
-      if (!activeId) return;
+      if (!activeId) {
+        // #region agent log
+        logDebug('loadActive:early-return','No activeId and no businessList',{},'E');
+        // #endregion
+        return;
+      }
       file = loadFile(activeId);
       if (!file) { file = newBusinessFile('New Business'); saveFile(); }
       ensureFile();
       renderBusinessSelector();
       applyTheme();
+      // #region agent log
+      logDebug('loadActive:before-renderAll','About to call renderAll',{fileExists:!!file},'E');
+      // #endregion
       renderAll();
+      // #region agent log
+      logDebug('loadActive:after-renderAll','renderAll completed',{},'E');
+      // #endregion
       setTab('dashboard');
+      // #region agent log
+      logDebug('loadActive:complete','loadActive completed',{},'E');
+      // #endregion
     };
 
     // ---------- Invoices ----------
@@ -2080,11 +2121,19 @@
 
     // ---------- Event wiring ----------
     const bindUI = () => {
-      $$('nav.tabs button').forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
+      // #region agent log
+      logDebug('bindUI:entry','bindUI called',{},'B');
+      // #endregion
+      const tabButtons = $$('nav.tabs button');
+      // #region agent log
+      logDebug('bindUI:tabs','Tab buttons found',{count:tabButtons.length},'B');
+      // #endregion
+      tabButtons.forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
       $('#add-invoice').onclick = () => editInvoice({});
       $('#quick-add-invoice').onclick = () => editInvoice({});
       $('#add-transaction').onclick = () => editTxn({});
       $('#quick-add-transaction').onclick = () => editTxn({});
+      $('#open-calculator').onclick = toggleCalculator;
       $('#add-client').onclick = () => editClient({});
       $('#add-project').onclick = () => editProject({});
       $('#add-service').onclick = () => editService({});
@@ -2185,7 +2234,15 @@
 
     // ---------- Render all ----------
     const renderAll = () => {
-      if (!file) return;
+      // #region agent log
+      logDebug('renderAll:entry','renderAll called',{fileExists:!!file},'F');
+      // #endregion
+      if (!file) {
+        // #region agent log
+        logDebug('renderAll:early-return','No file object, returning early',{},'F');
+        // #endregion
+        return;
+      }
       renderInvoices();
       renderInvoiceDraft();
       renderTransactions();
@@ -2201,23 +2258,409 @@
       if (motionSelect) motionSelect.value = file.settings.motion;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       renderMigrationBlock();
+      // #region agent log
+      logDebug('renderAll:complete','renderAll completed',{},'F');
+      // #endregion
+    };
+
+    // ---------- Calculator ----------
+    let calculatorState = {
+      open: false,
+      minimized: false,
+      x: 100,
+      y: 100,
+      width: 320,
+      height: 400
+    };
+
+    const loadCalculatorState = () => {
+      const saved = localStorage.getItem('ck5_calculator_state');
+      if (saved) {
+        try {
+          calculatorState = { ...calculatorState, ...JSON.parse(saved) };
+        } catch (e) {}
+      }
+    };
+
+    const saveCalculatorState = () => {
+      localStorage.setItem('ck5_calculator_state', JSON.stringify(calculatorState));
+    };
+
+    let calculator = {
+      display: '0',
+      secondary: '',
+      previousValue: null,
+      operation: null,
+      waitingForOperand: false
+    };
+
+    const updateCalculatorDisplay = () => {
+      const primary = $('#calculator-primary');
+      const secondary = $('#calculator-secondary');
+      if (primary) primary.textContent = calculator.display;
+      if (secondary) secondary.textContent = calculator.secondary;
+    };
+
+    const inputNumber = (num) => {
+      if (calculator.waitingForOperand) {
+        calculator.display = String(num);
+        calculator.waitingForOperand = false;
+      } else {
+        calculator.display = calculator.display === '0' ? String(num) : calculator.display + num;
+      }
+      updateCalculatorDisplay();
+    };
+
+    const inputDecimal = () => {
+      if (calculator.waitingForOperand) {
+        calculator.display = '0.';
+        calculator.waitingForOperand = false;
+      } else if (calculator.display.indexOf('.') === -1) {
+        calculator.display += '.';
+      }
+      updateCalculatorDisplay();
+    };
+
+    const performOperation = (nextOperation) => {
+      const inputValue = parseFloat(calculator.display);
+
+      if (calculator.previousValue === null) {
+        calculator.previousValue = inputValue;
+      } else if (calculator.operation) {
+        const currentValue = calculator.previousValue || 0;
+        const newValue = calculate(currentValue, inputValue, calculator.operation);
+
+        calculator.display = String(newValue);
+        calculator.previousValue = newValue;
+        updateCalculatorDisplay();
+      }
+
+      calculator.waitingForOperand = true;
+      calculator.operation = nextOperation;
+      calculator.secondary = calculator.previousValue + ' ' + getOperationSymbol(nextOperation);
+      updateCalculatorDisplay();
+    };
+
+    const calculate = (firstValue, secondValue, operation) => {
+      if (operation === 'add') return firstValue + secondValue;
+      if (operation === 'subtract') return firstValue - secondValue;
+      if (operation === 'multiply') return firstValue * secondValue;
+      if (operation === 'divide') {
+        if (secondValue === 0) {
+          return 'Error';
+        }
+        return firstValue / secondValue;
+      }
+      return secondValue;
+    };
+
+    const getOperationSymbol = (op) => {
+      if (op === 'add') return '+';
+      if (op === 'subtract') return '−';
+      if (op === 'multiply') return '×';
+      if (op === 'divide') return '÷';
+      return '';
+    };
+
+    const handleEquals = () => {
+      const inputValue = parseFloat(calculator.display);
+
+      if (calculator.previousValue !== null && calculator.operation) {
+        const newValue = calculate(calculator.previousValue, inputValue, calculator.operation);
+        calculator.display = String(newValue);
+        calculator.previousValue = null;
+        calculator.operation = null;
+        calculator.waitingForOperand = true;
+        calculator.secondary = '';
+        updateCalculatorDisplay();
+      }
+    };
+
+    const clearAll = () => {
+      calculator.display = '0';
+      calculator.secondary = '';
+      calculator.previousValue = null;
+      calculator.operation = null;
+      calculator.waitingForOperand = false;
+      updateCalculatorDisplay();
+    };
+
+    const clearEntry = () => {
+      calculator.display = '0';
+      calculator.waitingForOperand = false;
+      updateCalculatorDisplay();
+    };
+
+    const handlePercent = () => {
+      const value = parseFloat(calculator.display);
+      calculator.display = String(value / 100);
+      calculator.waitingForOperand = true;
+      updateCalculatorDisplay();
+    };
+
+    const initCalculator = () => {
+      const buttons = $$('.calc-btn');
+      buttons.forEach(btn => {
+        btn.onclick = () => {
+          const value = btn.dataset.value;
+          const action = btn.dataset.action;
+
+          if (value !== undefined) {
+            inputNumber(value);
+          } else if (action === 'decimal') {
+            inputDecimal();
+          } else if (action === 'add' || action === 'subtract' || action === 'multiply' || action === 'divide') {
+            performOperation(action);
+          } else if (action === 'equals') {
+            handleEquals();
+          } else if (action === 'clear') {
+            clearAll();
+          } else if (action === 'clearEntry') {
+            clearEntry();
+          } else if (action === 'percent') {
+            handlePercent();
+          }
+        };
+      });
+    };
+
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    let isResizing = false;
+    let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
+
+    const startDrag = (e) => {
+      if (e.target.closest('.calculator-controls')) return;
+      if (e.target.closest('.calculator-buttons')) return;
+      if (e.target.closest('.calculator-display')) return;
+      isDragging = true;
+      const rect = $('#calculator-window').getBoundingClientRect();
+      dragOffset.x = e.clientX - rect.left;
+      dragOffset.y = e.clientY - rect.top;
+      e.preventDefault();
+    };
+
+    const onDrag = (e) => {
+      if (!isDragging) return;
+      const x = e.clientX - dragOffset.x;
+      const y = e.clientY - dragOffset.y;
+      const maxX = window.innerWidth - calculatorState.width;
+      const maxY = window.innerHeight - calculatorState.height;
+      calculatorState.x = Math.max(0, Math.min(x, maxX));
+      calculatorState.y = Math.max(0, Math.min(y, maxY));
+      updateCalculatorPosition();
+    };
+
+    const endDrag = () => {
+      if (isDragging) {
+        isDragging = false;
+        saveCalculatorState();
+      }
+    };
+
+    const startResize = (e) => {
+      isResizing = true;
+      const rect = $('#calculator-window').getBoundingClientRect();
+      resizeStart.x = e.clientX;
+      resizeStart.y = e.clientY;
+      resizeStart.width = rect.width;
+      resizeStart.height = rect.height;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onResize = (e) => {
+      if (!isResizing) return;
+      const deltaX = e.clientX - resizeStart.x;
+      const deltaY = e.clientY - resizeStart.y;
+      const minWidth = 280;
+      const minHeight = 350;
+      calculatorState.width = Math.max(minWidth, resizeStart.width + deltaX);
+      calculatorState.height = Math.max(minHeight, resizeStart.height + deltaY);
+      updateCalculatorSize();
+    };
+
+    const endResize = () => {
+      if (isResizing) {
+        isResizing = false;
+        saveCalculatorState();
+      }
+    };
+
+    const updateCalculatorPosition = () => {
+      const window = $('#calculator-window');
+      if (window) {
+        window.style.left = calculatorState.x + 'px';
+        window.style.top = calculatorState.y + 'px';
+      }
+    };
+
+    const updateCalculatorSize = () => {
+      const window = $('#calculator-window');
+      if (window) {
+        window.style.width = calculatorState.width + 'px';
+        window.style.height = calculatorState.height + 'px';
+      }
+    };
+
+    const openCalculator = () => {
+      calculatorState.open = true;
+      calculatorState.minimized = false;
+      $('#calculator-window').classList.remove('hidden');
+      $('#calculator-minimized').classList.add('hidden');
+      updateCalculatorPosition();
+      updateCalculatorSize();
+      saveCalculatorState();
+    };
+
+    const closeCalculator = () => {
+      calculatorState.open = false;
+      calculatorState.minimized = false;
+      $('#calculator-window').classList.add('hidden');
+      $('#calculator-minimized').classList.add('hidden');
+      saveCalculatorState();
+    };
+
+    const minimizeCalculator = () => {
+      calculatorState.minimized = true;
+      $('#calculator-window').classList.add('hidden');
+      $('#calculator-minimized').classList.remove('hidden');
+      saveCalculatorState();
+    };
+
+    const restoreCalculator = () => {
+      calculatorState.minimized = false;
+      $('#calculator-window').classList.remove('hidden');
+      $('#calculator-minimized').classList.add('hidden');
+      updateCalculatorPosition();
+      updateCalculatorSize();
+      saveCalculatorState();
+    };
+
+    const toggleCalculator = () => {
+      if (calculatorState.minimized) {
+        restoreCalculator();
+      } else if (calculatorState.open) {
+        closeCalculator();
+      } else {
+        openCalculator();
+      }
+    };
+
+    const initCalculatorWindow = () => {
+      loadCalculatorState();
+      initCalculator();
+      updateCalculatorPosition();
+      updateCalculatorSize();
+
+      const header = $('#calculator-header');
+      const resizeHandle = $('#calculator-resize');
+      const minimizeBtn = $('#calculator-minimize');
+      const closeBtn = $('#calculator-close');
+      const restoreBtn = $('#calculator-restore');
+
+      if (header) {
+        header.addEventListener('mousedown', startDrag);
+      }
+      if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', startResize);
+      }
+      if (minimizeBtn) {
+        minimizeBtn.onclick = (e) => {
+          e.stopPropagation();
+          minimizeCalculator();
+        };
+      }
+      if (closeBtn) {
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          closeCalculator();
+        };
+      }
+      if (restoreBtn) {
+        restoreBtn.onclick = restoreCalculator;
+      }
+
+      document.addEventListener('mousemove', (e) => {
+        onDrag(e);
+        onResize(e);
+      });
+      document.addEventListener('mouseup', () => {
+        endDrag();
+        endResize();
+      });
+
+      if (calculatorState.open && !calculatorState.minimized) {
+        openCalculator();
+      } else if (calculatorState.minimized) {
+        minimizeCalculator();
+      }
     };
 
     // ---------- Init ----------
     const initApp = () => {
-      bindUI();
-      loadList();
-      if (!businessList.length && detectV4()) {
-        renderMigrationBlock();
-        setTab('settings');
-      } else if (!businessList.length) {
-        createBusiness('My Business');
-      } else {
-        loadActive();
+      // #region agent log
+      logDebug('initApp:entry','initApp called - app initialization started',{},'A');
+      // #endregion
+      try {
+        bindUI();
+        // #region agent log
+        logDebug('initApp:after-bindUI','bindUI completed',{},'A');
+        // #endregion
+        initCalculatorWindow();
+        // #region agent log
+        logDebug('initApp:after-calc','initCalculatorWindow completed',{},'A');
+        // #endregion
+        loadList();
+        // #region agent log
+        logDebug('initApp:after-loadList','loadList completed',{businessListLength:businessList.length,activeId},'A');
+        // #endregion
+        if (!businessList.length && detectV4()) {
+          renderMigrationBlock();
+          setTab('settings');
+        } else if (!businessList.length) {
+          createBusiness('My Business');
+        } else {
+          loadActive();
+        }
+        // #region agent log
+        logDebug('initApp:complete','initApp completed successfully',{},'A');
+        // #endregion
+      } catch(e) {
+        // #region agent log
+        logDebug('initApp:error','Error in initApp',{error:e.message,stack:e.stack},'A');
+        // #endregion
+        console.error('Init error:', e);
+        throw e;
       }
     };
 
-    document.addEventListener('DOMContentLoaded', initApp);
+    // #region agent log
+    logDebug('script:load','Script loaded, waiting for DOMContentLoaded',{readyState:document.readyState},'A');
+    // #endregion
+    window.addEventListener('error', (e) => {
+      // #region agent log
+      logDebug('window:error','Unhandled JavaScript error',{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error?.stack},'A');
+      // #endregion
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      // #region agent log
+      logDebug('window:unhandledrejection','Unhandled promise rejection',{reason:e.reason},'A');
+      // #endregion
+    });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        // #region agent log
+        logDebug('DOMContentLoaded:fired','DOMContentLoaded event fired',{},'A');
+        // #endregion
+        initApp();
+      });
+    } else {
+      // #region agent log
+      logDebug('DOMContentLoaded:already-ready','DOM already ready, calling initApp immediately',{},'A');
+      // #endregion
+      initApp();
+    }
   </script>
 </body>
 </html>
