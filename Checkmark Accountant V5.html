@@ -440,10 +440,9 @@
       margin: 20px 0;
     }
     .saved-flag {
-      margin-left: auto;
-      padding: 10px 16px;
+      padding: 6px 12px;
       background: var(--surface-soft);
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid var(--border);
       color: var(--muted);
       font-size: 0.875rem;
@@ -696,7 +695,6 @@
         <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
         <div class="row" style="gap:8px">
           <select id="business-selector"></select>
-          <span class="saved-flag" id="saved-flag">Saved</span>
         </div>
       </div>
       <div class="row" style="margin-left:auto; gap:16px">
@@ -885,6 +883,10 @@
           <button id="integrity-check">Integrity Check</button>
           <div id="integrity-output" class="stack space"></div>
           <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <h4 style="margin-bottom:12px; font-size:1rem; font-weight:600">Migration</h4>
+            <div id="migration-block" class="stack"></div>
+          </div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
             <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
             <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
           </div>
@@ -901,8 +903,13 @@
           </div>
         </div>
         <div class="card">
-          <h3>Migration</h3>
-          <div id="migration-block" class="stack"></div>
+          <h3>Status</h3>
+          <div class="stack" style="gap:12px">
+            <div class="row" style="align-items:center; gap:8px">
+              <span>Save Status:</span>
+              <span class="saved-flag" id="saved-flag">Saved</span>
+            </div>
+          </div>
         </div>
       </section>
     </main>
