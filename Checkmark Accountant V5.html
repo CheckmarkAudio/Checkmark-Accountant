@@ -767,7 +767,15 @@
     // ---------- Utilities ----------
     // #region agent log
     const logDebug = (location, message, data, hypothesisId) => {
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId})}).catch(()=>{});
+      const logEntry = {location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
+      console.log('[DEBUG]', logEntry);
+      try {
+        const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
+        logs.push(logEntry);
+        if (logs.length > 1000) logs.shift();
+        localStorage.setItem('_debug_logs', JSON.stringify(logs));
+      } catch(e) {}
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
     };
     // #endregion
     const $ = (sel) => {
