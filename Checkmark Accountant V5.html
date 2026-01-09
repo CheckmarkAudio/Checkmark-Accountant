@@ -1751,6 +1751,7 @@
           <div class="invoice-header">
             <div class="invoice-actions">
               <button id="print-invoice" class="primary">Print</button>
+              <button id="export-pdf-invoice" class="primary">Export PDF</button>
               <button id="close-invoice-view">Close</button>
             </div>
           </div>
@@ -1832,9 +1833,26 @@
       
       openPanel('Invoice', invoiceHtml);
       
-      $('#print-invoice').onclick = () => printInvoice(inv);
-      $('#export-pdf-invoice').onclick = () => exportInvoiceAsPDF(inv);
-      $('#close-invoice-view').onclick = closePanel;
+      // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
+      const printBtn = $('#print-invoice');
+      const pdfBtn = $('#export-pdf-invoice');
+      const closeBtn = $('#close-invoice-view');
+      
+      if (printBtn) printBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        printInvoice(inv);
+      };
+      if (pdfBtn) pdfBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        exportInvoiceAsPDF(inv);
+      };
+      if (closeBtn) closeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closePanel();
+      };
     };
 
     const printInvoice = (inv) => {
@@ -2156,8 +2174,15 @@
           backgroundColor: '#ffffff'
         });
         
-        // Create PDF
-        const { jsPDF } = window.jspdf;
+        // Create PDF - check for both UMD and global formats
+        let jsPDF;
+        if (window.jspdf && window.jspdf.jsPDF) {
+          jsPDF = window.jspdf.jsPDF;
+        } else if (window.jspdf) {
+          jsPDF = window.jspdf;
+        } else {
+          throw new Error('jsPDF library not loaded');
+        }
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
@@ -2188,9 +2213,11 @@
         showToast('PDF exported successfully');
       } catch (error) {
         console.error('PDF export error:', error);
-        showToast('Error exporting PDF', null);
+        showToast('Error exporting PDF: ' + error.message, null);
       } finally {
-        document.body.removeChild(tempContainer);
+        if (tempContainer && tempContainer.parentNode) {
+          document.body.removeChild(tempContainer);
+        }
       }
     };
 
