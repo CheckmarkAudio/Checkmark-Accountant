@@ -3362,31 +3362,34 @@
         };
       }
       // Make the entire minimized box clickable to restore calculator
+      // Use event delegation on document with capture phase to ensure it runs first
+      document.addEventListener('click', function(e) {
+        const calculatorMinimized = $('#calculator-minimized');
+        if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden')) {
+          // Check if click is on the minimized calculator box or its button
+          if (calculatorMinimized.contains(e.target)) {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            restoreCalculator();
+          }
+        }
+      }, true); // Use capture phase to run before other handlers
+      
+      // Also add direct handlers as backup
       const calculatorMinimized = $('#calculator-minimized');
       if (calculatorMinimized) {
-        // Use both onclick and addEventListener to ensure it works
+        calculatorMinimized.style.cursor = 'pointer';
         calculatorMinimized.onclick = function(e) {
           e.stopPropagation();
           restoreCalculator();
-          return false;
         };
-        calculatorMinimized.addEventListener('click', function(e) {
-          e.stopPropagation();
-          restoreCalculator();
-        });
       }
       
-      // Also handle button clicks directly with both methods
       if (restoreBtn) {
         restoreBtn.onclick = function(e) {
           e.stopPropagation();
           restoreCalculator();
-          return false;
         };
-        restoreBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          restoreCalculator();
-        });
       }
 
       document.addEventListener('mousemove', (e) => {
