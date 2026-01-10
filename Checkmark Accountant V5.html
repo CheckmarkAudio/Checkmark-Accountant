@@ -4,9 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkmark Accountant V5</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // Apply saved/system theme ASAP to avoid light flash on dark mode
+    (() => {
+      try {
+        const ACTIVE_KEY = 'ck5_active';
+        const DATA_PREFIX = 'ck5_business_';
+        const activeId = localStorage.getItem(ACTIVE_KEY);
+        let theme = null;
+        if (activeId) {
+          const raw = localStorage.getItem(`${DATA_PREFIX}${activeId}`);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            theme = parsed?.settings?.theme || null;
+          }
+        }
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const dark = theme === 'dark' || ((!theme || theme === 'system') && prefersDark);
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.backgroundColor = dark ? '#0d1017' : '#f5f6f8';
+      } catch (e) {
+        // Ignore early theme errors; main script will re-apply later
+      }
+    })();
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
   <style>
     :root {
       --bg: #f5f6f8;
