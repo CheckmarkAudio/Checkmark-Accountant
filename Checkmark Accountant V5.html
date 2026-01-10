@@ -1013,12 +1013,6 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
-          <label>Motion</label>
-          <select id="motion-select">
-            <option value="full">Full</option>
-            <option value="reduced">Reduced</option>
-            <option value="off">Off</option>
-          </select>
           <label>Logo (Light)</label>
           <input type="file" id="logo-light" accept="image/*">
           <label>Logo (Dark)</label>
@@ -1265,7 +1259,6 @@
     const defaultSettings = () => ({
       accounting_basis: 'cash',
       theme: 'system',
-      motion: 'full',
       logoVariant: 'auto',
       logoLightDataUrl: DEFAULT_LOGO_LIGHT_URL,
       logoDarkDataUrl: DEFAULT_LOGO_DARK_URL,
@@ -1312,7 +1305,6 @@
     let activeId = null;
     let file = null;
     let undoStack = [];
-    let motionSetting = 'full';
 
     const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
     const saveActive = () => activeId ? localStorage.setItem(STORAGE.v5Active, activeId) : localStorage.removeItem(STORAGE.v5Active);
@@ -1375,14 +1367,13 @@
     // ---------- Theme / Logo ----------
     const applyTheme = () => {
       const theme = file?.settings?.theme || 'system';
-      const motion = file?.settings?.motion || 'full';
-      motionSetting = motion;
+      const motion = 'full';
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const dark = theme === 'dark' || (theme === 'system' && prefersDark);
       document.documentElement.classList.toggle('dark', dark);
-      document.documentElement.classList.toggle('motion-off', motion === 'off');
-      document.documentElement.classList.toggle('motion-reduced', motion === 'reduced');
-      const scale = motion === 'full' ? 1 : (motion === 'reduced' ? 0.5 : 0);
+      document.documentElement.classList.toggle('motion-off', false);
+      document.documentElement.classList.toggle('motion-reduced', false);
+      const scale = 1;
       document.documentElement.style.setProperty('--motion-scale', scale);
       const logoVariant = file?.settings?.logoVariant || 'auto';
       const lightLogo = file?.settings?.logoLightDataUrl || DEFAULT_LOGO_LIGHT_URL;
@@ -4699,7 +4690,7 @@
           };
         }
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
-        const motionSelect = $('#motion-select'); if (motionSelect) motionSelect.onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
+
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
@@ -5009,10 +5000,8 @@
       renderServices();
       renderDashboard();
       const themeSelect = $('#theme-select');
-      const motionSelect = $('#motion-select');
       const logoVariant = $('#logo-variant');
       if (themeSelect) themeSelect.value = file.settings.theme;
-      if (motionSelect) motionSelect.value = file.settings.motion;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       updateHeaderImagePreview();
       renderBusinessInfo();
