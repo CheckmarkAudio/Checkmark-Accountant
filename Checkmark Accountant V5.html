@@ -867,10 +867,6 @@
           </div>
           <div class="stack">
             <div class="row" style="flex-wrap:wrap; gap:8px; align-items:center">
-              <select id="txn-filter">
-                <option value="all">All</option>
-                <option value="uncat">Uncategorized</option>
-              </select>
               <button id="export-txn-json" class="ghost">Export JSON</button>
               <button id="export-txn-csv" class="ghost">Export CSV</button>
               <button id="import-txn-btn" class="ghost">Import CSV/JSON</button>
@@ -2924,8 +2920,7 @@
     const renderTransactions = () => {
       if (!file) return;
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
-      const filter = $('#txn-filter').value;
-      const rows = file.transactions.filter(t => filter==='uncat' ? !t.category : true);
+      const rows = file.transactions;
       if (!rows.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
       rows.forEach(t => {
         const tr = document.createElement('tr');
@@ -5150,7 +5145,6 @@
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
         const addService = $('#add-service'); if (addService) addService.onclick = () => editService({});
         const closePanelBtn = $('#close-panel'); if (closePanelBtn) closePanelBtn.onclick = closePanel;
-        const txnFilter = $('#txn-filter'); if (txnFilter) txnFilter.onchange = renderTransactions;
         const runPl = $('#run-pl'); if (runPl) runPl.onclick = runPL;
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
