@@ -1028,45 +1028,8 @@
         </div>
       </section>
 
-      <section data-section="settings" class="grid cols-3 hidden">
+      <section data-section="settings" class="grid cols-4 hidden">
         <div class="card" style="grid-column:1">
-          <h3>Business</h3>
-          <div id="business-info" class="stack"></div>
-          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
-            <button id="new-business" class="primary" style="width:100%">+ New Business</button>
-          </div>
-          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
-            <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
-            <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
-          </div>
-        </div>
-        <div class="card" style="grid-column:2; margin-bottom:8px">
-          <h3>Invoicing</h3>
-          <label>Default Tax % (optional)</label>
-          <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
-        </div>
-        <div class="card" style="grid-column:2; margin-top:-4px">
-          <h3>Data</h3>
-          <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
-            <span>Save Status:</span>
-            <span class="saved-flag" id="saved-flag">Saved</span>
-          </div>
-          <button id="export-json">Backup / Export</button>
-          <input type="file" id="import-json" class="hidden" accept="application/json">
-          <button id="import-json-btn">Import</button>
-          <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
-          <div id="integrity-output" class="stack space"></div>
-          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
-            <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
-            <div id="migration-block" class="stack"></div>
-          </div>
-          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
-            <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
-            <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
-          </div>
-        </div>
-        <div class="card" style="grid-column:3">
           <h3>Appearance</h3>
           <label>Theme</label>
           <select id="theme-select">
@@ -1102,6 +1065,43 @@
             <span>100%</span>
           </div>
           <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
+        </div>
+        <div class="card" style="grid-column:2 / span 2; margin-bottom:8px">
+          <h3>Invoicing</h3>
+          <label>Default Tax % (optional)</label>
+          <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
+        </div>
+        <div class="card" style="grid-column:2 / span 2; margin-top:-6px">
+          <h3>Data</h3>
+          <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
+            <span>Save Status:</span>
+            <span class="saved-flag" id="saved-flag">Saved</span>
+          </div>
+          <button id="export-json">Backup / Export</button>
+          <input type="file" id="import-json" class="hidden" accept="application/json">
+          <button id="import-json-btn">Import</button>
+          <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
+          <div id="integrity-output" class="stack space"></div>
+          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+            <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
+            <div id="migration-block" class="stack"></div>
+          </div>
+          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+            <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
+            <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+          </div>
+        </div>
+        <div class="card" style="grid-column:4">
+          <h3>Business</h3>
+          <div id="business-info" class="stack"></div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="new-business" class="primary" style="width:100%">+ New Business</button>
+          </div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
+            <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+          </div>
         </div>
       </section>
     </main>
