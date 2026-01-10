@@ -1919,6 +1919,7 @@
       file = loadFile(activeId);
       if (!file) { file = newBusinessFile('New Business'); saveFile(); }
       ensureFile();
+      cleanOrphanLedgerEntries();
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:loadActive',message:'loadActive:file-loaded',data:{transactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
@@ -3504,7 +3505,7 @@
     // ---------- Reports ----------
     const postedLines = () => {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:entry',data:{ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length,sample:file.ledger_lines.slice(0,5).map(l=>({account:l.account_code,debit:l.debit_cents,credit:l.credit_cents,entry:l.ledger_entry_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:entry',data:{ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length,entries:file.ledger_entries.map(e=>({id:e.ledger_entry_id,type:e.entry_type,linkedTxn:e.linked_transaction_id||null,linkedPay:e.linked_payment_id||null}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
       const lines = file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
@@ -5517,6 +5518,30 @@
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
+    };
+
+    // Remove ledger entries/lines whose linked transaction or payment no longer exists
+    const cleanOrphanLedgerEntries = () => {
+      const txIds = new Set(file.transactions.map(t=>t.transaction_id));
+      const payIds = new Set(file.payments.map(p=>p.payment_id));
+      const beforeEntries = file.ledger_entries.length;
+      const beforeLines = file.ledger_lines.length;
+      const keepEntry = (e) => {
+        if (e.linked_transaction_id && !txIds.has(e.linked_transaction_id)) return false;
+        if (e.linked_payment_id && !payIds.has(e.linked_payment_id)) return false;
+        return true;
+      };
+      const keptIds = [];
+      file.ledger_entries = file.ledger_entries.filter(e=>{
+        const keep = keepEntry(e);
+        if (keep) keptIds.push(e.ledger_entry_id);
+        return keep;
+      });
+      file.ledger_lines = file.ledger_lines.filter(l=>keptIds.includes(l.ledger_entry_id));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:cleanOrphanLedgerEntries',message:'cleanOrphanLedgerEntries:result',data:{beforeEntries,afterEntries:file.ledger_entries.length,beforeLines,afterLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (beforeEntries !== file.ledger_entries.length || beforeLines !== file.ledger_lines.length) saveFile();
     };
 
     const renderBusinessInfo = () => {
