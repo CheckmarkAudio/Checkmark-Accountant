@@ -1174,6 +1174,16 @@
       if (val === undefined || val === null) return '';
       return String(val).replace(/(\.\d*?[1-9])0+$|\.0*$/,'$1');
     };
+    const normalizeTimeInput = (val) => {
+      const digits = String(val||'').replace(/\D/g,'');
+      if (!digits) return '';
+      if (digits.length <= 2) {
+        return `0:${digits.padStart(2,'0')}`;
+      }
+      const mins = digits.slice(-2);
+      const hours = digits.slice(0, -2).replace(/^0+/, '') || '0';
+      return `${hours}:${mins}`;
+    };
     const parseTimeToMinutes = (val) => {
       if (val === undefined || val === null) return null;
       const str = String(val).trim();
@@ -1955,7 +1965,9 @@
         const note = div.querySelector('[data-time-note]');
         if (!qtyInput || !timeInput) return;
         if (!fromQty) {
-          const mins = parseTimeToMinutes(timeInput.value);
+          const normalized = normalizeTimeInput(timeInput.value);
+          if (normalized !== timeInput.value) timeInput.value = normalized;
+          const mins = parseTimeToMinutes(normalized);
           if (mins !== null) {
             const hours = mins/60;
             qtyInput.value = trimTrailingZeros(hours.toFixed(2)) || '0';
@@ -1974,6 +1986,8 @@
         const div = target.closest('[data-line]');
         if (!div) return;
         if (target.classList.contains('line-time')) {
+          const normalized = normalizeTimeInput(target.value);
+          if (normalized !== target.value) target.value = normalized;
           syncLineTime(div);
           updateInvoiceTotal(container);
         }
