@@ -828,10 +828,7 @@
     <main>
       <section data-section="dashboard" class="grid cols-2">
         <div class="card">
-          <div class="row" style="justify-content:space-between; align-items:center">
-            <h3>Overview</h3>
-            <button id="update-overview" class="ghost">Update Overview</button>
-          </div>
+          <h3>Overview</h3>
           <div class="grid cols-2" id="dashboard-kpis"></div>
         </div>
         <div class="card">
@@ -1783,6 +1780,10 @@
     const setTab = (tab) => {
       $$('nav.tabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
       $$('section[data-section]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.section !== tab));
+      if (tab === 'dashboard' && file) {
+        cleanOrphanLedgerEntries();
+        renderDashboard();
+      }
       if (tab === 'analytics' && file) {
         setTimeout(() => {
           // Initialize date inputs if not already set
@@ -5161,7 +5162,6 @@
         const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => editInvoice({});
         const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => editTxn({});
         const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => editTxn({});
-        const updateOverviewBtn = $('#update-overview'); if (updateOverviewBtn) updateOverviewBtn.onclick = () => { cleanOrphanLedgerEntries(); renderDashboard(); showToast('Overview updated'); };
         const exportInvoicesJsonBtn = $('#export-invoices-json'); if (exportInvoicesJsonBtn) exportInvoicesJsonBtn.onclick = () => exportInvoicesData('json');
         const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
