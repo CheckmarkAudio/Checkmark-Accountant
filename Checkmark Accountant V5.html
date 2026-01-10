@@ -1430,6 +1430,7 @@
     let activeId = null;
     let file = null;
     let undoStack = [];
+    let deleteBusinessBtn = null;
 
     const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
     const saveActive = () => activeId ? localStorage.setItem(STORAGE.v5Active, activeId) : localStorage.removeItem(STORAGE.v5Active);
@@ -1918,6 +1919,9 @@
       file = loadFile(activeId);
       if (!file) { file = newBusinessFile('New Business'); saveFile(); }
       ensureFile();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:loadActive',message:'loadActive:file-loaded',data:{transactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       renderBusinessSelector();
       applyTheme();
       // #region agent log
@@ -3499,8 +3503,15 @@
 
     // ---------- Reports ----------
     const postedLines = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:entry',data:{ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length,sample:file.ledger_lines.slice(0,5).map(l=>({account:l.account_code,debit:l.debit_cents,credit:l.credit_cents,entry:l.ledger_entry_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
-      return file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
+      const lines = file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:after',data:{returned:lines.length,postedIdsCount:postedIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      return lines;
     };
 
     const runPL = () => {
@@ -5416,31 +5427,12 @@
             }
           }, 100);
         };
-        const deleteBusinessBtn = $('#delete-business'); if (deleteBusinessBtn) deleteBusinessBtn.onclick = () => {
+        deleteBusinessBtn = $('#delete-business'); if (deleteBusinessBtn) deleteBusinessBtn.onclick = () => {
           if (!activeId) {
             showToast('No business selected');
             return;
           }
           deleteBusiness(activeId);
-        };
-        const renderBusinessInfo = () => {
-          const info = $('#business-info');
-          if (!info) return;
-          if (!file || !file.business) {
-            info.innerHTML = '<div style="color:var(--muted)">No business selected. Create a new business to get started.</div>';
-            if (deleteBusinessBtn) deleteBusinessBtn.style.display = 'none';
-            return;
-          }
-          const business = file.business;
-          info.innerHTML = `
-            <div><strong>Name:</strong> ${business.name || '—'}</div>
-            <div><strong>Currency:</strong> ${business.base_currency || 'USD'}</div>
-            <div><strong>Created:</strong> ${business.created_at ? new Date(business.created_at).toLocaleDateString() : '—'}</div>
-            <div><strong>Updated:</strong> ${business.updated_at ? new Date(business.updated_at).toLocaleDateString() : '—'}</div>
-          `;
-          if (deleteBusinessBtn) {
-            deleteBusinessBtn.style.display = activeId && businessList.length > 0 ? 'block' : 'none';
-          }
         };
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
@@ -5525,6 +5517,26 @@
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
+    };
+
+    const renderBusinessInfo = () => {
+      const info = $('#business-info');
+      if (!info) return;
+      if (!file || !file.business) {
+        info.innerHTML = '<div style="color:var(--muted)">No business selected. Create a new business to get started.</div>';
+        if (deleteBusinessBtn) deleteBusinessBtn.style.display = 'none';
+        return;
+      }
+      const business = file.business;
+      info.innerHTML = `
+        <div><strong>Name:</strong> ${business.name || '—'}</div>
+        <div><strong>Currency:</strong> ${business.base_currency || 'USD'}</div>
+        <div><strong>Created:</strong> ${business.created_at ? new Date(business.created_at).toLocaleDateString() : '—'}</div>
+        <div><strong>Updated:</strong> ${business.updated_at ? new Date(business.updated_at).toLocaleDateString() : '—'}</div>
+      `;
+      if (deleteBusinessBtn) {
+        deleteBusinessBtn.style.display = activeId && businessList.length > 0 ? 'block' : 'none';
+      }
     };
 
     // ---------- Render all ----------
