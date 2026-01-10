@@ -4584,7 +4584,7 @@
       file.invoices.forEach(i=>{
         const party = file.parties.find(p=>p.party_id===i.party_id);
         const clientName = party ? ` - ${party.name}` : '';
-        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:i.total_cents });
+        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:i.total_cents, status:i.status });
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
@@ -4595,7 +4595,8 @@
         row.style.paddingBottom='12px';
         row.style.marginBottom='8px';
         row.style.borderBottom='1px solid var(--border)';
-        row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
+        const statusDot = a.status ? `<span class="status-dot ${a.status==='paid'?'status-posted':'status-void'}"></span>` : '';
+        row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
         act.appendChild(row);
       });
     };
