@@ -1259,13 +1259,16 @@
       { code:'8100', name:'Transfers Clearing', type:'other' },
     ]);
 
+    const DEFAULT_LOGO_LIGHT_URL = 'https://static.wixstatic.com/media/afbb39_617140a20fbb47b2b858c0d3ef28a4ef~mv2.png';
+    const DEFAULT_LOGO_DARK_URL = 'https://static.wixstatic.com/media/afbb39_5d281518952249e58353d5e1d87b7514~mv2.png';
+
     const defaultSettings = () => ({
       accounting_basis: 'cash',
       theme: 'system',
       motion: 'full',
       logoVariant: 'auto',
-      logoLightDataUrl: null,
-      logoDarkDataUrl: null,
+      logoLightDataUrl: DEFAULT_LOGO_LIGHT_URL,
+      logoDarkDataUrl: DEFAULT_LOGO_DARK_URL,
       headerImageDataUrl: null,
       headerImageFit: 'cover',
       headerImageOpacity: 10,
@@ -1364,6 +1367,8 @@
       if (!file) return;
       if (!file.accounts || file.accounts.length === 0) file.accounts = seedAccounts();
       if (!file.settings) file.settings = defaultSettings();
+      if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = DEFAULT_LOGO_LIGHT_URL;
+      if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
       migrateProjectPartyIds(file);
     };
 
@@ -1380,8 +1385,8 @@
       const scale = motion === 'full' ? 1 : (motion === 'reduced' ? 0.5 : 0);
       document.documentElement.style.setProperty('--motion-scale', scale);
       const logoVariant = file?.settings?.logoVariant || 'auto';
-      const lightLogo = file?.settings?.logoLightDataUrl;
-      const darkLogo = file?.settings?.logoDarkDataUrl;
+      const lightLogo = file?.settings?.logoLightDataUrl || DEFAULT_LOGO_LIGHT_URL;
+      const darkLogo = file?.settings?.logoDarkDataUrl || DEFAULT_LOGO_DARK_URL;
       const logoEl = $('#logo-img');
       const chip = $('#logo-chip');
       chip.style.background = 'var(--logo-bg)';
