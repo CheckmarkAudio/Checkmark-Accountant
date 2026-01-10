@@ -3030,9 +3030,16 @@
     };
 
     const delTxn = (t) => {
+      // Remove any posted ledger entries linked to this transaction so balances stay correct
+      removeLinkedEntries({ transaction_id: t.transaction_id });
       file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
       saveFile(); renderTransactions();
-      showToast('Transaction deleted', () => { file.transactions.push(t); saveFile(); renderTransactions(); });
+      showToast('Transaction deleted', () => { 
+        file.transactions.push(t); 
+        postTransaction(t); // re-post ledger impact if user undoes delete
+        saveFile(); 
+        renderTransactions(); 
+      });
     };
 
     // ---------- Clients / Services ----------
