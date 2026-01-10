@@ -1081,7 +1081,7 @@
           <button id="export-json">Backup / Export</button>
           <input type="file" id="import-json" class="hidden" accept="application/json">
           <button id="import-json-btn">Import</button>
-          <button id="integrity-check">Integrity Check</button>
+          <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
           <div id="integrity-output" class="stack space"></div>
           <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
             <h4 style="margin-bottom:12px; font-size:1rem; font-weight:600">Migration</h4>
@@ -1711,6 +1711,9 @@
             renderAnalytics();
           }
         }, 100);
+      }
+      if (tab === 'settings') {
+        runIntegrity();
       }
     };
 
@@ -3216,6 +3219,9 @@
     };
 
     const runIntegrity = () => {
+      if (!file) return;
+      const output = $('#integrity-output');
+      if (!output) return;
       const unbalanced = [];
       const orphan = [];
       file.ledger_entries.forEach(e=>{
@@ -3225,7 +3231,7 @@
         if (deb!==cred) unbalanced.push(e.ledger_entry_id);
         if (!lines.length) orphan.push(e.ledger_entry_id);
       });
-      $('#integrity-output').innerHTML = `
+      output.innerHTML = `
         <div>Unbalanced entries: ${unbalanced.length}</div>
         <div>Orphaned entries: ${orphan.length}</div>
         <div>Missing links: manual review</div>
@@ -4924,7 +4930,6 @@
             e.target.value = '';
           }
         };
-        const integrityCheck = $('#integrity-check'); if (integrityCheck) integrityCheck.onclick = runIntegrity;
         const resetAllData = $('#reset-all-data'); if (resetAllData) resetAllData.onclick = () => {
           showModal(`
             <div class="stack">
@@ -5143,6 +5148,7 @@
       updateHeaderImagePreview();
       renderBusinessInfo();
       renderMigrationBlock();
+      runIntegrity();
       // #region agent log
       logDebug('renderAll:complete','renderAll completed',{},'F');
       // #endregion
