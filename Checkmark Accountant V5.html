@@ -1681,6 +1681,9 @@
     };
 
     const removeLinkedEntries = ({ transaction_id=null, payment_id=null }) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:removeLinkedEntries',message:'removeLinkedEntries:entry',data:{transaction_id,payment_id,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (!transaction_id && !payment_id) return;
       const keepIds = [];
       file.ledger_entries = file.ledger_entries.filter(e=>{
@@ -1690,6 +1693,9 @@
         return true;
       });
       file.ledger_lines = file.ledger_lines.filter(l => keepIds.includes(l.ledger_entry_id) || (!transaction_id && !payment_id));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:removeLinkedEntries',message:'removeLinkedEntries:after',data:{transaction_id,payment_id,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     };
 
     const postEntry = (entry) => {
@@ -3030,6 +3036,9 @@
     };
 
     const delTxn = (t) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:entry',data:{transaction_id:t.transaction_id,type:t.type,amount_cents:t.amount_cents,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       // Remove any posted ledger entries linked to this transaction so balances stay correct
       removeLinkedEntries({ transaction_id: t.transaction_id });
       file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
@@ -3040,6 +3049,9 @@
         saveFile(); 
         renderTransactions(); 
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:after',data:{transaction_id:t.transaction_id,remainingTransactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     };
 
     // ---------- Clients / Services ----------
@@ -5079,6 +5091,9 @@
         .reduce((s,l)=>s+(l.credit_cents||0)-(l.debit_cents||0),0);
       const expense = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='expense')
         .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:renderDashboard',message:'renderDashboard:totals',data:{income,expense,postedCount:posted.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const net = income - expense;
       const openInvoices = file.invoices.filter(i=>i.status!=='paid').length;
       const cards = [
