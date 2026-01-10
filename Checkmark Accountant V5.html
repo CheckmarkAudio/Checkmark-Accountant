@@ -3035,7 +3035,7 @@
         else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
         postTransaction(saved);
         localStorage.removeItem(STORAGE.draftTxn(activeId));
-        saveFile(); renderTransactions();
+        saveFile(); renderTransactions(); renderDashboard();
         closePanel();
       };
       $('#cancel-txn').onclick = () => {
@@ -3051,12 +3051,12 @@
       // Remove any posted ledger entries linked to this transaction so balances stay correct
       removeLinkedEntries({ transaction_id: t.transaction_id });
       file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
-      saveFile(); renderTransactions();
+      saveFile(); renderTransactions(); renderDashboard();
       showToast('Transaction deleted', () => { 
         file.transactions.push(t); 
         postTransaction(t); // re-post ledger impact if user undoes delete
         saveFile(); 
-        renderTransactions(); 
+        renderTransactions(); renderDashboard();
       });
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:after',data:{transaction_id:t.transaction_id,remainingTransactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
