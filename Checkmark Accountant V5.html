@@ -1067,6 +1067,12 @@
           <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
         <div class="card">
+          <h3>Invoicing</h3>
+          <label>Default Tax % (optional)</label>
+          <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
+        </div>
+        <div class="card">
           <h3>Data</h3>
           <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
             <span>Save Status:</span>
@@ -1227,6 +1233,23 @@
     const fmt = (cents, currency='USD') => {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(centsToMoney(cents));
     };
+    const invoiceSubtotal = (inv) => inv?.subtotal_cents ?? inv?.total_cents ?? 0;
+    const invoiceTaxPercent = (inv) => {
+      const pct = Number(inv?.tax_percent);
+      return Number.isFinite(pct) ? pct : 0;
+    };
+    const invoiceTax = (inv) => {
+      if (inv?.tax_cents !== undefined && inv?.tax_cents !== null) return inv.tax_cents;
+      const subtotal = invoiceSubtotal(inv);
+      const pct = invoiceTaxPercent(inv);
+      return Math.round(subtotal * (pct/100));
+    };
+    const invoiceTotal = (inv) => {
+      if (inv?.total_cents !== undefined && inv?.total_cents !== null) return inv.total_cents;
+      const subtotal = invoiceSubtotal(inv);
+      const tax = invoiceTax(inv);
+      return subtotal + tax;
+    };
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
     // ---------- Storage + State ----------
@@ -1293,7 +1316,8 @@
       default_income_account_code: '4000',
       default_uncategorized_expense_code: '6900',
       mileage_model: 'tax_only',
-      depreciation_model: 'report_only'
+      depreciation_model: 'report_only',
+      default_tax_percent: 0
     });
 
     const newBusinessFile = (name='My Business') => ({
@@ -1385,6 +1409,7 @@
       if (!file.settings) file.settings = defaultSettings();
       if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = DEFAULT_LOGO_LIGHT_URL;
       if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
+      if (file.settings.default_tax_percent === undefined || file.settings.default_tax_percent === null) file.settings.default_tax_percent = 0;
       migrateProjectPartyIds(file);
     };
 
@@ -1486,6 +1511,9 @@
           number: inv.number,
           issue_date: inv.date,
           status: inv.status?.toLowerCase() || 'draft',
+          subtotal_cents: moneyToCents(inv.total || 0),
+          tax_cents: 0,
+          tax_percent: 0,
           total_cents: moneyToCents(inv.total || 0),
           created_at: nowIso(),
           updated_at: nowIso()
@@ -1866,7 +1894,7 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${inv.number||'—'}</td><td>${party?.name||'—'}</td><td>${inv.issue_date||''}</td>
         <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${inv.status||'draft'}</td>
-        <td>${fmt(inv.total_cents||0,file.business.base_currency)}</td>
+        <td>${fmt(invoiceTotal(inv),file.business.base_currency)}</td>
         <td class="row">
           <button data-action="view">View</button>
           <button data-action="pay">Mark Paid</button>
@@ -1893,7 +1921,7 @@
         <div class="stack">
           <div><strong>Client:</strong> ${draft.party_name||'—'}</div>
           <div><strong>Date:</strong> ${draft.issue_date||today()}</div>
-          <div><strong>Total:</strong> ${fmt(draft.total_cents||0,file.business.base_currency)}</div>
+          <div><strong>Total:</strong> ${fmt(invoiceTotal(draft),file.business.base_currency)}</div>
           <button id="resume-draft">Resume</button>
         </div>`;
       const resumeBtn = $('#resume-draft');
@@ -1905,6 +1933,12 @@
       const serviceRecent = file.services.slice(-3).reverse();
       const lines = inv.lines || [];
       const lineItems = lines.map(l => lineRow(l)).join('');
+      const taxPercentDefault = inv.tax_percent ?? file.settings.default_tax_percent ?? 0;
+      const taxPercentDisplay = trimTrailingZeros((Number(taxPercentDefault)||0).toFixed(2));
+      const subtotalFromLines = lines.length ? lines.reduce((s,l)=>s+(l.line_total_cents||0),0) : null;
+      const subtotalCents = subtotalFromLines ?? inv.subtotal_cents ?? inv.total_cents ?? 0;
+      const taxCents = inv.tax_cents ?? Math.round(subtotalCents * ((Number(taxPercentDefault)||0)/100));
+      const totalCents = inv.total_cents ?? (subtotalCents + taxCents);
       const selectedPartyId = inv.party_id || null;
       const filteredProjects = selectedPartyId ? file.projects.filter(p=>{
         // Handle backward compatibility: convert party_id to party_ids array
@@ -1925,7 +1959,11 @@
             <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
           </div>
           <div id="line-container" class="stack">${lineItems || ''}</div>
-          <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(inv.total_cents||0,file.business.base_currency)}</div></div>
+          <div class="row" style="justify-content:space-between"><div>Subtotal</div><div id="inv-subtotal">${fmt(subtotalCents,file.business.base_currency)}</div></div>
+          <label>Tax %</label>
+          <input name="tax_percent" id="tax-percent" type="number" step="0.01" min="0" value="${taxPercentDisplay}">
+          <div class="row" style="justify-content:space-between"><div>Tax <span class="muted" id="tax-percent-display">(${taxPercentDisplay || '0'}%)</span></div><div id="inv-tax">${fmt(taxCents,file.business.base_currency)}</div></div>
+          <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
           <div class="row">
             <button class="primary" type="submit">Save</button>
             <button type="button" id="cancel-invoice">Cancel</button>
@@ -1964,6 +2002,10 @@
         project_id: inv.project_id || null,
         issue_date: inv.issue_date || today(),
         status: inv.status || 'draft',
+        tax_percent: inv.tax_percent ?? (inv.invoice_id ? 0 : (file.settings.default_tax_percent ?? 0)),
+        tax_cents: inv.tax_cents ?? null,
+        subtotal_cents: inv.subtotal_cents ?? null,
+        total_cents: inv.total_cents ?? null,
         lines: (file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id).map(clone)) || []
       };
       openPanel('Invoice', invoiceForm(invoice));
@@ -2048,12 +2090,18 @@
             ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
             : null
         }));
+        const draftSubtotal = draftLines.reduce((s,l)=>s+l.line_total_cents,0);
+        const draftTaxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
+        const draftTaxCents = Math.round(draftSubtotal * (draftTaxPercent/100));
         const draftObj = {
           ...invoice,
           party_id: form.querySelector('[name="party_id"]').value,
           project_id: form.querySelector('[name="project_id"]').value || null,
           issue_date: form.querySelector('[name="issue_date"]').value,
-          total_cents: draftLines.reduce((s,l)=>s+l.line_total_cents,0),
+          subtotal_cents: draftSubtotal,
+          tax_percent: draftTaxPercent,
+          tax_cents: draftTaxCents,
+          total_cents: draftSubtotal + draftTaxCents,
           lines: draftLines,
           party_name: file.parties.find(p=>p.party_id===form.querySelector('[name="party_id"]').value)?.name
         };
@@ -2079,7 +2127,10 @@
           created_at: nowIso(),
           updated_at: nowIso()
         }));
-        const total = lines.reduce((s,l)=>s+l.line_total_cents,0);
+        const subtotal = lines.reduce((s,l)=>s+l.line_total_cents,0);
+        const taxPercent = Math.max(0, Number(data.get('tax_percent'))||0);
+        const taxCents = Math.round(subtotal * (taxPercent/100));
+        const total = subtotal + taxCents;
         const saved = {
           invoice_id: invoice.invoice_id,
           party_id: data.get('party_id'),
@@ -2087,6 +2138,9 @@
           number: inv.number || (file.invoices.length+1),
           issue_date: data.get('issue_date') || today(),
           status: invoice.status || 'draft',
+          subtotal_cents: subtotal,
+          tax_percent: taxPercent,
+          tax_cents: taxCents,
           total_cents: total,
           created_at: invoice.created_at || nowIso(),
           updated_at: nowIso()
@@ -2100,19 +2154,27 @@
         closePanel();
       };
       $('#cancel-invoice').onclick = () => {
+        const cancelLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+          service_name: div.querySelector('.line-name').value,
+          quantity: Number(div.querySelector('.line-qty').value)||0,
+          rate_cents: moneyToCents(div.querySelector('.line-rate').value),
+          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
+          billing_type: div.dataset.billing || 'flat',
+          time_minutes: (div.dataset.billing||'flat')==='hourly'
+            ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
+            : null
+        }));
+        const cancelSubtotal = cancelLines.reduce((s,l)=>s+l.line_total_cents,0);
+        const cancelTaxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
+        const cancelTaxCents = Math.round(cancelSubtotal * (cancelTaxPercent/100));
         localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify({
           ...invoice,
           project_id: form.querySelector('[name="project_id"]').value || null,
-          lines: Array.from(container.querySelectorAll('[data-line]')).map(div => ({
-            service_name: div.querySelector('.line-name').value,
-            quantity: Number(div.querySelector('.line-qty').value)||0,
-            rate_cents: moneyToCents(div.querySelector('.line-rate').value),
-            line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
-            billing_type: div.dataset.billing || 'flat',
-            time_minutes: (div.dataset.billing||'flat')==='hourly'
-              ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
-              : null
-          }))
+          subtotal_cents: cancelSubtotal,
+          tax_percent: cancelTaxPercent,
+          tax_cents: cancelTaxCents,
+          total_cents: cancelSubtotal + cancelTaxCents,
+          lines: cancelLines
         }));
         closePanel();
       };
@@ -2131,11 +2193,21 @@
 
     const updateInvoiceTotal = (container) => {
       if (!file) return;
-      const total = Array.from(container.querySelectorAll('[data-line]')).reduce((s,div)=>{
+      const subtotal = Array.from(container.querySelectorAll('[data-line]')).reduce((s,div)=>{
         const qty = Number(div.querySelector('.line-qty').value)||0;
         const rate = Number(div.querySelector('.line-rate').value)||0;
         return s + moneyToCents(qty*rate);
       },0);
+      const taxInput = $('#tax-percent');
+      const taxPercent = Math.max(0, Number(taxInput?.value)||0);
+      const taxCents = Math.round(subtotal * (taxPercent/100));
+      const total = subtotal + taxCents;
+      const taxPercentLabel = $('#tax-percent-display');
+      if (taxPercentLabel) taxPercentLabel.textContent = `(${trimTrailingZeros(taxPercent.toFixed(2))}%)`;
+      const subtotalEl = $('#inv-subtotal');
+      if (subtotalEl) subtotalEl.textContent = fmt(subtotal, file.business.base_currency);
+      const taxEl = $('#inv-tax');
+      if (taxEl) taxEl.textContent = fmt(taxCents, file.business.base_currency);
       const totalEl = $('#inv-total');
       if (totalEl) totalEl.textContent = fmt(total, file.business.base_currency);
     };
@@ -2216,6 +2288,10 @@
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
       const settings = file.settings || {};
+      const invoiceSubtotalCents = invoiceSubtotal(inv);
+      const invoiceTaxPercentVal = invoiceTaxPercent(inv);
+      const invoiceTaxCents = invoiceTax(inv);
+      const invoiceTotalCents = invoiceTotal(inv);
       const isDark = document.documentElement.classList.contains('dark');
       const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
@@ -2299,9 +2375,17 @@
                 `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--muted)">No line items</td></tr>'}
               </tbody>
               <tfoot>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Subtotal:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceSubtotalCents, business.base_currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Tax (${trimTrailingZeros(invoiceTaxPercentVal.toFixed(2))}%):</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceTaxCents, business.base_currency)}</td>
+                </tr>
                 <tr class="invoice-total">
-                  <td colspan="3" style="text-align:right; font-weight:600; padding:20px 18px">Total:</td>
-                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 18px">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+                  <td colspan="3" style="text-align:right; font-weight:700; padding:20px 18px">Total:</td>
+                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 18px">${fmt(invoiceTotalCents, business.base_currency)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -2339,6 +2423,10 @@
       const darkLogo = settings.logoDarkDataUrl;
       // For print, prefer light logo, fallback to dark
       const logoUrl = lightLogo || darkLogo || '';
+      const printSubtotal = invoiceSubtotal(inv);
+      const printTaxPercent = invoiceTaxPercent(inv);
+      const printTax = invoiceTax(inv);
+      const printTotal = invoiceTotal(inv);
       
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -2517,9 +2605,17 @@
                 `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px">No line items</td></tr>'}
               </tbody>
               <tfoot>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Subtotal:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printSubtotal, business.base_currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Tax (${trimTrailingZeros(printTaxPercent.toFixed(2))}%):</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printTax, business.base_currency)}</td>
+                </tr>
                 <tr class="invoice-total">
-                  <td colspan="3" style="text-align:right; font-weight:600; padding:20px 12px">Total:</td>
-                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 12px">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+                  <td colspan="3" style="text-align:right; font-weight:700; padding:20px 12px">Total:</td>
+                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 12px">${fmt(printTotal, business.base_currency)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -2544,6 +2640,10 @@
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       const logoUrl = lightLogo || darkLogo || '';
+      const pdfSubtotal = invoiceSubtotal(inv);
+      const pdfTaxPercent = invoiceTaxPercent(inv);
+      const pdfTax = invoiceTax(inv);
+      const pdfTotal = invoiceTotal(inv);
       
       // Create a temporary container for the invoice content
       const tempContainer = document.createElement('div');
@@ -2624,8 +2724,16 @@
           </tbody>
           <tfoot>
             <tr style="border-top: 2px solid #1c1e26;">
-              <td colspan="3" style="text-align: right; font-weight: 600; padding: 20px 18px;">Total:</td>
-              <td style="text-align: right; font-weight: 700; font-size: 1.2em; padding: 20px 18px;">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfSubtotal, business.base_currency)}</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Tax (${trimTrailingZeros(pdfTaxPercent.toFixed(2))}%):</td>
+              <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfTax, business.base_currency)}</td>
+            </tr>
+            <tr class="invoice-total">
+              <td colspan="3" style="text-align: right; font-weight: 700; padding: 20px 18px;">Total:</td>
+              <td style="text-align: right; font-weight: 700; font-size: 1.2em; padding: 20px 18px;">${fmt(pdfTotal, business.base_currency)}</td>
             </tr>
           </tfoot>
         </table>
@@ -2717,10 +2825,10 @@
           invoice_id: inv.invoice_id,
           deposit_account_code: dep,
           payment_date: $('#pay-date').value,
-          amount_cents: inv.total_cents
+          amount_cents: invoiceTotal(inv)
         };
         file.payments.push(pay);
-        file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: inv.total_cents });
+        file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: invoiceTotal(inv) });
         postInvoicePayment(inv, pay);
         inv.status = 'paid';
         saveFile(); renderInvoices();
@@ -3021,7 +3129,7 @@
       // Also include invoice income for the date range
       const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
       invoices.forEach(inv => {
-        income += inv.total_cents || 0;
+        income += invoiceSubtotal(inv);
       });
       
       $('#pl-output').innerHTML = `
@@ -3056,7 +3164,7 @@
       invoices.forEach(inv => {
         const party = file.parties.find(p=>p.party_id===inv.party_id);
         const name = party?.name || 'Unknown';
-        result[name] = (result[name]||0) + (inv.total_cents || 0);
+        result[name] = (result[name]||0) + invoiceSubtotal(inv);
       });
       return result;
     };
@@ -3413,7 +3521,7 @@
         // For now, let's show all invoices to see total invoiced amount
         const month = inv.issue_date.substring(0, 7);
         if (!monthlyData[month]) monthlyData[month] = 0;
-        monthlyData[month] += inv.total_cents || 0;
+        monthlyData[month] += invoiceSubtotal(inv);
       });
       return monthlyData;
     };
@@ -3829,8 +3937,9 @@
         invoices.forEach(inv => {
           const party = file.parties.find(p => p.party_id === inv.party_id);
           const name = party?.name || 'Unknown';
-          if (inv.total_cents > 0) {
-            clientMap[name] = (clientMap[name] || 0) + (inv.total_cents || 0);
+          const invSubtotal = invoiceSubtotal(inv);
+          if (invSubtotal > 0) {
+            clientMap[name] = (clientMap[name] || 0) + invSubtotal;
           }
         });
 
@@ -4269,7 +4378,7 @@
         if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
       });
       const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
-      invoices.forEach(inv => { income += inv.total_cents || 0; });
+      invoices.forEach(inv => { income += invoiceSubtotal(inv); });
       return { income, expense, net: income - expense };
     };
 
@@ -4608,7 +4717,7 @@
       file.invoices.forEach(i=>{
         const party = file.parties.find(p=>p.party_id===i.party_id);
         const clientName = party ? ` - ${party.name}` : '';
-        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:i.total_cents, status:i.status });
+        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:invoiceTotal(i), status:i.status });
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
@@ -4719,6 +4828,7 @@
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
+        const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
@@ -5026,8 +5136,10 @@
       renderDashboard();
       const themeSelect = $('#theme-select');
       const logoVariant = $('#logo-variant');
+      const defaultTaxPercent = $('#default-tax-percent');
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
+      if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       updateHeaderImagePreview();
       renderBusinessInfo();
       renderMigrationBlock();
