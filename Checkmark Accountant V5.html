@@ -843,6 +843,26 @@
             <h3>Invoices</h3>
             <button id="add-invoice" class="primary">New Invoice</button>
           </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-invoices-json" class="ghost">Export JSON</button>
+            <button id="export-invoices-csv" class="ghost">Export CSV</button>
+            <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <label class="muted" style="display:flex; gap:6px; align-items:center">Status
+              <select id="invoice-export-status">
+                <option value="all">All</option>
+                <option value="draft">Draft</option>
+                <option value="paid">Paid</option>
+                <option value="void">Void</option>
+              </select>
+            </label>
+            <label class="muted" style="display:flex; gap:6px; align-items:center">Start
+              <input type="date" id="invoice-export-start">
+            </label>
+            <label class="muted" style="display:flex; gap:6px; align-items:center">End
+              <input type="date" id="invoice-export-end">
+            </label>
+          </div>
           <div class="stack">
             <table>
               <thead><tr><th>#</th><th>Client</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
@@ -860,11 +880,21 @@
             <button id="add-transaction" class="primary">Add</button>
           </div>
           <div class="stack">
-            <div class="row">
+            <div class="row" style="flex-wrap:wrap; gap:8px; align-items:center">
               <select id="txn-filter">
                 <option value="all">All</option>
                 <option value="uncat">Uncategorized</option>
               </select>
+              <label class="muted" style="display:flex; gap:6px; align-items:center">Start
+                <input type="date" id="txn-export-start">
+              </label>
+              <label class="muted" style="display:flex; gap:6px; align-items:center">End
+                <input type="date" id="txn-export-end">
+              </label>
+              <button id="export-txn-json" class="ghost">Export JSON</button>
+              <button id="export-txn-csv" class="ghost">Export CSV</button>
+              <button id="import-txn-btn" class="ghost">Import CSV/JSON</button>
+              <input type="file" id="import-txn-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             </div>
             <table>
               <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th></th></tr></thead>
@@ -884,6 +914,12 @@
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Clients / Parties</h3>
             <button id="add-client" class="primary">Add</button>
+          </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-clients-json" class="ghost">Export JSON</button>
+            <button id="export-clients-csv" class="ghost">Export CSV</button>
+            <button id="import-clients-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-clients-file" class="hidden" accept=".json,application/json,.csv,text/csv">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
@@ -909,6 +945,12 @@
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Services Catalog</h3>
             <button id="add-service" class="primary">Add Service</button>
+          </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-services-json" class="ghost">Export JSON</button>
+            <button id="export-services-csv" class="ghost">Export CSV</button>
+            <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-services-file" class="hidden" accept=".json,application/json,.csv,text/csv">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
@@ -1079,6 +1121,7 @@
             <span class="saved-flag" id="saved-flag">Saved</span>
           </div>
           <button id="export-json">Backup / Export</button>
+          <button id="export-audit-log" class="ghost" style="margin-top:6px">Export Audit Log</button>
           <input type="file" id="import-json" class="hidden" accept="application/json">
           <button id="import-json-btn">Import</button>
           <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
@@ -1251,6 +1294,64 @@
       return subtotal + tax;
     };
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
+    const csvEscape = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+    const toCSV = (rows, columns) => {
+      const header = columns.map(c => csvEscape(c.header)).join(',');
+      const body = rows.map(row => columns.map(c => csvEscape(c.getter(row))).join(',')).join('\n');
+      return [header, body].filter(Boolean).join('\n');
+    };
+    const parseCSV = (text) => {
+      const rows = [];
+      let current = '';
+      let inQuotes = false;
+      const pushCell = (arr, cell) => { arr.push(cell); };
+      const pushRow = (arr) => { rows.push(arr); };
+      let cells = [];
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '"') {
+          if (inQuotes && text[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          pushCell(cells, current);
+          current = '';
+        } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+          if (ch === '\r' && text[i + 1] === '\n') i++;
+          pushCell(cells, current);
+          pushRow(cells);
+          cells = [];
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      pushCell(cells, current);
+      if (cells.length) pushRow(cells);
+      if (!rows.length) return [];
+      const headers = rows.shift().map(h => h.trim());
+      return rows.filter(r => r.some(c => (c || '').trim() !== '')).map(r => {
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = (r[idx] || '').trim(); });
+        return obj;
+      });
+    };
+    const recordAudit = (entry, { save=true } = {}) => {
+      if (!file) return;
+      const logEntry = { ...entry, at: nowIso() };
+      file.change_log.push(logEntry);
+      if (file.change_log.length > 500) file.change_log = file.change_log.slice(-500);
+      if (save) saveFile();
+      return logEntry;
+    };
 
     // ---------- Storage + State ----------
     const STORAGE = {
@@ -3109,6 +3210,330 @@
       $('#cancel-service').onclick = closePanel;
     };
 
+    // ---------- Import / Export (Entity-level) ----------
+    const unwrapRecords = (payload, keys=[]) => {
+      if (Array.isArray(payload)) return payload;
+      for (const key of keys) {
+        if (Array.isArray(payload?.[key])) return payload[key];
+      }
+      return [];
+    };
+
+    const invoiceExportFilters = () => {
+      const statusSel = $('#invoice-export-status');
+      const start = $('#invoice-export-start');
+      const end = $('#invoice-export-end');
+      return {
+        status: statusSel?.value || 'all',
+        start: start?.value || null,
+        end: end?.value || null
+      };
+    };
+
+    const exportInvoicesData = (format='json') => {
+      if (!file) return;
+      const filters = invoiceExportFilters();
+      const rows = file.invoices.filter(inv => {
+        const statusOk = filters.status === 'all' ? true : (inv.status === filters.status);
+        const startOk = filters.start ? inv.issue_date >= filters.start : true;
+        const endOk = filters.end ? inv.issue_date <= filters.end : true;
+        return statusOk && startOk && endOk;
+      }).map(inv => {
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+        return { ...inv, party_name: party?.name || '', lines };
+      });
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'invoices'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'invoice_id', getter:r=>r.invoice_id },
+          { header:'number', getter:r=>r.number },
+          { header:'party_id', getter:r=>r.party_id },
+          { header:'party_name', getter:r=>r.party_name || '' },
+          { header:'issue_date', getter:r=>r.issue_date },
+          { header:'status', getter:r=>r.status },
+          { header:'subtotal_cents', getter:r=>r.subtotal_cents ?? '' },
+          { header:'tax_percent', getter:r=>r.tax_percent ?? '' },
+          { header:'tax_cents', getter:r=>r.tax_cents ?? '' },
+          { header:'total_cents', getter:r=>r.total_cents ?? '' },
+          { header:'project_id', getter:r=>r.project_id || '' },
+          { header:'lines_json', getter:r=>JSON.stringify(r.lines || []) }
+        ]);
+        download(csv, `${filenameBase}-invoices.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-invoices.json`);
+      }
+      recordAudit({ type:'export', entity:'invoices', format, count: rows.length, filters });
+      showToast(`Exported ${rows.length} invoice${rows.length===1?'':'s'}`);
+    };
+
+    const txnExportFilters = () => {
+      const start = $('#txn-export-start');
+      const end = $('#txn-export-end');
+      return {
+        start: start?.value || null,
+        end: end?.value || null
+      };
+    };
+
+    const exportTransactionsData = (format='json') => {
+      if (!file) return;
+      const filters = txnExportFilters();
+      const rows = file.transactions.filter(t => {
+        const startOk = filters.start ? t.date >= filters.start : true;
+        const endOk = filters.end ? t.date <= filters.end : true;
+        return startOk && endOk;
+      });
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'transactions'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'transaction_id', getter:r=>r.transaction_id },
+          { header:'date', getter:r=>r.date },
+          { header:'type', getter:r=>r.type },
+          { header:'category', getter:r=>r.category || '' },
+          { header:'amount_cents', getter:r=>r.amount_cents ?? '' },
+          { header:'project_id', getter:r=>r.project_id || '' },
+          { header:'memo', getter:r=>r.memo || '' }
+        ]);
+        download(csv, `${filenameBase}-transactions.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-transactions.json`);
+      }
+      recordAudit({ type:'export', entity:'transactions', format, count: rows.length, filters });
+      showToast(`Exported ${rows.length} transaction${rows.length===1?'':'s'}`);
+    };
+
+    const exportClientsData = (format='json') => {
+      if (!file) return;
+      const rows = file.parties.map(p => ({ ...p }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'clients'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'party_id', getter:r=>r.party_id },
+          { header:'name', getter:r=>r.name },
+          { header:'email', getter:r=>r.email || '' },
+          { header:'phone', getter:r=>r.phone || '' },
+          { header:'address', getter:r=>r.address || '' }
+        ]);
+        download(csv, `${filenameBase}-clients.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-clients.json`);
+      }
+      recordAudit({ type:'export', entity:'clients', format, count: rows.length });
+      showToast(`Exported ${rows.length} client${rows.length===1?'':'s'}`);
+    };
+
+    const exportServicesData = (format='json') => {
+      if (!file) return;
+      const rows = file.services.map(s => ({ ...s }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'services'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'service_id', getter:r=>r.service_id },
+          { header:'name', getter:r=>r.name },
+          { header:'default_rate_cents', getter:r=>r.default_rate_cents ?? '' },
+          { header:'billing_type', getter:r=>r.billing_type || 'flat' },
+          { header:'default_description', getter:r=>r.default_description || '' }
+        ]);
+        download(csv, `${filenameBase}-services.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-services.json`);
+      }
+      recordAudit({ type:'export', entity:'services', format, count: rows.length });
+      showToast(`Exported ${rows.length} service${rows.length===1?'':'s'}`);
+    };
+
+    const exportAuditLog = () => {
+      if (!file) return;
+      const data = file.change_log || [];
+      const filename = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'audit'}-log-${today()}.json`;
+      download(JSON.stringify(data, null, 2), filename);
+      showToast(`Exported audit log (${data.length} entries)`);
+    };
+
+    const parseLineItemsFromImport = (raw, invoiceId) => {
+      const payload = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw || '[]'); } catch { return []; } })();
+      if (!Array.isArray(payload)) return [];
+      return payload.map(l => {
+        const qty = Number(l.quantity ?? l.qty ?? 0) || 0;
+        const rate = l.rate_cents !== undefined ? Number(l.rate_cents) || 0 : moneyToCents(l.rate ?? l.price ?? 0);
+        const total = l.line_total_cents !== undefined ? Number(l.line_total_cents) || 0 : moneyToCents(qty * (Number(l.rate ?? l.price ?? 0) || 0));
+        return {
+          invoice_line_id: l.invoice_line_id || uuid(),
+          invoice_id: invoiceId,
+          service_name: l.service_name || l.name || '',
+          quantity: qty,
+          rate_cents: rate,
+          line_total_cents: total,
+          billing_type: l.billing_type || 'flat',
+          time_minutes: l.time_minutes !== undefined ? Number(l.time_minutes) || 0 : null,
+          income_account_code: l.income_account_code || file?.settings?.default_income_account_code,
+          project_id: l.project_id || null,
+          created_at: l.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+      });
+    };
+
+    const importInvoicesData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['invoices', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const invoiceId = rec.invoice_id || uuid();
+        const existing = file.invoices.find(i => i.invoice_id === invoiceId || (rec.number && i.number == rec.number));
+        if (existing) { skipped++; return; }
+        const partyMatch = rec.party_id
+          || file.parties.find(p => rec.party_email && p.email && p.email.toLowerCase() === rec.party_email.toLowerCase())?.party_id
+          || file.parties.find(p => rec.party_name && p.name === rec.party_name)?.party_id
+          || null;
+        const lines = parseLineItemsFromImport(rec.lines || rec.lines_json, invoiceId);
+        const subtotal = Number(rec.subtotal_cents) || lines.reduce((s,l)=>s+(l.line_total_cents||0),0);
+        const taxPercent = Number(rec.tax_percent) || 0;
+        const taxCents = Number(rec.tax_cents) || Math.round(subtotal * (taxPercent/100));
+        const total = Number(rec.total_cents) || subtotal + taxCents;
+        const saved = {
+          invoice_id: invoiceId,
+          number: rec.number || (file.invoices.length + 1),
+          party_id: partyMatch,
+          project_id: rec.project_id || null,
+          issue_date: rec.issue_date || today(),
+          status: rec.status || 'draft',
+          subtotal_cents: subtotal,
+          tax_percent: taxPercent,
+          tax_cents: taxCents,
+          total_cents: total,
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.invoices.push(saved);
+        if (lines.length) {
+          file.invoice_lines = file.invoice_lines.filter(l => l.invoice_id !== invoiceId).concat(lines);
+        }
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'invoices', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderInvoices();
+      showToast(`Imported ${imported} invoice${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importTransactionsData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['transactions', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const txnId = rec.transaction_id || uuid();
+        const amount = rec.amount_cents !== undefined ? Number(rec.amount_cents) || 0 : moneyToCents(rec.amount || rec.total || 0);
+        const memo = rec.memo || '';
+        const existing = file.transactions.find(t => t.transaction_id === txnId || (t.date === rec.date && t.amount_cents === amount && t.memo === memo));
+        if (existing) { skipped++; return; }
+        const saved = {
+          transaction_id: txnId,
+          date: rec.date || today(),
+          type: rec.type || 'expense',
+          category: rec.category || '',
+          amount_cents: amount,
+          project_id: rec.project_id || null,
+          memo,
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.transactions.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'transactions', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderTransactions();
+      showToast(`Imported ${imported} transaction${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importClientsData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['clients', 'parties', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const partyId = rec.party_id || uuid();
+        const emailLower = rec.email ? rec.email.toLowerCase() : '';
+        const existing = file.parties.find(p =>
+          p.party_id === partyId ||
+          (emailLower && p.email && p.email.toLowerCase() === emailLower) ||
+          (rec.name && p.name === rec.name)
+        );
+        if (existing) { skipped++; return; }
+        const saved = {
+          party_id: partyId,
+          name: rec.name || 'Unnamed',
+          email: rec.email || '',
+          phone: rec.phone || '',
+          address: rec.address || '',
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.parties.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'clients', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderClients();
+      showToast(`Imported ${imported} client${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importServicesData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['services', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const serviceId = rec.service_id || uuid();
+        const nameLower = (rec.name || '').toLowerCase();
+        const existing = file.services.find(s =>
+          s.service_id === serviceId ||
+          (nameLower && s.name && s.name.toLowerCase() === nameLower)
+        );
+        if (existing) { skipped++; return; }
+        const saved = {
+          service_id: serviceId,
+          name: rec.name || 'Service',
+          default_rate_cents: rec.default_rate_cents !== undefined ? Number(rec.default_rate_cents) || 0 : moneyToCents(rec.rate || 0),
+          billing_type: rec.billing_type || 'flat',
+          default_description: rec.default_description || rec.description || '',
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.services.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'services', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderServices();
+      showToast(`Imported ${imported} service${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const handleEntityImportFile = (fileObj, handler) => {
+      if (!fileObj) return;
+      const ext = (fileObj.name || '').toLowerCase().split('.').pop();
+      const format = ext === 'csv' ? 'csv' : 'json';
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = reader.result;
+          const parsed = format === 'csv' ? parseCSV(text) : JSON.parse(text);
+          handler(parsed, format);
+        } catch (e) {
+          showModal(`
+            <div class="stack">
+              <h3>Import Error</h3>
+              <p style="color:var(--danger)">Failed to import: ${e.message}</p>
+              <div class="row" style="justify-content:flex-end">
+                <button data-cancel class="primary">OK</button>
+              </div>
+            </div>
+          `, () => {});
+        }
+      };
+      reader.readAsText(fileObj);
+    };
+
     // ---------- Reports ----------
     const postedLines = () => {
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
@@ -4755,6 +5180,22 @@
         const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => editInvoice({});
         const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => editTxn({});
         const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => editTxn({});
+        const exportInvoicesJsonBtn = $('#export-invoices-json'); if (exportInvoicesJsonBtn) exportInvoicesJsonBtn.onclick = () => exportInvoicesData('json');
+        const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
+        const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
+        const importInvoicesFile = $('#import-invoices-file'); if (importInvoicesFile) importInvoicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importInvoicesData); e.target.value=''; } };
+        const exportTxnJsonBtn = $('#export-txn-json'); if (exportTxnJsonBtn) exportTxnJsonBtn.onclick = () => exportTransactionsData('json');
+        const exportTxnCsvBtn = $('#export-txn-csv'); if (exportTxnCsvBtn) exportTxnCsvBtn.onclick = () => exportTransactionsData('csv');
+        const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
+        const importTxnFile = $('#import-txn-file'); if (importTxnFile) importTxnFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importTransactionsData); e.target.value=''; } };
+        const exportClientsJsonBtn = $('#export-clients-json'); if (exportClientsJsonBtn) exportClientsJsonBtn.onclick = () => exportClientsData('json');
+        const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
+        const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
+        const importClientsFile = $('#import-clients-file'); if (importClientsFile) importClientsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importClientsData); e.target.value=''; } };
+        const exportServicesJsonBtn = $('#export-services-json'); if (exportServicesJsonBtn) exportServicesJsonBtn.onclick = () => exportServicesData('json');
+        const exportServicesCsvBtn = $('#export-services-csv'); if (exportServicesCsvBtn) exportServicesCsvBtn.onclick = () => exportServicesData('csv');
+        const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
+        const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
@@ -4888,6 +5329,7 @@
           download(JSON.stringify(exportData, null, 2), filename);
           showToast('Business data exported successfully');
         };
+        const exportAuditLogBtn = $('#export-audit-log'); if (exportAuditLogBtn) exportAuditLogBtn.onclick = exportAuditLog;
         const exportAll = $('#export-all'); if (exportAll) exportAll.onclick = () => {
           if (!businessList.length) {
             showToast('No businesses to export');
@@ -5112,8 +5554,8 @@
       r.readAsDataURL(file);
     };
 
-    const download = (data, filename) => {
-      const blob = new Blob([data], { type: 'application/json' });
+    const download = (data, filename, mime='application/json') => {
+      const blob = new Blob([data], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
