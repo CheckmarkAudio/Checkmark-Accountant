@@ -1028,8 +1028,8 @@
         </div>
       </section>
 
-      <section data-section="settings" class="grid cols-2 hidden">
-        <div class="card">
+      <section data-section="settings" class="grid cols-3 hidden">
+        <div class="card" style="grid-column:1">
           <h3>Appearance</h3>
           <label>Theme</label>
           <select id="theme-select">
@@ -1066,13 +1066,13 @@
           </div>
           <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
-        <div class="card" style="grid-column:1 / -1">
+        <div class="card" style="grid-column:2">
           <h3>Invoicing</h3>
           <label>Default Tax % (optional)</label>
           <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
           <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
         </div>
-        <div class="card" style="grid-column:1 / -1">
+        <div class="card" style="grid-column:2">
           <h3>Data</h3>
           <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
             <span>Save Status:</span>
@@ -1092,7 +1092,7 @@
             <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
           </div>
         </div>
-        <div class="card">
+        <div class="card" style="grid-column:3">
           <h3>Business</h3>
           <div id="business-info" class="stack"></div>
           <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
