@@ -848,20 +848,6 @@
             <button id="export-invoices-csv" class="ghost">Export CSV</button>
             <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
-            <label class="muted" style="display:flex; gap:6px; align-items:center">Status
-              <select id="invoice-export-status">
-                <option value="all">All</option>
-                <option value="draft">Draft</option>
-                <option value="paid">Paid</option>
-                <option value="void">Void</option>
-              </select>
-            </label>
-            <label class="muted" style="display:flex; gap:6px; align-items:center">Start
-              <input type="date" id="invoice-export-start">
-            </label>
-            <label class="muted" style="display:flex; gap:6px; align-items:center">End
-              <input type="date" id="invoice-export-end">
-            </label>
           </div>
           <div class="stack">
             <table>
@@ -885,12 +871,6 @@
                 <option value="all">All</option>
                 <option value="uncat">Uncategorized</option>
               </select>
-              <label class="muted" style="display:flex; gap:6px; align-items:center">Start
-                <input type="date" id="txn-export-start">
-              </label>
-              <label class="muted" style="display:flex; gap:6px; align-items:center">End
-                <input type="date" id="txn-export-end">
-              </label>
               <button id="export-txn-json" class="ghost">Export JSON</button>
               <button id="export-txn-csv" class="ghost">Export CSV</button>
               <button id="import-txn-btn" class="ghost">Import CSV/JSON</button>
@@ -3219,26 +3199,9 @@
       return [];
     };
 
-    const invoiceExportFilters = () => {
-      const statusSel = $('#invoice-export-status');
-      const start = $('#invoice-export-start');
-      const end = $('#invoice-export-end');
-      return {
-        status: statusSel?.value || 'all',
-        start: start?.value || null,
-        end: end?.value || null
-      };
-    };
-
     const exportInvoicesData = (format='json') => {
       if (!file) return;
-      const filters = invoiceExportFilters();
-      const rows = file.invoices.filter(inv => {
-        const statusOk = filters.status === 'all' ? true : (inv.status === filters.status);
-        const startOk = filters.start ? inv.issue_date >= filters.start : true;
-        const endOk = filters.end ? inv.issue_date <= filters.end : true;
-        return statusOk && startOk && endOk;
-      }).map(inv => {
+      const rows = file.invoices.map(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
         return { ...inv, party_name: party?.name || '', lines };
@@ -3263,27 +3226,13 @@
       } else {
         download(JSON.stringify(rows, null, 2), `${filenameBase}-invoices.json`);
       }
-      recordAudit({ type:'export', entity:'invoices', format, count: rows.length, filters });
+      recordAudit({ type:'export', entity:'invoices', format, count: rows.length });
       showToast(`Exported ${rows.length} invoice${rows.length===1?'':'s'}`);
-    };
-
-    const txnExportFilters = () => {
-      const start = $('#txn-export-start');
-      const end = $('#txn-export-end');
-      return {
-        start: start?.value || null,
-        end: end?.value || null
-      };
     };
 
     const exportTransactionsData = (format='json') => {
       if (!file) return;
-      const filters = txnExportFilters();
-      const rows = file.transactions.filter(t => {
-        const startOk = filters.start ? t.date >= filters.start : true;
-        const endOk = filters.end ? t.date <= filters.end : true;
-        return startOk && endOk;
-      });
+      const rows = file.transactions.map(t => ({ ...t }));
       const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'transactions'}-${today()}`;
       if (format === 'csv') {
         const csv = toCSV(rows, [
@@ -3299,7 +3248,7 @@
       } else {
         download(JSON.stringify(rows, null, 2), `${filenameBase}-transactions.json`);
       }
-      recordAudit({ type:'export', entity:'transactions', format, count: rows.length, filters });
+      recordAudit({ type:'export', entity:'transactions', format, count: rows.length });
       showToast(`Exported ${rows.length} transaction${rows.length===1?'':'s'}`);
     };
 
