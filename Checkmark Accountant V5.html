@@ -1933,6 +1933,7 @@
       if (!file) { file = newBusinessFile('New Business'); saveFile(); }
       ensureFile();
       cleanOrphanLedgerEntries();
+      if (renumberInvoices()) saveFile();
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:loadActive',message:'loadActive:file-loaded',data:{transactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
@@ -3500,6 +3501,7 @@
         imported++;
       });
       recordAudit({ type:'import', entity:'invoices', format: source, imported, skipped }, { save:false });
+      renumberInvoices();
       saveFile();
       renderInvoices();
       showToast(`Imported ${imported} invoice${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
