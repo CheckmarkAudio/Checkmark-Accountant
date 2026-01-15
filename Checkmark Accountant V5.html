@@ -848,6 +848,7 @@
             <button id="export-invoices-csv" class="ghost">Export CSV</button>
             <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px">
           </div>
           <div class="stack">
             <table>
@@ -855,6 +856,7 @@
               <tbody id="invoice-rows"></tbody>
             </table>
             <div class="empty hidden" id="invoice-empty">No invoices yet. Create your first invoice.</div>
+            <div class="empty hidden" id="invoice-empty-filter">No matching invoices.</div>
           </div>
         </div>
       </section>
@@ -871,12 +873,14 @@
               <button id="export-txn-csv" class="ghost">Export CSV</button>
               <button id="import-txn-btn" class="ghost">Import CSV/JSON</button>
               <input type="file" id="import-txn-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+              <input type="search" id="txn-search" placeholder="Search by name or date" style="min-width:220px">
             </div>
             <table>
               <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th></th></tr></thead>
               <tbody id="txn-rows"></tbody>
             </table>
             <div class="empty hidden" id="txn-empty">No transactions yet.</div>
+            <div class="empty hidden" id="txn-empty-filter">No matching transactions.</div>
           </div>
         </div>
         <div class="card">
@@ -1979,12 +1983,22 @@
       }, 100);
     };
 
+    const normalizeSearchValue = (value) => String(value || '').toLowerCase();
+    const matchesSearch = (value, query) => normalizeSearchValue(value).includes(query);
+
     // ---------- Invoices ----------
     const renderInvoices = () => {
       if (!file) return;
       const tbody = $('#invoice-rows'); tbody.innerHTML = '';
+      const searchQuery = normalizeSearchValue($('#invoice-search')?.value).trim();
+      const rows = file.invoices.filter(inv => {
+        if (!searchQuery) return true;
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
+      });
       if (!file.invoices.length) $('#invoice-empty').classList.remove('hidden'); else $('#invoice-empty').classList.add('hidden');
-      file.invoices.forEach(inv => {
+      if (file.invoices.length && !rows.length) $('#invoice-empty-filter')?.classList.remove('hidden'); else $('#invoice-empty-filter')?.classList.add('hidden');
+      rows.forEach(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${inv.number||'—'}</td><td>${party?.name||'—'}</td><td>${inv.issue_date||''}</td>
@@ -2941,8 +2955,16 @@
     const renderTransactions = () => {
       if (!file) return;
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
-      const rows = file.transactions;
-      if (!rows.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
+      const searchQuery = normalizeSearchValue($('#txn-search')?.value).trim();
+      const rows = file.transactions.filter(t => {
+        if (!searchQuery) return true;
+        return matchesSearch(t.category, searchQuery)
+          || matchesSearch(t.memo, searchQuery)
+          || matchesSearch(t.type, searchQuery)
+          || matchesSearch(t.date, searchQuery);
+      });
+      if (!file.transactions.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
+      if (file.transactions.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       rows.forEach(t => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category||'—'}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
@@ -5172,10 +5194,12 @@
         const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
         const importInvoicesFile = $('#import-invoices-file'); if (importInvoicesFile) importInvoicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importInvoicesData); e.target.value=''; } };
+        const invoiceSearch = $('#invoice-search'); if (invoiceSearch) invoiceSearch.oninput = () => renderInvoices();
         const exportTxnJsonBtn = $('#export-txn-json'); if (exportTxnJsonBtn) exportTxnJsonBtn.onclick = () => exportTransactionsData('json');
         const exportTxnCsvBtn = $('#export-txn-csv'); if (exportTxnCsvBtn) exportTxnCsvBtn.onclick = () => exportTransactionsData('csv');
         const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
         const importTxnFile = $('#import-txn-file'); if (importTxnFile) importTxnFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importTransactionsData); e.target.value=''; } };
+        const txnSearch = $('#txn-search'); if (txnSearch) txnSearch.oninput = () => renderTransactions();
         const exportClientsJsonBtn = $('#export-clients-json'); if (exportClientsJsonBtn) exportClientsJsonBtn.onclick = () => exportClientsData('json');
         const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
         const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
