@@ -4,6 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkmark Accountant V5</title>
+  <script>
+    // Apply saved/system theme ASAP to avoid light flash on dark mode
+    (() => {
+      try {
+        const ACTIVE_KEY = 'ck5_active';
+        const DATA_PREFIX = 'ck5_business_';
+        const activeId = localStorage.getItem(ACTIVE_KEY);
+        let theme = null;
+        if (activeId) {
+          const raw = localStorage.getItem(`${DATA_PREFIX}${activeId}`);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            theme = parsed?.settings?.theme || null;
+          }
+        }
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const dark = theme === 'dark' || ((!theme || theme === 'system') && prefersDark);
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.backgroundColor = dark ? '#0d1017' : '#f5f6f8';
+      } catch (e) {
+        // Ignore early theme errors; main script will re-apply later
+      }
+    })();
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
   <style>
     :root {
       --bg: #f5f6f8;
@@ -83,6 +110,92 @@
       box-shadow: 0 4px 12px rgba(58,127,245,0.3);
     }
     button:active { transform: scale(calc(1 - 0.02 * var(--motion-scale))); }
+    button.date-preset-btn {
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    button.date-preset-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.date-preset-btn:hover {
+      background: var(--border);
+    }
+    button.date-preset-btn.active:hover {
+      background: var(--accent);
+    }
+    @media (max-width: 768px) {
+      .grid.cols-2 { grid-template-columns: 1fr; }
+      #analytics-content .card {
+        padding: 20px;
+      }
+      #analytics-content .card canvas {
+        max-height: 250px;
+      }
+      #analytics-content .card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+      }
+      nav.tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      nav.tabs button {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .date-preset-btn {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+      }
+      main {
+        padding: 16px;
+      }
+      .card {
+        padding: 20px;
+      }
+      #analytics-content .row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #analytics-content .row > div {
+        width: 100%;
+      }
+      #analytics-content input[type="date"] {
+        width: 100%;
+        min-width: auto;
+      }
+    }
+    @media (max-width: 480px) {
+      #analytics-content .card canvas {
+        max-height: 200px;
+      }
+      .date-preset-btn {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+      }
+    }
+    canvas {
+      max-width: 100%;
+      height: auto !important;
+    }
+    #analytics-content .card {
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+    }
+    #analytics-content .card > div {
+      flex: 1;
+      min-height: 300px;
+      position: relative;
+    }
+    #analytics-content .card > div[style*="position: relative"] {
+      min-height: 300px;
+    }
     input, select, textarea {
       width: 100%;
       padding: 14px 18px;
@@ -118,6 +231,20 @@
       gap: 20px;
       padding: 20px 28px;
       box-shadow: var(--shadow-soft);
+    }
+    header.topbar .custom-header-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      width: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+    header.topbar > * {
+      position: relative;
+      z-index: 1;
     }
     .logo-chip {
       display: inline-flex;
@@ -190,17 +317,24 @@
       text-align: left;
     }
     #invoice-rows td {
-      padding: 10px 12px;
+      padding: 14px 16px;
       white-space: nowrap;
+      vertical-align: middle;
     }
     #invoice-rows td:nth-child(2) {
       white-space: normal;
-      max-width: 200px;
+      max-width: 220px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     #invoice-rows td:last-child {
       white-space: nowrap;
+    }
+    #invoice-rows tbody tr {
+      transition: background 150ms ease;
+    }
+    #invoice-rows tbody tr:hover {
+      background: var(--surface-soft);
     }
     #invoice-rows td.row {
       flex-wrap: nowrap;
@@ -270,6 +404,14 @@
       gap: 20px;
       padding-bottom: 20px;
       border-bottom: 2px solid var(--border);
+    }
+    .invoice-logo {
+      margin-bottom: 16px;
+    }
+    .invoice-logo img {
+      max-height: 60px;
+      max-width: 200px;
+      object-fit: contain;
     }
     .invoice-from h2 {
       font-size: 1.4em;
@@ -409,10 +551,9 @@
       margin: 20px 0;
     }
     .saved-flag {
-      margin-left: auto;
-      padding: 10px 16px;
+      padding: 6px 12px;
       background: var(--surface-soft);
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid var(--border);
       color: var(--muted);
       font-size: 0.875rem;
@@ -623,7 +764,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      z-index: 55;
+      z-index: 65;
     }
     .calculator-minimized.hidden {
       display: none;
@@ -659,13 +800,12 @@
 <body>
   <div class="app">
     <header class="topbar">
+      <img id="custom-header-image" class="custom-header-image" alt="" style="display:none">
       <div class="logo-chip" id="logo-chip"><img id="logo-img" alt="Logo"></div>
       <div class="stack" style="gap:4px">
         <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
         <div class="row" style="gap:8px">
           <select id="business-selector"></select>
-          <button id="new-business" class="ghost">+ New</button>
-          <span class="saved-flag" id="saved-flag">Saved</span>
         </div>
       </div>
       <div class="row" style="margin-left:auto; gap:16px">
@@ -681,6 +821,7 @@
       <button data-tab="transactions">Transactions</button>
       <button data-tab="clients">Clients</button>
       <button data-tab="services">Services</button>
+      <button data-tab="analytics">Analytics</button>
       <button data-tab="reports">Reports</button>
       <button data-tab="settings">Settings</button>
     </nav>
@@ -696,11 +837,18 @@
         </div>
       </section>
 
-      <section data-section="invoices" class="grid cols-2 hidden">
+      <section data-section="invoices" class="hidden">
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Invoices</h3>
             <button id="add-invoice" class="primary">New Invoice</button>
+          </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-invoices-json" class="ghost">Export JSON</button>
+            <button id="export-invoices-csv" class="ghost">Export CSV</button>
+            <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px">
           </div>
           <div class="stack">
             <table>
@@ -708,11 +856,8 @@
               <tbody id="invoice-rows"></tbody>
             </table>
             <div class="empty hidden" id="invoice-empty">No invoices yet. Create your first invoice.</div>
+            <div class="empty hidden" id="invoice-empty-filter">No matching invoices.</div>
           </div>
-        </div>
-        <div class="card">
-          <h3>Draft</h3>
-          <div id="invoice-draft"></div>
         </div>
       </section>
 
@@ -723,17 +868,19 @@
             <button id="add-transaction" class="primary">Add</button>
           </div>
           <div class="stack">
-            <div class="row">
-              <select id="txn-filter">
-                <option value="all">All</option>
-                <option value="uncat">Uncategorized</option>
-              </select>
+            <div class="row" style="flex-wrap:wrap; gap:8px; align-items:center">
+              <button id="export-txn-json" class="ghost">Export JSON</button>
+              <button id="export-txn-csv" class="ghost">Export CSV</button>
+              <button id="import-txn-btn" class="ghost">Import CSV/JSON</button>
+              <input type="file" id="import-txn-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+              <input type="search" id="txn-search" placeholder="Search by name or date" style="min-width:220px">
             </div>
             <table>
               <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th></th></tr></thead>
               <tbody id="txn-rows"></tbody>
             </table>
             <div class="empty hidden" id="txn-empty">No transactions yet.</div>
+            <div class="empty hidden" id="txn-empty-filter">No matching transactions.</div>
           </div>
         </div>
         <div class="card">
@@ -747,6 +894,12 @@
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Clients / Parties</h3>
             <button id="add-client" class="primary">Add</button>
+          </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-clients-json" class="ghost">Export JSON</button>
+            <button id="export-clients-csv" class="ghost">Export CSV</button>
+            <button id="import-clients-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-clients-file" class="hidden" accept=".json,application/json,.csv,text/csv">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
@@ -773,53 +926,138 @@
             <h3>Services Catalog</h3>
             <button id="add-service" class="primary">Add Service</button>
           </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-services-json" class="ghost">Export JSON</button>
+            <button id="export-services-csv" class="ghost">Export CSV</button>
+            <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-services-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+          </div>
           <table>
-            <thead><tr><th>Name</th><th>Rate</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
             <tbody id="service-rows"></tbody>
           </table>
           <div class="empty hidden" id="service-empty">No services yet.</div>
         </div>
       </section>
 
-      <section data-section="reports" class="grid cols-2 hidden">
-        <div class="card">
-          <h3>Profit & Loss</h3>
-          <div class="row">
-            <input type="date" id="pl-start">
-            <input type="date" id="pl-end">
-            <button id="run-pl">Run</button>
+      <section data-section="analytics" class="hidden">
+        <div class="card" style="margin-bottom: 28px;">
+          <h3 style="margin-bottom: 20px;">Date Range</h3>
+          <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+            <div class="row" style="gap: 8px; flex-wrap: wrap;">
+              <button class="date-preset-btn" data-preset="today" data-for="analytics">Today</button>
+              <button class="date-preset-btn" data-preset="week" data-for="analytics">This Week</button>
+              <button class="date-preset-btn" data-preset="month" data-for="analytics">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter" data-for="analytics">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year" data-for="analytics">This Year</button>
+              <button class="date-preset-btn" data-preset="all" data-for="analytics">All Time</button>
+            </div>
+            <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
+              <label style="margin: 0; font-size: 0.9rem; color: var(--muted); font-weight: 500;">From:</label>
+              <input type="date" id="analytics-start" style="flex: 1; min-width: 140px;" title="Start date">
+              <label style="margin: 0; font-size: 0.9rem; color: var(--muted); font-weight: 500;">To:</label>
+              <input type="date" id="analytics-end" style="flex: 1; min-width: 140px;" title="End date">
+            </div>
+            <button id="refresh-analytics" class="primary" title="Refresh analytics with current date range">Refresh</button>
           </div>
-          <div id="pl-output" class="stack space"></div>
         </div>
-        <div class="card">
-          <h3>Other Reports</h3>
-          <div class="stack">
-            <button id="run-expense-summary">Expense by Category</button>
-            <div id="report-expense"></div>
-            <button id="run-client-summary">Client Revenue</button>
-            <div id="report-client"></div>
-            <button id="run-project-summary">Project Profitability</button>
-            <div id="report-project"></div>
-            <button id="run-tax-summary">Tax Summary</button>
-            <div id="report-tax"></div>
+        <div class="row" style="justify-content: flex-end; margin-bottom: 20px; gap: 12px;">
+          <button id="export-analytics-pdf" class="primary">Export PDF</button>
+          <button id="print-analytics">Print</button>
+        </div>
+        <div id="analytics-content" class="grid cols-2">
+          <div class="card">
+            <h3>Income vs Expenses Trend</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="income-expense-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Profit & Loss</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="profit-loss-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Expense by Category</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="expense-category-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Income by Category</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="income-category-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Client Revenue</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="client-revenue-chart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Monthly Summary</h3>
+            <div style="position: relative; height: 300px;">
+              <canvas id="monthly-summary-chart"></canvas>
+            </div>
           </div>
         </div>
       </section>
 
-      <section data-section="settings" class="grid cols-2 hidden">
-        <div class="card">
+      <section data-section="reports" class="hidden">
+        <div class="card" style="margin-bottom: 28px;">
+          <h3 style="margin-bottom: 20px;">Date Range</h3>
+          <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+            <div class="row" style="gap: 8px; flex-wrap: wrap;">
+              <button class="date-preset-btn" data-preset="today" data-for="reports">Today</button>
+              <button class="date-preset-btn" data-preset="week" data-for="reports">This Week</button>
+              <button class="date-preset-btn" data-preset="month" data-for="reports">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter" data-for="reports">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year" data-for="reports">This Year</button>
+              <button class="date-preset-btn" data-preset="all" data-for="reports">All Time</button>
+            </div>
+            <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
+              <input type="date" id="reports-start" style="flex: 1; min-width: 140px;">
+              <span style="color: var(--muted);">to</span>
+              <input type="date" id="reports-end" style="flex: 1; min-width: 140px;">
+            </div>
+            <button id="refresh-reports" class="primary">Refresh</button>
+          </div>
+        </div>
+        <div class="row" style="justify-content: flex-end; margin-bottom: 20px; gap: 12px;">
+          <button id="export-reports-pdf" class="primary">Export PDF</button>
+          <button id="print-reports">Print</button>
+        </div>
+        <div id="reports-content" class="grid cols-2">
+          <div class="card">
+            <h3>Profit & Loss</h3>
+            <div id="pl-output" class="stack space"></div>
+          </div>
+          <div class="card">
+            <h3>Other Reports</h3>
+            <div class="stack">
+              <button id="run-expense-summary">Expense by Category</button>
+              <div id="report-expense"></div>
+              <button id="run-client-summary">Client Revenue</button>
+              <div id="report-client"></div>
+              <button id="run-project-summary">Project Profitability</button>
+              <div id="report-project"></div>
+              <button id="run-tax-summary">Tax Summary</button>
+              <div id="report-tax"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section data-section="settings" class="grid cols-4 hidden">
+        <div class="card" style="grid-column:1">
           <h3>Appearance</h3>
           <label>Theme</label>
           <select id="theme-select">
             <option value="system">System</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
-          </select>
-          <label>Motion</label>
-          <select id="motion-select">
-            <option value="full">Full</option>
-            <option value="reduced">Reduced</option>
-            <option value="off">Off</option>
           </select>
           <label>Logo (Light)</label>
           <input type="file" id="logo-light" accept="image/*">
@@ -831,18 +1069,62 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+          <label>Custom Header Image (Optional)</label>
+          <input type="file" id="header-image" accept="image/*">
+          <div id="header-image-preview" style="margin-top:10px"></div>
+          <label style="margin-top:16px">Header Image Fit</label>
+          <select id="header-image-fit">
+            <option value="cover">Cover (Fill)</option>
+            <option value="contain">Contain (Fit)</option>
+            <option value="fill">Fill (Stretch)</option>
+            <option value="none">None (Original)</option>
+          </select>
+          <label style="margin-top:16px">Header Image Opacity</label>
+          <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
+          <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.875rem; color:var(--muted)">
+            <span>0%</span>
+            <span id="header-opacity-value">10%</span>
+            <span>100%</span>
+          </div>
+          <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
-        <div class="card">
+        <div class="card" style="grid-column:2">
+          <h3>Invoicing</h3>
+          <label>Default Tax % (optional)</label>
+          <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
+        </div>
+        <div class="card" style="grid-column:3">
           <h3>Data</h3>
+          <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
+            <span>Save Status:</span>
+            <span class="saved-flag" id="saved-flag">Saved</span>
+          </div>
           <button id="export-json">Backup / Export</button>
+          <button id="export-audit-log" class="ghost" style="margin-top:6px">Export Audit Log</button>
           <input type="file" id="import-json" class="hidden" accept="application/json">
           <button id="import-json-btn">Import</button>
-          <button id="integrity-check">Integrity Check</button>
+          <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
           <div id="integrity-output" class="stack space"></div>
+          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+            <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
+            <div id="migration-block" class="stack"></div>
+          </div>
+          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+            <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
+            <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+          </div>
         </div>
-        <div class="card">
-          <h3>Migration</h3>
-          <div id="migration-block" class="stack"></div>
+        <div class="card" style="grid-column:4">
+          <h3>Business</h3>
+          <div id="business-info" class="stack"></div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="new-business" class="primary" style="width:100%">+ New Business</button>
+          </div>
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
+            <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+          </div>
         </div>
       </section>
     </main>
@@ -935,10 +1217,126 @@
     });
     const moneyToCents = (val) => Math.round((Number(val) || 0) * 100);
     const centsToMoney = (c) => (c || 0) / 100;
+    const trimTrailingZeros = (val) => {
+      if (val === undefined || val === null) return '';
+      return String(val).replace(/(\.\d*?[1-9])0+$|\.0*$/,'$1');
+    };
+    const normalizeTimeInput = (val) => {
+      const digits = String(val||'').replace(/\D/g,'');
+      if (!digits) return '';
+      if (digits.length <= 2) {
+        return `0:${digits.padStart(2,'0')}`;
+      }
+      const mins = digits.slice(-2);
+      const hours = digits.slice(0, -2).replace(/^0+/, '') || '0';
+      return `${hours}:${mins}`;
+    };
+    const parseTimeToMinutes = (val) => {
+      if (val === undefined || val === null) return null;
+      const str = String(val).trim();
+      if (!str) return null;
+      if (str.includes(':')) {
+        const [h, m='0'] = str.split(':');
+        const hours = Number(h);
+        const mins = Number(m);
+        if (Number.isNaN(hours) || Number.isNaN(mins)) return null;
+        return Math.max(0, Math.round((hours*60) + mins));
+      }
+      const num = Number(str);
+      if (Number.isNaN(num)) return null;
+      return Math.max(0, Math.round(num*60));
+    };
+    const minutesToTimeString = (mins) => {
+      if (mins === undefined || mins === null || Number.isNaN(Number(mins))) return '';
+      const total = Math.max(0, Math.round(Number(mins)));
+      const h = Math.floor(total/60);
+      const m = total % 60;
+      return `${h}:${m.toString().padStart(2,'0')}`;
+    };
     const fmt = (cents, currency='USD') => {
       return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(centsToMoney(cents));
     };
+    const invoiceSubtotal = (inv) => inv?.subtotal_cents ?? inv?.total_cents ?? 0;
+    const invoiceTip = (inv) => {
+      const tip = Number(inv?.tip_cents);
+      return Number.isFinite(tip) ? tip : 0;
+    };
+    const invoiceTaxPercent = (inv) => {
+      const pct = Number(inv?.tax_percent);
+      return Number.isFinite(pct) ? pct : 0;
+    };
+    const invoiceTax = (inv) => {
+      if (inv?.tax_cents !== undefined && inv?.tax_cents !== null) return inv.tax_cents;
+      const subtotal = invoiceSubtotal(inv);
+      const pct = invoiceTaxPercent(inv);
+      return Math.round(subtotal * (pct/100));
+    };
+    const invoiceTotal = (inv) => {
+      if (inv?.total_cents !== undefined && inv?.total_cents !== null) return inv.total_cents;
+      const subtotal = invoiceSubtotal(inv);
+      const tax = invoiceTax(inv);
+      const tip = invoiceTip(inv);
+      return subtotal + tax + tip;
+    };
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
+    const csvEscape = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+    const toCSV = (rows, columns) => {
+      const header = columns.map(c => csvEscape(c.header)).join(',');
+      const body = rows.map(row => columns.map(c => csvEscape(c.getter(row))).join(',')).join('\n');
+      return [header, body].filter(Boolean).join('\n');
+    };
+    const parseCSV = (text) => {
+      const rows = [];
+      let current = '';
+      let inQuotes = false;
+      const pushCell = (arr, cell) => { arr.push(cell); };
+      const pushRow = (arr) => { rows.push(arr); };
+      let cells = [];
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '"') {
+          if (inQuotes && text[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          pushCell(cells, current);
+          current = '';
+        } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+          if (ch === '\r' && text[i + 1] === '\n') i++;
+          pushCell(cells, current);
+          pushRow(cells);
+          cells = [];
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      pushCell(cells, current);
+      if (cells.length) pushRow(cells);
+      if (!rows.length) return [];
+      const headers = rows.shift().map(h => h.trim());
+      return rows.filter(r => r.some(c => (c || '').trim() !== '')).map(r => {
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = (r[idx] || '').trim(); });
+        return obj;
+      });
+    };
+    const recordAudit = (entry, { save=true } = {}) => {
+      if (!file) return;
+      const logEntry = { ...entry, at: nowIso() };
+      file.change_log.push(logEntry);
+      if (file.change_log.length > 500) file.change_log = file.change_log.slice(-500);
+      if (save) saveFile();
+      return logEntry;
+    };
 
     // ---------- Storage + State ----------
     const STORAGE = {
@@ -988,18 +1386,24 @@
       { code:'8100', name:'Transfers Clearing', type:'other' },
     ]);
 
+    const DEFAULT_LOGO_LIGHT_URL = 'https://static.wixstatic.com/media/afbb39_617140a20fbb47b2b858c0d3ef28a4ef~mv2.png';
+    const DEFAULT_LOGO_DARK_URL = 'https://static.wixstatic.com/media/afbb39_5d281518952249e58353d5e1d87b7514~mv2.png';
+
     const defaultSettings = () => ({
       accounting_basis: 'cash',
       theme: 'system',
-      motion: 'full',
       logoVariant: 'auto',
-      logoLightDataUrl: null,
-      logoDarkDataUrl: null,
+      logoLightDataUrl: DEFAULT_LOGO_LIGHT_URL,
+      logoDarkDataUrl: DEFAULT_LOGO_DARK_URL,
+      headerImageDataUrl: null,
+      headerImageFit: 'cover',
+      headerImageOpacity: 10,
       default_cash_account_code: '1010',
       default_income_account_code: '4000',
       default_uncategorized_expense_code: '6900',
       mileage_model: 'tax_only',
-      depreciation_model: 'report_only'
+      depreciation_model: 'report_only',
+      default_tax_percent: 0
     });
 
     const newBusinessFile = (name='My Business') => ({
@@ -1035,7 +1439,7 @@
     let activeId = null;
     let file = null;
     let undoStack = [];
-    let motionSetting = 'full';
+    let deleteBusinessBtn = null;
 
     const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
     const saveActive = () => activeId ? localStorage.setItem(STORAGE.v5Active, activeId) : localStorage.removeItem(STORAGE.v5Active);
@@ -1056,10 +1460,28 @@
         throw e;
       }
     };
+    const migrateProjectPartyIds = (file) => {
+      // Migrate projects from party_id to party_ids array for backward compatibility
+      if (file && file.projects) {
+        file.projects.forEach(pr => {
+          if (pr.party_id && !pr.party_ids) {
+            pr.party_ids = [pr.party_id];
+            delete pr.party_id;
+          } else if (!pr.party_ids) {
+            pr.party_ids = [];
+          }
+        });
+      }
+      return file;
+    };
+
     const loadFile = (id) => {
       const raw = localStorage.getItem(STORAGE.v5Data(id));
       if (!raw) return null;
-      try { return JSON.parse(raw); } catch { return null; }
+      try {
+        const loaded = JSON.parse(raw);
+        return migrateProjectPartyIds(loaded);
+      } catch { return null; }
     };
     const saveFile = () => {
       if (!file) return;
@@ -1072,23 +1494,26 @@
       if (!file) return;
       if (!file.accounts || file.accounts.length === 0) file.accounts = seedAccounts();
       if (!file.settings) file.settings = defaultSettings();
+      if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = DEFAULT_LOGO_LIGHT_URL;
+      if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
+      if (file.settings.default_tax_percent === undefined || file.settings.default_tax_percent === null) file.settings.default_tax_percent = 0;
+      migrateProjectPartyIds(file);
     };
 
     // ---------- Theme / Logo ----------
     const applyTheme = () => {
       const theme = file?.settings?.theme || 'system';
-      const motion = file?.settings?.motion || 'full';
-      motionSetting = motion;
+      const motion = 'full';
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const dark = theme === 'dark' || (theme === 'system' && prefersDark);
       document.documentElement.classList.toggle('dark', dark);
-      document.documentElement.classList.toggle('motion-off', motion === 'off');
-      document.documentElement.classList.toggle('motion-reduced', motion === 'reduced');
-      const scale = motion === 'full' ? 1 : (motion === 'reduced' ? 0.5 : 0);
+      document.documentElement.classList.toggle('motion-off', false);
+      document.documentElement.classList.toggle('motion-reduced', false);
+      const scale = 1;
       document.documentElement.style.setProperty('--motion-scale', scale);
       const logoVariant = file?.settings?.logoVariant || 'auto';
-      const lightLogo = file?.settings?.logoLightDataUrl;
-      const darkLogo = file?.settings?.logoDarkDataUrl;
+      const lightLogo = file?.settings?.logoLightDataUrl || DEFAULT_LOGO_LIGHT_URL;
+      const darkLogo = file?.settings?.logoDarkDataUrl || DEFAULT_LOGO_DARK_URL;
       const logoEl = $('#logo-img');
       const chip = $('#logo-chip');
       chip.style.background = 'var(--logo-bg)';
@@ -1102,6 +1527,22 @@
         logoEl.textContent = 'CK';
       } else {
         logoEl.src = useLogo;
+      }
+      // Apply custom header image
+      const headerImage = file?.settings?.headerImageDataUrl;
+      const headerImgEl = $('#custom-header-image');
+      if (headerImgEl) {
+        if (headerImage) {
+          headerImgEl.src = headerImage;
+          headerImgEl.style.display = 'block';
+          const fit = file?.settings?.headerImageFit || 'cover';
+          const opacity = (file?.settings?.headerImageOpacity || 10) / 100;
+          headerImgEl.style.objectFit = fit;
+          headerImgEl.style.opacity = opacity;
+        } else {
+          headerImgEl.src = '';
+          headerImgEl.style.display = 'none';
+        }
       }
     };
 
@@ -1143,6 +1584,7 @@
         name: s.name || '',
         default_rate_cents: moneyToCents(s.price || 0),
         default_description: s.name || '',
+        billing_type: 'flat',
         created_at: nowIso(),
         updated_at: nowIso()
       }));
@@ -1156,6 +1598,9 @@
           number: inv.number,
           issue_date: inv.date,
           status: inv.status?.toLowerCase() || 'draft',
+          subtotal_cents: moneyToCents(inv.total || 0),
+          tax_cents: 0,
+          tax_percent: 0,
           total_cents: moneyToCents(inv.total || 0),
           created_at: nowIso(),
           updated_at: nowIso()
@@ -1246,6 +1691,9 @@
     };
 
     const removeLinkedEntries = ({ transaction_id=null, payment_id=null }) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:removeLinkedEntries',message:'removeLinkedEntries:entry',data:{transaction_id,payment_id,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (!transaction_id && !payment_id) return;
       const keepIds = [];
       file.ledger_entries = file.ledger_entries.filter(e=>{
@@ -1255,6 +1703,9 @@
         return true;
       });
       file.ledger_lines = file.ledger_lines.filter(l => keepIds.includes(l.ledger_entry_id) || (!transaction_id && !payment_id));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:removeLinkedEntries',message:'removeLinkedEntries:after',data:{transaction_id,payment_id,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     };
 
     const postEntry = (entry) => {
@@ -1338,6 +1789,29 @@
     const setTab = (tab) => {
       $$('nav.tabs button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
       $$('section[data-section]').forEach(sec => sec.classList.toggle('hidden', sec.dataset.section !== tab));
+      if (tab === 'dashboard' && file) {
+        cleanOrphanLedgerEntries();
+        renderDashboard();
+      }
+      if (tab === 'analytics' && file) {
+        setTimeout(() => {
+          // Initialize date inputs if not already set
+          const startInput = $('#analytics-start');
+          const endInput = $('#analytics-end');
+          if (startInput && !startInput.value) {
+            setDatePreset('month', 'analytics');
+          } else if (startInput && endInput) {
+            // If dates are set, just render
+            renderAnalytics();
+          } else {
+            setDatePreset('month', 'analytics');
+            renderAnalytics();
+          }
+        }, 100);
+      }
+      if (tab === 'settings') {
+        runIntegrity();
+      }
     };
 
     const openPanel = (title, bodyHtml) => {
@@ -1398,6 +1872,50 @@
       loadActive();
     };
 
+    const deleteBusiness = (id) => {
+      if (!id) return;
+      const business = businessList.find(b => b.id === id);
+      if (!business) return;
+      
+      showModal(`
+        <div class="stack">
+          <h3>Delete Business</h3>
+          <p><strong>Warning:</strong> This will permanently delete "${business.name}" and all its data.</p>
+          <p>This action cannot be undone.</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary" style="background:var(--danger)">Delete Business</button>
+          </div>
+        </div>
+      `, () => {
+        // Remove from list
+        businessList = businessList.filter(b => b.id !== id);
+        saveList();
+        
+        // Remove data from localStorage
+        localStorage.removeItem(STORAGE.v5Data(id));
+        
+        // If this was the active business, switch to another or clear
+        if (activeId === id) {
+          if (businessList.length > 0) {
+            activeId = businessList[0].id;
+            saveActive();
+            loadActive();
+          } else {
+            activeId = null;
+            saveActive();
+            file = null;
+            renderBusinessSelector();
+            renderAll();
+          }
+        } else {
+          renderBusinessSelector();
+        }
+        
+        showToast(`Business "${business.name}" deleted`);
+      });
+    };
+
     const loadActive = () => {
       // #region agent log
       logDebug('loadActive:entry','loadActive called',{activeId,businessListLength:businessList.length},'E');
@@ -1407,11 +1925,18 @@
         // #region agent log
         logDebug('loadActive:early-return','No activeId and no businessList',{},'E');
         // #endregion
+        // Prompt to create a business if none exists
+        promptCreateBusinessIfNeeded();
         return;
       }
       file = loadFile(activeId);
       if (!file) { file = newBusinessFile('New Business'); saveFile(); }
       ensureFile();
+      cleanOrphanLedgerEntries();
+      if (renumberInvoices()) saveFile();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:loadActive',message:'loadActive:file-loaded',data:{transactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       renderBusinessSelector();
       applyTheme();
       // #region agent log
@@ -1427,17 +1952,103 @@
       // #endregion
     };
 
+    const promptCreateBusinessIfNeeded = () => {
+      if (businessList.length > 0) return; // Don't prompt if businesses exist
+      
+      showModal(`
+        <div class="stack">
+          <h3>Welcome to Checkmark Accountant V5</h3>
+          <p>You don't have any businesses yet. Create your first business to get started.</p>
+          <label>Business Name</label>
+          <input type="text" id="new-business-name" placeholder="My Business" value="My Business" autofocus>
+          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary">Create Business</button>
+          </div>
+        </div>
+      `, () => {
+        const nameInput = $('#new-business-name');
+        const name = nameInput?.value?.trim() || 'My Business';
+        createBusiness(name);
+        closeModal();
+      });
+      
+      // Auto-focus and allow Enter key to submit
+      setTimeout(() => {
+        const nameInput = $('#new-business-name');
+        if (nameInput) {
+          nameInput.focus();
+          nameInput.select();
+          nameInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+              const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+              if (confirmBtn) confirmBtn.click();
+            }
+          };
+        }
+      }, 100);
+    };
+
+    const normalizeSearchValue = (value) => String(value || '').toLowerCase();
+    const matchesSearch = (value, query) => normalizeSearchValue(value).includes(query);
+
     // ---------- Invoices ----------
+    const getNextInvoiceNumber = () => {
+      if (!file?.invoices?.length) return 1;
+      const numbers = file.invoices
+        .map(inv => Number(inv.number))
+        .filter(n => Number.isFinite(n));
+      const maxNumber = numbers.length ? Math.max(...numbers) : file.invoices.length;
+      return maxNumber + 1;
+    };
+
+    const renumberInvoices = () => {
+      if (!file?.invoices?.length) return false;
+      const sorted = [...file.invoices].sort((a, b) => {
+        const issueA = a.issue_date || '9999-12-31';
+        const issueB = b.issue_date || '9999-12-31';
+        if (issueA !== issueB) return issueA.localeCompare(issueB);
+        const createdA = a.created_at || '9999-12-31T23:59:59.999Z';
+        const createdB = b.created_at || '9999-12-31T23:59:59.999Z';
+        if (createdA !== createdB) return createdA.localeCompare(createdB);
+        const legacyA = Number.isFinite(Number(a.legacy_id)) ? Number(a.legacy_id) : Number.MAX_SAFE_INTEGER;
+        const legacyB = Number.isFinite(Number(b.legacy_id)) ? Number(b.legacy_id) : Number.MAX_SAFE_INTEGER;
+        if (legacyA !== legacyB) return legacyA - legacyB;
+        return String(a.invoice_id || '').localeCompare(String(b.invoice_id || ''));
+      });
+      let changed = false;
+      sorted.forEach((inv, index) => {
+        const nextNumber = index + 1;
+        if (inv.number !== nextNumber) {
+          inv.number = nextNumber;
+          changed = true;
+        }
+      });
+      const orderChanged = sorted.some((inv, index) => inv.invoice_id !== file.invoices[index]?.invoice_id);
+      if (orderChanged) {
+        file.invoices = sorted;
+        changed = true;
+      }
+      return changed;
+    };
+
     const renderInvoices = () => {
       if (!file) return;
       const tbody = $('#invoice-rows'); tbody.innerHTML = '';
+      const searchQuery = normalizeSearchValue($('#invoice-search')?.value).trim();
+      const rows = file.invoices.filter(inv => {
+        if (!searchQuery) return true;
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
+      });
       if (!file.invoices.length) $('#invoice-empty').classList.remove('hidden'); else $('#invoice-empty').classList.add('hidden');
-      file.invoices.forEach(inv => {
+      if (file.invoices.length && !rows.length) $('#invoice-empty-filter')?.classList.remove('hidden'); else $('#invoice-empty-filter')?.classList.add('hidden');
+      rows.forEach(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${inv.number||'—'}</td><td>${party?.name||'—'}</td><td>${inv.issue_date||''}</td>
         <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${inv.status||'draft'}</td>
-        <td>${fmt(inv.total_cents||0,file.business.base_currency)}</td>
+        <td>${fmt(invoiceTotal(inv),file.business.base_currency)}</td>
         <td class="row">
           <button data-action="view">View</button>
           <button data-action="pay">Mark Paid</button>
@@ -1464,18 +2075,37 @@
         <div class="stack">
           <div><strong>Client:</strong> ${draft.party_name||'—'}</div>
           <div><strong>Date:</strong> ${draft.issue_date||today()}</div>
-          <div><strong>Total:</strong> ${fmt(draft.total_cents||0,file.business.base_currency)}</div>
+          <div><strong>Total:</strong> ${fmt(invoiceTotal(draft),file.business.base_currency)}</div>
           <button id="resume-draft">Resume</button>
         </div>`;
       const resumeBtn = $('#resume-draft');
       if (resumeBtn) resumeBtn.onclick = () => editInvoice(draft, true);
     };
 
+    const sortPartiesByName = (parties = []) => (
+      [...parties].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' }))
+    );
+
     const invoiceForm = (inv={}) => {
-      const partyOptions = file.parties.map(p=>`<option value="${p.party_id}" ${p.party_id===inv.party_id?'selected':''}>${p.name}</option>`).join('');
+      const partyOptions = sortPartiesByName(file.parties)
+        .map(p=>`<option value="${p.party_id}" ${p.party_id===inv.party_id?'selected':''}>${p.name}</option>`)
+        .join('');
       const serviceRecent = file.services.slice(-3).reverse();
       const lines = inv.lines || [];
       const lineItems = lines.map(l => lineRow(l)).join('');
+      const taxPercentDefault = inv.tax_percent ?? file.settings.default_tax_percent ?? 0;
+      const taxPercentDisplay = trimTrailingZeros((Number(taxPercentDefault)||0).toFixed(2));
+      const subtotalFromLines = lines.length ? lines.reduce((s,l)=>s+(l.line_total_cents||0),0) : null;
+      const subtotalCents = subtotalFromLines ?? inv.subtotal_cents ?? inv.total_cents ?? 0;
+      const taxCents = inv.tax_cents ?? Math.round(subtotalCents * ((Number(taxPercentDefault)||0)/100));
+      const tipCents = inv.tip_cents ?? 0;
+      const totalCents = inv.total_cents ?? (subtotalCents + taxCents + tipCents);
+      const selectedPartyId = inv.party_id || null;
+      const filteredProjects = selectedPartyId ? file.projects.filter(p=>{
+        // Handle backward compatibility: convert party_id to party_ids array
+        const partyIds = p.party_ids || (p.party_id ? [p.party_id] : []);
+        return partyIds.includes(selectedPartyId);
+      }) : [];
       return `
         <form id="invoice-form" class="stack">
           <label>Client</label>
@@ -1483,14 +2113,21 @@
           <label>Date</label>
           <input name="issue_date" type="date" value="${inv.issue_date||today()}">
           <label>Project</label>
-          <select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
+          <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
           <div class="row" style="gap:8px; flex-wrap:wrap">
             <span class="muted">Recent services:</span>
             ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${s.service_id}">${s.name}</button>`).join('')}
             <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
           </div>
-          <div id="line-container" class="stack">${lineItems || '<div class="empty">No lines. Add a service.</div>'}</div>
-          <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(inv.total_cents||0,file.business.base_currency)}</div></div>
+          <div id="line-container" class="stack">${lineItems || ''}</div>
+          <div class="row" style="justify-content:space-between"><div>Subtotal</div><div id="inv-subtotal">${fmt(subtotalCents,file.business.base_currency)}</div></div>
+          <label>Tax %</label>
+          <input name="tax_percent" id="tax-percent" type="number" step="0.01" min="0" value="${taxPercentDisplay}">
+          <div class="row" style="justify-content:space-between"><div>Tax <span class="muted" id="tax-percent-display">(${taxPercentDisplay || '0'}%)</span></div><div id="inv-tax">${fmt(taxCents,file.business.base_currency)}</div></div>
+          <label>Tip</label>
+          <input name="tip_amount" id="tip-amount" type="number" step="0.01" min="0" value="${centsToMoney(tipCents)}">
+          <div class="row" style="justify-content:space-between"><div>Tip</div><div id="inv-tip">${fmt(tipCents,file.business.base_currency)}</div></div>
+          <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
           <div class="row">
             <button class="primary" type="submit">Save</button>
             <button type="button" id="cancel-invoice">Cancel</button>
@@ -1499,13 +2136,25 @@
     };
 
     const lineRow = (line) => {
-      return `<div class="card" data-line="${line.invoice_line_id||uuid()}" style="padding:20px; box-shadow:none; margin-bottom:12px">
-        <div class="row">
+      const billing = line.billing_type || 'flat';
+      const qtyValRaw = (line.quantity !== undefined && line.quantity !== null) ? line.quantity : (line.time_minutes ? line.time_minutes/60 : 1);
+      const qtyVal = trimTrailingZeros((Number(qtyValRaw)||0).toFixed(2)) || (qtyValRaw ?? 1);
+      const timeVal = billing === 'hourly' ? minutesToTimeString(line.time_minutes ?? Math.round((Number(qtyVal)||0)*60)) : '';
+      const timeNote = billing === 'hourly'
+        ? (Number(qtyVal) ? `= ${trimTrailingZeros((Number(qtyVal)||0).toFixed(2))} hrs` : 'Enter hh:mm to convert')
+        : '';
+      return `<div class="card" data-line="${line.invoice_line_id||uuid()}" data-billing="${billing}" style="padding:20px; box-shadow:none; margin-bottom:12px">
+        <div class="row" style="gap:8px; align-items:center">
           <input class="line-name" placeholder="Service / Description" value="${line.service_name||''}">
-          <input class="line-qty" type="number" step="0.01" value="${line.quantity||1}" style="width:80px">
-          <input class="line-rate" type="number" step="0.01" value="${centsToMoney(line.rate_cents||0)}" style="width:100px">
+          <input class="line-qty" type="number" step="0.01" value="${qtyVal}" style="width:90px" title="${billing==='hourly'?'Hours':'Quantity'}">
+          <input class="line-rate" type="number" step="0.01" value="${centsToMoney(line.rate_cents||0)}" style="width:110px">
           <button type="button" data-remove>Delete</button>
         </div>
+        ${billing==='hourly'?`<div class="row" style="gap:8px; align-items:center; margin-top:8px">
+          <label style="margin:0; font-size:0.9rem; color: var(--muted); min-width:110px;">Time (HH:MM)</label>
+          <input class="line-time" placeholder="1:30" value="${timeVal||''}" style="width:120px">
+          <span class="muted" data-time-note style="font-size:0.9rem;">${timeNote}</span>
+        </div>`:''}
       </div>`;
     };
 
@@ -1517,6 +2166,11 @@
         project_id: inv.project_id || null,
         issue_date: inv.issue_date || today(),
         status: inv.status || 'draft',
+        tax_percent: inv.tax_percent ?? (inv.invoice_id ? 0 : (file.settings.default_tax_percent ?? 0)),
+        tax_cents: inv.tax_cents ?? null,
+        subtotal_cents: inv.subtotal_cents ?? null,
+        tip_cents: inv.tip_cents ?? 0,
+        total_cents: inv.total_cents ?? null,
         lines: (file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id).map(clone)) || []
       };
       openPanel('Invoice', invoiceForm(invoice));
@@ -1531,19 +2185,90 @@
         showServiceInline(container);
       };
       form.addEventListener('input', () => updateInvoiceTotal(container));
+      const syncLineTime = (div, { fromQty=false } = {}) => {
+        if (!div || (div.dataset.billing||'flat') !== 'hourly') return;
+        const qtyInput = div.querySelector('.line-qty');
+        const timeInput = div.querySelector('.line-time');
+        const note = div.querySelector('[data-time-note]');
+        if (!qtyInput || !timeInput) return;
+        if (!fromQty) {
+          const normalized = normalizeTimeInput(timeInput.value);
+          if (normalized !== timeInput.value) timeInput.value = normalized;
+          const mins = parseTimeToMinutes(normalized);
+          if (mins !== null) {
+            const hours = mins/60;
+            qtyInput.value = trimTrailingZeros(hours.toFixed(2)) || '0';
+          }
+        } else if (!timeInput.value) {
+          const minsFromQty = Math.round((Number(qtyInput.value)||0)*60);
+          if (minsFromQty>0) timeInput.value = minutesToTimeString(minsFromQty);
+        }
+        if (note) {
+          const qty = Number(qtyInput.value)||0;
+          note.textContent = qty ? `= ${trimTrailingZeros(qty.toFixed(2))} hrs` : 'Enter hh:mm to convert';
+        }
+      };
+      container.addEventListener('input', (e) => {
+        const target = e.target;
+        const div = target.closest('[data-line]');
+        if (!div) return;
+        if (target.classList.contains('line-time')) {
+          const normalized = normalizeTimeInput(target.value);
+          if (normalized !== target.value) target.value = normalized;
+          syncLineTime(div);
+          updateInvoiceTotal(container);
+        }
+        if (target.classList.contains('line-qty')) {
+          syncLineTime(div, { fromQty:true });
+          updateInvoiceTotal(container);
+        }
+        if (target.classList.contains('line-rate')) {
+          updateInvoiceTotal(container);
+        }
+      });
+      container.querySelectorAll('[data-line]').forEach(div => syncLineTime(div, { fromQty:true }));
+      // Update project dropdown when client changes
+      const partySelect = form.querySelector('[name="party_id"]');
+      const projectSelect = form.querySelector('[name="project_id"]');
+      const currentProjectId = invoice.project_id;
+      partySelect.addEventListener('change', () => {
+        const selectedPartyId = partySelect.value;
+        const filteredProjects = selectedPartyId ? file.projects.filter(p=>{
+          // Handle backward compatibility: convert party_id to party_ids array
+          const partyIds = p.party_ids || (p.party_id ? [p.party_id] : []);
+          return partyIds.includes(selectedPartyId);
+        }) : [];
+        projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${p.project_id}">${p.name}</option>`).join('');
+        // Try to preserve the current project if it's still valid
+        if (currentProjectId && filteredProjects.find(p=>p.project_id===currentProjectId)) {
+          projectSelect.value = currentProjectId;
+        }
+      });
       const persistDraft = () => {
         const draftLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
           service_name: div.querySelector('.line-name').value,
           quantity: Number(div.querySelector('.line-qty').value)||0,
           rate_cents: moneyToCents(div.querySelector('.line-rate').value),
-          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0))
+          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
+          billing_type: div.dataset.billing || 'flat',
+          time_minutes: (div.dataset.billing||'flat')==='hourly'
+            ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
+            : null
         }));
+        const draftSubtotal = draftLines.reduce((s,l)=>s+l.line_total_cents,0);
+        const draftTaxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
+        const draftTaxCents = Math.round(draftSubtotal * (draftTaxPercent/100));
+        const draftTipCents = moneyToCents(form.querySelector('[name="tip_amount"]')?.value || 0);
         const draftObj = {
           ...invoice,
           party_id: form.querySelector('[name="party_id"]').value,
           project_id: form.querySelector('[name="project_id"]').value || null,
           issue_date: form.querySelector('[name="issue_date"]').value,
-          total_cents: draftLines.reduce((s,l)=>s+l.line_total_cents,0),
+          subtotal_cents: draftSubtotal,
+          tax_percent: draftTaxPercent,
+          tax_cents: draftTaxCents,
+          tip_cents: draftTipCents,
+          total_cents: draftSubtotal + draftTaxCents + draftTipCents,
           lines: draftLines,
           party_name: file.parties.find(p=>p.party_id===form.querySelector('[name="party_id"]').value)?.name
         };
@@ -1559,20 +2284,32 @@
           quantity: Number(div.querySelector('.line-qty').value)||0,
           rate_cents: moneyToCents(div.querySelector('.line-rate').value),
           line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
+          billing_type: div.dataset.billing || 'flat',
+          time_minutes: (div.dataset.billing||'flat')==='hourly'
+            ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
+            : null,
           income_account_code: file.settings.default_income_account_code,
           invoice_id: invoice.invoice_id,
           project_id: form.querySelector('[name="project_id"]').value || null,
           created_at: nowIso(),
           updated_at: nowIso()
         }));
-        const total = lines.reduce((s,l)=>s+l.line_total_cents,0);
+        const subtotal = lines.reduce((s,l)=>s+l.line_total_cents,0);
+        const taxPercent = Math.max(0, Number(data.get('tax_percent'))||0);
+        const taxCents = Math.round(subtotal * (taxPercent/100));
+        const tipCents = moneyToCents(data.get('tip_amount') || 0);
+        const total = subtotal + taxCents + tipCents;
         const saved = {
           invoice_id: invoice.invoice_id,
           party_id: data.get('party_id'),
           project_id: data.get('project_id') || null,
-          number: inv.number || (file.invoices.length+1),
+          number: inv.number || getNextInvoiceNumber(),
           issue_date: data.get('issue_date') || today(),
           status: invoice.status || 'draft',
+          subtotal_cents: subtotal,
+          tax_percent: taxPercent,
+          tax_cents: taxCents,
+          tip_cents: tipCents,
           total_cents: total,
           created_at: invoice.created_at || nowIso(),
           updated_at: nowIso()
@@ -1586,15 +2323,29 @@
         closePanel();
       };
       $('#cancel-invoice').onclick = () => {
+        const cancelLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+          service_name: div.querySelector('.line-name').value,
+          quantity: Number(div.querySelector('.line-qty').value)||0,
+          rate_cents: moneyToCents(div.querySelector('.line-rate').value),
+          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
+          billing_type: div.dataset.billing || 'flat',
+          time_minutes: (div.dataset.billing||'flat')==='hourly'
+            ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
+            : null
+        }));
+        const cancelSubtotal = cancelLines.reduce((s,l)=>s+l.line_total_cents,0);
+        const cancelTaxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
+        const cancelTaxCents = Math.round(cancelSubtotal * (cancelTaxPercent/100));
+        const cancelTipCents = moneyToCents(form.querySelector('[name="tip_amount"]')?.value || 0);
         localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify({
           ...invoice,
           project_id: form.querySelector('[name="project_id"]').value || null,
-          lines: Array.from(container.querySelectorAll('[data-line]')).map(div => ({
-            service_name: div.querySelector('.line-name').value,
-            quantity: Number(div.querySelector('.line-qty').value)||0,
-            rate_cents: moneyToCents(div.querySelector('.line-rate').value),
-            line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0))
-          }))
+          subtotal_cents: cancelSubtotal,
+          tax_percent: cancelTaxPercent,
+          tax_cents: cancelTaxCents,
+          tip_cents: cancelTipCents,
+          total_cents: cancelSubtotal + cancelTaxCents + cancelTipCents,
+          lines: cancelLines
         }));
         closePanel();
       };
@@ -1613,18 +2364,42 @@
 
     const updateInvoiceTotal = (container) => {
       if (!file) return;
-      const total = Array.from(container.querySelectorAll('[data-line]')).reduce((s,div)=>{
+      const subtotal = Array.from(container.querySelectorAll('[data-line]')).reduce((s,div)=>{
         const qty = Number(div.querySelector('.line-qty').value)||0;
         const rate = Number(div.querySelector('.line-rate').value)||0;
         return s + moneyToCents(qty*rate);
       },0);
+      const taxInput = $('#tax-percent');
+      const taxPercent = Math.max(0, Number(taxInput?.value)||0);
+      const taxCents = Math.round(subtotal * (taxPercent/100));
+      const tipInput = $('#tip-amount');
+      const tipCents = moneyToCents(tipInput?.value || 0);
+      const total = subtotal + taxCents + tipCents;
+      const taxPercentLabel = $('#tax-percent-display');
+      if (taxPercentLabel) taxPercentLabel.textContent = `(${trimTrailingZeros(taxPercent.toFixed(2))}%)`;
+      const subtotalEl = $('#inv-subtotal');
+      if (subtotalEl) subtotalEl.textContent = fmt(subtotal, file.business.base_currency);
+      const taxEl = $('#inv-tax');
+      if (taxEl) taxEl.textContent = fmt(taxCents, file.business.base_currency);
+      const tipEl = $('#inv-tip');
+      if (tipEl) tipEl.textContent = fmt(tipCents, file.business.base_currency);
       const totalEl = $('#inv-total');
       if (totalEl) totalEl.textContent = fmt(total, file.business.base_currency);
     };
 
     const addLineFromService = (container, svc) => {
       if (container.querySelector('.empty')) container.innerHTML='';
-      container.insertAdjacentHTML('beforeend', lineRow({ service_name: svc.name, quantity: 1, rate_cents: svc.default_rate_cents, invoice_line_id: uuid() }));
+      const billing = svc.billing_type || 'flat';
+      const timeMinutes = billing==='hourly' ? 60 : null;
+      const quantity = billing==='hourly' ? (timeMinutes/60) : 1;
+      container.insertAdjacentHTML('beforeend', lineRow({
+        service_name: svc.name,
+        quantity,
+        rate_cents: svc.default_rate_cents,
+        invoice_line_id: uuid(),
+        billing_type: billing,
+        time_minutes: timeMinutes
+      }));
       updateInvoiceTotal(container);
     };
 
@@ -1633,6 +2408,11 @@
         <form id="svc-inline" class="stack">
           <label>Name</label><input name="name">
           <label>Rate</label><input name="rate" type="number" step="0.01">
+          <label>Billing</label>
+          <select name="billing_type">
+            <option value="flat">Flat rate</option>
+            <option value="hourly">Time-based (hourly)</option>
+          </select>
           <label>Description</label><textarea name="desc"></textarea>
           <div class="row">
             <button type="submit" class="primary">Save & Add</button>
@@ -1649,6 +2429,7 @@
           name: data.get('name'),
           default_rate_cents: moneyToCents(data.get('rate')),
           default_description: data.get('desc'),
+          billing_type: data.get('billing_type') || 'flat',
           created_at: nowIso(),
           updated_at: nowIso()
         };
@@ -1662,9 +2443,13 @@
       const removedLines = file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id);
       file.invoices = file.invoices.filter(i=>i.invoice_id!==inv.invoice_id);
       file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==inv.invoice_id);
+      renumberInvoices();
       saveFile(); renderInvoices();
       showToast('Invoice deleted', () => {
-        file.invoices.push(inv); file.invoice_lines = file.invoice_lines.concat(removedLines); saveFile(); renderInvoices();
+        file.invoices.push(inv);
+        file.invoice_lines = file.invoice_lines.concat(removedLines);
+        renumberInvoices();
+        saveFile(); renderInvoices();
       });
     };
 
@@ -1681,18 +2466,33 @@
       const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
+      const settings = file.settings || {};
+      const invoiceSubtotalCents = invoiceSubtotal(inv);
+      const invoiceTaxPercentVal = invoiceTaxPercent(inv);
+      const invoiceTaxCents = invoiceTax(inv);
+      const invoiceTipCents = invoiceTip(inv);
+      const invoiceTotalCents = invoiceTotal(inv);
+      const isDark = document.documentElement.classList.contains('dark');
+      const logoVariant = settings.logoVariant || 'auto';
+      const lightLogo = settings.logoLightDataUrl;
+      const darkLogo = settings.logoDarkDataUrl;
+      let logoUrl = '';
+      if (logoVariant === 'light') logoUrl = lightLogo || darkLogo || '';
+      else if (logoVariant === 'dark') logoUrl = darkLogo || lightLogo || '';
+      else logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
           <div class="invoice-header">
             <div class="invoice-actions">
               <button id="print-invoice" class="primary">Print</button>
-              <button id="close-invoice-view">Close</button>
+              <button id="export-pdf-invoice" class="primary">Export PDF</button>
             </div>
           </div>
           <div class="invoice-content">
             <div class="invoice-header-info">
               <div class="invoice-from">
+                ${logoUrl ? `<div class="invoice-logo"><img src="${logoUrl}" alt="${business.name || 'Logo'}" /></div>` : ''}
                 <h2>${business.name || 'Business'}</h2>
                 ${business.address ? `<div>${business.address}</div>` : ''}
                 ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
@@ -1755,9 +2555,23 @@
                 `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--muted)">No line items</td></tr>'}
               </tbody>
               <tfoot>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Subtotal:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceSubtotalCents, business.base_currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Tax (${trimTrailingZeros(invoiceTaxPercentVal.toFixed(2))}%):</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceTaxCents, business.base_currency)}</td>
+                </tr>
+                ${invoiceTipCents ? `
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Tip:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceTipCents, business.base_currency)}</td>
+                </tr>
+                ` : ''}
                 <tr class="invoice-total">
-                  <td colspan="3" style="text-align:right; font-weight:600; padding:20px 18px">Total:</td>
-                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 18px">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+                  <td colspan="3" style="text-align:right; font-weight:700; padding:20px 18px">Total:</td>
+                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 18px">${fmt(invoiceTotalCents, business.base_currency)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -1767,8 +2581,20 @@
       
       openPanel('Invoice', invoiceHtml);
       
-      $('#print-invoice').onclick = () => printInvoice(inv);
-      $('#close-invoice-view').onclick = closePanel;
+      // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
+      const printBtn = $('#print-invoice');
+      const pdfBtn = $('#export-pdf-invoice');
+      
+      if (printBtn) printBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        printInvoice(inv);
+      };
+      if (pdfBtn) pdfBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        exportInvoiceAsPDF(inv);
+      };
     };
 
     const printInvoice = (inv) => {
@@ -1777,6 +2603,17 @@
       const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
+      const settings = file.settings || {};
+      const logoVariant = settings.logoVariant || 'auto';
+      const lightLogo = settings.logoLightDataUrl;
+      const darkLogo = settings.logoDarkDataUrl;
+      // For print, prefer light logo, fallback to dark
+      const logoUrl = lightLogo || darkLogo || '';
+      const printSubtotal = invoiceSubtotal(inv);
+      const printTaxPercent = invoiceTaxPercent(inv);
+      const printTax = invoiceTax(inv);
+      const printTip = invoiceTip(inv);
+      const printTotal = invoiceTotal(inv);
       
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -1802,6 +2639,14 @@
               margin-bottom: 40px;
               padding-bottom: 20px;
               border-bottom: 2px solid #e3e5eb;
+            }
+            .invoice-logo {
+              margin-bottom: 16px;
+            }
+            .invoice-logo img {
+              max-height: 60px;
+              max-width: 200px;
+              object-fit: contain;
             }
             .invoice-from h2 {
               font-size: 1.5em;
@@ -1884,6 +2729,7 @@
           <div class="invoice-print">
             <div class="invoice-header-info">
               <div class="invoice-from">
+                ${logoUrl ? `<div class="invoice-logo"><img src="${logoUrl}" alt="${business.name || 'Logo'}" /></div>` : ''}
                 <h2>${business.name || 'Business'}</h2>
                 ${business.address ? `<div>${business.address}</div>` : ''}
                 ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
@@ -1946,9 +2792,23 @@
                 `).join('') : '<tr><td colspan="4" style="text-align:center; padding:20px">No line items</td></tr>'}
               </tbody>
               <tfoot>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Subtotal:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printSubtotal, business.base_currency)}</td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Tax (${trimTrailingZeros(printTaxPercent.toFixed(2))}%):</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printTax, business.base_currency)}</td>
+                </tr>
+                ${printTip ? `
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Tip:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printTip, business.base_currency)}</td>
+                </tr>
+                ` : ''}
                 <tr class="invoice-total">
-                  <td colspan="3" style="text-align:right; font-weight:600; padding:20px 12px">Total:</td>
-                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 12px">${fmt(inv.total_cents || 0, business.base_currency)}</td>
+                  <td colspan="3" style="text-align:right; font-weight:700; padding:20px 12px">Total:</td>
+                  <td style="text-align:right; font-weight:700; font-size:1.2em; padding:20px 12px">${fmt(printTotal, business.base_currency)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -1960,6 +2820,185 @@
       setTimeout(() => {
         printWindow.print();
       }, 250);
+    };
+
+    const exportInvoiceAsPDF = async (inv) => {
+      if (!file) return;
+      const party = file.parties.find(p => p.party_id === inv.party_id);
+      const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
+      const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+      const business = file.business;
+      const settings = file.settings || {};
+      const logoVariant = settings.logoVariant || 'auto';
+      const lightLogo = settings.logoLightDataUrl;
+      const darkLogo = settings.logoDarkDataUrl;
+      const logoUrl = lightLogo || darkLogo || '';
+      const pdfSubtotal = invoiceSubtotal(inv);
+      const pdfTaxPercent = invoiceTaxPercent(inv);
+      const pdfTax = invoiceTax(inv);
+      const pdfTip = invoiceTip(inv);
+      const pdfTotal = invoiceTotal(inv);
+      
+      // Create a temporary container for the invoice content
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.padding = '20mm';
+      tempContainer.style.background = '#ffffff';
+      tempContainer.style.fontFamily = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+      tempContainer.style.fontSize = '14px';
+      tempContainer.style.color = '#1c1e26';
+      tempContainer.style.lineHeight = '1.6';
+      
+      const invoiceContent = `
+        <div style="display: flex; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 2px solid #e3e5eb; margin-bottom: 24px;">
+          <div>
+            ${logoUrl ? `<div style="margin-bottom: 16px;"><img src="${logoUrl}" alt="${business.name || 'Logo'}" style="max-height: 60px; max-width: 200px; object-fit: contain;" /></div>` : ''}
+            <h2 style="font-size: 1.4em; margin-bottom: 8px; margin-top: 0;">${business.name || 'Business'}</h2>
+            ${business.address ? `<div>${business.address}</div>` : ''}
+            ${business.city && business.state ? `<div>${business.city}, ${business.state} ${business.zip || ''}</div>` : ''}
+            ${business.phone ? `<div>${business.phone}</div>` : ''}
+            ${business.email ? `<div>${business.email}</div>` : ''}
+          </div>
+          <div style="text-align: right;">
+            <h1 style="font-size: 2em; margin-bottom: 8px; margin-top: 0; font-weight: 700;">INVOICE</h1>
+            <div style="font-size: 1.1em; font-weight: 600; color: #6b7080; margin-bottom: 8px;">#${inv.number || '—'}</div>
+            ${inv.status === 'void' ? '<div style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85em; margin-top: 8px; background: rgba(226, 85, 85, 0.1); color: #e25555;">VOID</div>' : ''}
+            ${inv.status === 'paid' ? '<div style="display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85em; margin-top: 8px; background: rgba(31, 179, 122, 0.1); color: #1fb37a;">PAID</div>' : ''}
+          </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 24px;">
+          <div>
+            <h3 style="margin-bottom: 10px; font-size: 1em; font-weight: 600;">Bill To:</h3>
+            <div><strong>${party?.name || '—'}</strong></div>
+            ${party?.address ? `<div>${party.address}</div>` : ''}
+            ${party?.city && party?.state ? `<div>${party.city}, ${party.state} ${party.zip || ''}</div>` : ''}
+            ${party?.email ? `<div>${party.email}</div>` : ''}
+          </div>
+          <div style="text-align: right;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px;">
+              <span style="color: #6b7080;">Invoice Date:</span>
+              <span>${inv.issue_date || '—'}</span>
+            </div>
+            ${project ? `
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px;">
+              <span style="color: #6b7080;">Project:</span>
+              <span>${project.name}</span>
+            </div>
+            ` : ''}
+            ${inv.status ? `
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px;">
+              <span style="color: #6b7080;">Status:</span>
+              <span>${inv.status.toUpperCase()}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+          <thead>
+            <tr style="background: #f2f3f7; border-bottom: 2px solid #e3e5eb;">
+              <th style="padding: 12px; text-align: left; font-weight: 600; font-size: 0.9em;">Description</th>
+              <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 0.9em;">Quantity</th>
+              <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 0.9em;">Rate</th>
+              <th style="padding: 12px; text-align: right; font-weight: 600; font-size: 0.9em;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lines.length > 0 ? lines.map(line => `
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb;">${line.service_name || '—'}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb; text-align: right;">${line.quantity || 0}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb; text-align: right;">${fmt(line.rate_cents || 0, business.base_currency)}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e3e5eb; text-align: right;">${fmt(line.line_total_cents || 0, business.base_currency)}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #6b7080;">No line items</td></tr>'}
+          </tbody>
+          <tfoot>
+            <tr style="border-top: 2px solid #1c1e26;">
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfSubtotal, business.base_currency)}</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Tax (${trimTrailingZeros(pdfTaxPercent.toFixed(2))}%):</td>
+              <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfTax, business.base_currency)}</td>
+            </tr>
+            ${pdfTip ? `
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Tip:</td>
+              <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfTip, business.base_currency)}</td>
+            </tr>
+            ` : ''}
+            <tr class="invoice-total">
+              <td colspan="3" style="text-align: right; font-weight: 700; padding: 20px 18px;">Total:</td>
+              <td style="text-align: right; font-weight: 700; font-size: 1.2em; padding: 20px 18px;">${fmt(pdfTotal, business.base_currency)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+      
+      tempContainer.innerHTML = invoiceContent;
+      document.body.appendChild(tempContainer);
+      
+      try {
+        // Wait for images to load
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Convert to canvas
+        const canvas = await html2canvas(tempContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+        
+        // Create PDF - check for both UMD and global formats
+        let jsPDF;
+        if (window.jspdf && window.jspdf.jsPDF) {
+          jsPDF = window.jspdf.jsPDF;
+        } else if (window.jspdf) {
+          jsPDF = window.jspdf;
+        } else {
+          throw new Error('jsPDF library not loaded');
+        }
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        
+        // Download PDF
+        const fileName = `Invoice_${inv.number || inv.invoice_id}_${inv.issue_date || 'draft'}.pdf`;
+        pdf.save(fileName);
+        
+        showToast('PDF exported successfully');
+      } catch (error) {
+        console.error('PDF export error:', error);
+        showToast('Error exporting PDF: ' + error.message, null);
+      } finally {
+        if (tempContainer && tempContainer.parentNode) {
+          document.body.removeChild(tempContainer);
+        }
+      }
     };
 
     const promptMarkPaid = (inv) => {
@@ -1986,10 +3025,10 @@
           invoice_id: inv.invoice_id,
           deposit_account_code: dep,
           payment_date: $('#pay-date').value,
-          amount_cents: inv.total_cents
+          amount_cents: invoiceTotal(inv)
         };
         file.payments.push(pay);
-        file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: inv.total_cents });
+        file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: invoiceTotal(inv) });
         postInvoicePayment(inv, pay);
         inv.status = 'paid';
         saveFile(); renderInvoices();
@@ -2001,9 +3040,16 @@
     const renderTransactions = () => {
       if (!file) return;
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
-      const filter = $('#txn-filter').value;
-      const rows = file.transactions.filter(t => filter==='uncat' ? !t.category : true);
-      if (!rows.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
+      const searchQuery = normalizeSearchValue($('#txn-search')?.value).trim();
+      const rows = file.transactions.filter(t => {
+        if (!searchQuery) return true;
+        return matchesSearch(t.category, searchQuery)
+          || matchesSearch(t.memo, searchQuery)
+          || matchesSearch(t.type, searchQuery)
+          || matchesSearch(t.date, searchQuery);
+      });
+      if (!file.transactions.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
+      if (file.transactions.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       rows.forEach(t => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category||'—'}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
@@ -2102,7 +3148,7 @@
         else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
         postTransaction(saved);
         localStorage.removeItem(STORAGE.draftTxn(activeId));
-        saveFile(); renderTransactions();
+        saveFile(); renderTransactions(); renderDashboard();
         closePanel();
       };
       $('#cancel-txn').onclick = () => {
@@ -2112,16 +3158,29 @@
     };
 
     const delTxn = (t) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:entry',data:{transaction_id:t.transaction_id,type:t.type,amount_cents:t.amount_cents,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      // Remove any posted ledger entries linked to this transaction so balances stay correct
+      removeLinkedEntries({ transaction_id: t.transaction_id });
       file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
-      saveFile(); renderTransactions();
-      showToast('Transaction deleted', () => { file.transactions.push(t); saveFile(); renderTransactions(); });
+      saveFile(); renderTransactions(); renderDashboard();
+      showToast('Transaction deleted', () => { 
+        file.transactions.push(t); 
+        postTransaction(t); // re-post ledger impact if user undoes delete
+        saveFile(); 
+        renderTransactions(); renderDashboard();
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:after',data:{transaction_id:t.transaction_id,remainingTransactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     };
 
     // ---------- Clients / Services ----------
     const renderClients = () => {
       const tbody = $('#client-rows'); tbody.innerHTML = '';
       if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
-      file.parties.forEach(p => {
+      sortPartiesByName(file.parties).forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${p.name}</td><td>${p.email||''}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editClient(p);
@@ -2167,9 +3226,12 @@
       tbody.innerHTML = '';
       if (!file.projects.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
       file.projects.forEach(pr => {
-        const party = file.parties.find(p=>p.party_id===pr.party_id);
+        // Handle backward compatibility: convert party_id to party_ids array
+        const partyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
+        const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
+        const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${pr.name}</td><td>${party?.name||'—'}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${pr.name}</td><td>${clientNames}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editProject(pr);
         tr.querySelector('[data-del]').onclick = () => { file.projects = file.projects.filter(x=>x.project_id!==pr.project_id); saveFile(); renderProjects(); };
         tbody.appendChild(tr);
@@ -2178,24 +3240,35 @@
 
     const editProject = (pr={}) => {
       if (!file) return;
-      const partyOptions = file.parties.map(p=>`<option value="${p.party_id}" ${p.party_id===pr.party_id?'selected':''}>${p.name}</option>`).join('');
+      // Handle backward compatibility: convert party_id to party_ids array
+      const currentPartyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
+      const partyCheckboxes = sortPartiesByName(file.parties).map(p=>{
+        const checked = currentPartyIds.includes(p.party_id) ? 'checked' : '';
+        return `<label style="display:flex; align-items:center; gap:8px; margin:8px 0; cursor:pointer;"><input type="checkbox" name="party_ids" value="${p.party_id}" ${checked} style="width:auto;">${p.name}</label>`;
+      }).join('');
       openPanel('Project', `
         <form id="project-form" class="stack">
           <label>Name</label><input name="name" value="${pr.name||''}">
-          <label>Client</label><select name="party_id"><option value="">None</option>${partyOptions}</select>
+          <label>Clients</label>
+          <div style="border:1px solid var(--border); border-radius:12px; padding:16px; background:var(--surface-soft); max-height:300px; overflow-y:auto;">
+            ${partyCheckboxes || '<div class="muted">No clients available. Add clients first.</div>'}
+          </div>
           <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-project">Cancel</button></div>
         </form>
       `);
       $('#project-form').onsubmit = (e)=> {
         e.preventDefault();
         const data = new FormData(e.target);
+        const selectedPartyIds = data.getAll('party_ids').filter(id => id);
         const saved = {
           project_id: pr.project_id || uuid(),
           name: data.get('name'),
-          party_id: data.get('party_id') || null,
+          party_ids: selectedPartyIds.length > 0 ? selectedPartyIds : [],
           created_at: pr.created_at || nowIso(),
           updated_at: nowIso()
         };
+        // Remove old party_id if it exists (backward compatibility)
+        if (saved.party_id !== undefined) delete saved.party_id;
         if (!file.projects.find(x=>x.project_id===saved.project_id)) file.projects.push(saved);
         else file.projects = file.projects.map(x=>x.project_id===saved.project_id?saved:x);
         saveFile(); renderProjects(); closePanel();
@@ -2208,7 +3281,8 @@
       if (!file.services.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
       file.services.forEach(s => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${s.name}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
+        tr.innerHTML = `<td>${s.name}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${billing}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editService(s);
         tr.querySelector('[data-del]').onclick = () => {
           file.services = file.services.filter(x=>x.service_id!==s.service_id); saveFile(); renderServices();
@@ -2223,6 +3297,12 @@
         <form id="service-form" class="stack">
           <label>Name</label><input name="name" value="${s.name||''}">
           <label>Default rate</label><input name="rate" type="number" step="0.01" value="${centsToMoney(s.default_rate_cents||0)}">
+          <label>Billing</label>
+          <select name="billing_type">
+            <option value="flat" ${s.billing_type!=='hourly'?'selected':''}>Flat rate</option>
+            <option value="hourly" ${s.billing_type==='hourly'?'selected':''}>Time-based (hourly)</option>
+          </select>
+          <div class="muted" style="font-size:0.9rem;">Hourly adds an hh:mm field on invoices so you can enter time (e.g. 1:30) without creating another service.</div>
           <label>Description</label><textarea name="desc">${s.default_description||''}</textarea>
           <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-service">Cancel</button></div>
         </form>
@@ -2235,6 +3315,7 @@
           name: data.get('name'),
           default_rate_cents: moneyToCents(data.get('rate')),
           default_description: data.get('desc'),
+          billing_type: data.get('billing_type') || 'flat',
           created_at: s.created_at || nowIso(),
           updated_at: nowIso()
         };
@@ -2245,15 +3326,318 @@
       $('#cancel-service').onclick = closePanel;
     };
 
+    // ---------- Import / Export (Entity-level) ----------
+    const unwrapRecords = (payload, keys=[]) => {
+      if (Array.isArray(payload)) return payload;
+      for (const key of keys) {
+        if (Array.isArray(payload?.[key])) return payload[key];
+      }
+      return [];
+    };
+
+    const exportInvoicesData = (format='json') => {
+      if (!file) return;
+      const rows = file.invoices.map(inv => {
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+        return { ...inv, party_name: party?.name || '', lines };
+      });
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'invoices'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'invoice_id', getter:r=>r.invoice_id },
+          { header:'number', getter:r=>r.number },
+          { header:'party_id', getter:r=>r.party_id },
+          { header:'party_name', getter:r=>r.party_name || '' },
+          { header:'issue_date', getter:r=>r.issue_date },
+          { header:'status', getter:r=>r.status },
+          { header:'subtotal_cents', getter:r=>r.subtotal_cents ?? '' },
+          { header:'tax_percent', getter:r=>r.tax_percent ?? '' },
+          { header:'tax_cents', getter:r=>r.tax_cents ?? '' },
+          { header:'tip_cents', getter:r=>r.tip_cents ?? '' },
+          { header:'total_cents', getter:r=>r.total_cents ?? '' },
+          { header:'project_id', getter:r=>r.project_id || '' },
+          { header:'lines_json', getter:r=>JSON.stringify(r.lines || []) }
+        ]);
+        download(csv, `${filenameBase}-invoices.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-invoices.json`);
+      }
+      recordAudit({ type:'export', entity:'invoices', format, count: rows.length });
+      showToast(`Exported ${rows.length} invoice${rows.length===1?'':'s'}`);
+    };
+
+    const exportTransactionsData = (format='json') => {
+      if (!file) return;
+      const rows = file.transactions.map(t => ({ ...t }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'transactions'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'transaction_id', getter:r=>r.transaction_id },
+          { header:'date', getter:r=>r.date },
+          { header:'type', getter:r=>r.type },
+          { header:'category', getter:r=>r.category || '' },
+          { header:'amount_cents', getter:r=>r.amount_cents ?? '' },
+          { header:'project_id', getter:r=>r.project_id || '' },
+          { header:'memo', getter:r=>r.memo || '' }
+        ]);
+        download(csv, `${filenameBase}-transactions.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-transactions.json`);
+      }
+      recordAudit({ type:'export', entity:'transactions', format, count: rows.length });
+      showToast(`Exported ${rows.length} transaction${rows.length===1?'':'s'}`);
+    };
+
+    const exportClientsData = (format='json') => {
+      if (!file) return;
+      const rows = file.parties.map(p => ({ ...p }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'clients'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'party_id', getter:r=>r.party_id },
+          { header:'name', getter:r=>r.name },
+          { header:'email', getter:r=>r.email || '' },
+          { header:'phone', getter:r=>r.phone || '' },
+          { header:'address', getter:r=>r.address || '' }
+        ]);
+        download(csv, `${filenameBase}-clients.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-clients.json`);
+      }
+      recordAudit({ type:'export', entity:'clients', format, count: rows.length });
+      showToast(`Exported ${rows.length} client${rows.length===1?'':'s'}`);
+    };
+
+    const exportServicesData = (format='json') => {
+      if (!file) return;
+      const rows = file.services.map(s => ({ ...s }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'services'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'service_id', getter:r=>r.service_id },
+          { header:'name', getter:r=>r.name },
+          { header:'default_rate_cents', getter:r=>r.default_rate_cents ?? '' },
+          { header:'billing_type', getter:r=>r.billing_type || 'flat' },
+          { header:'default_description', getter:r=>r.default_description || '' }
+        ]);
+        download(csv, `${filenameBase}-services.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-services.json`);
+      }
+      recordAudit({ type:'export', entity:'services', format, count: rows.length });
+      showToast(`Exported ${rows.length} service${rows.length===1?'':'s'}`);
+    };
+
+    const exportAuditLog = () => {
+      if (!file) return;
+      const data = file.change_log || [];
+      const filename = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'audit'}-log-${today()}.json`;
+      download(JSON.stringify(data, null, 2), filename);
+      showToast(`Exported audit log (${data.length} entries)`);
+    };
+
+    const parseLineItemsFromImport = (raw, invoiceId) => {
+      const payload = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw || '[]'); } catch { return []; } })();
+      if (!Array.isArray(payload)) return [];
+      return payload.map(l => {
+        const qty = Number(l.quantity ?? l.qty ?? 0) || 0;
+        const rate = l.rate_cents !== undefined ? Number(l.rate_cents) || 0 : moneyToCents(l.rate ?? l.price ?? 0);
+        const total = l.line_total_cents !== undefined ? Number(l.line_total_cents) || 0 : moneyToCents(qty * (Number(l.rate ?? l.price ?? 0) || 0));
+        return {
+          invoice_line_id: l.invoice_line_id || uuid(),
+          invoice_id: invoiceId,
+          service_name: l.service_name || l.name || '',
+          quantity: qty,
+          rate_cents: rate,
+          line_total_cents: total,
+          billing_type: l.billing_type || 'flat',
+          time_minutes: l.time_minutes !== undefined ? Number(l.time_minutes) || 0 : null,
+          income_account_code: l.income_account_code || file?.settings?.default_income_account_code,
+          project_id: l.project_id || null,
+          created_at: l.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+      });
+    };
+
+    const importInvoicesData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['invoices', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const invoiceId = rec.invoice_id || uuid();
+        const existing = file.invoices.find(i => i.invoice_id === invoiceId || (rec.number && i.number == rec.number));
+        if (existing) { skipped++; return; }
+        const partyMatch = rec.party_id
+          || file.parties.find(p => rec.party_email && p.email && p.email.toLowerCase() === rec.party_email.toLowerCase())?.party_id
+          || file.parties.find(p => rec.party_name && p.name === rec.party_name)?.party_id
+          || null;
+        const lines = parseLineItemsFromImport(rec.lines || rec.lines_json, invoiceId);
+        const subtotal = Number(rec.subtotal_cents) || lines.reduce((s,l)=>s+(l.line_total_cents||0),0);
+        const taxPercent = Number(rec.tax_percent) || 0;
+        const taxCents = Number(rec.tax_cents) || Math.round(subtotal * (taxPercent/100));
+        const tipCents = rec.tip_cents !== undefined ? Number(rec.tip_cents) || 0 : moneyToCents(rec.tip || rec.tip_amount || 0);
+        const total = Number(rec.total_cents) || subtotal + taxCents + tipCents;
+        const saved = {
+          invoice_id: invoiceId,
+          number: rec.number || getNextInvoiceNumber(),
+          party_id: partyMatch,
+          project_id: rec.project_id || null,
+          issue_date: rec.issue_date || today(),
+          status: rec.status || 'draft',
+          subtotal_cents: subtotal,
+          tax_percent: taxPercent,
+          tax_cents: taxCents,
+          tip_cents: tipCents,
+          total_cents: total,
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.invoices.push(saved);
+        if (lines.length) {
+          file.invoice_lines = file.invoice_lines.filter(l => l.invoice_id !== invoiceId).concat(lines);
+        }
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'invoices', format: source, imported, skipped }, { save:false });
+      renumberInvoices();
+      saveFile();
+      renderInvoices();
+      showToast(`Imported ${imported} invoice${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importTransactionsData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['transactions', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const txnId = rec.transaction_id || uuid();
+        const amount = rec.amount_cents !== undefined ? Number(rec.amount_cents) || 0 : moneyToCents(rec.amount || rec.total || 0);
+        const memo = rec.memo || '';
+        const existing = file.transactions.find(t => t.transaction_id === txnId || (t.date === rec.date && t.amount_cents === amount && t.memo === memo));
+        if (existing) { skipped++; return; }
+        const saved = {
+          transaction_id: txnId,
+          date: rec.date || today(),
+          type: rec.type || 'expense',
+          category: rec.category || '',
+          amount_cents: amount,
+          project_id: rec.project_id || null,
+          memo,
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.transactions.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'transactions', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderTransactions();
+      showToast(`Imported ${imported} transaction${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importClientsData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['clients', 'parties', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const partyId = rec.party_id || uuid();
+        const emailLower = rec.email ? rec.email.toLowerCase() : '';
+        const existing = file.parties.find(p =>
+          p.party_id === partyId ||
+          (emailLower && p.email && p.email.toLowerCase() === emailLower) ||
+          (rec.name && p.name === rec.name)
+        );
+        if (existing) { skipped++; return; }
+        const saved = {
+          party_id: partyId,
+          name: rec.name || 'Unnamed',
+          email: rec.email || '',
+          phone: rec.phone || '',
+          address: rec.address || '',
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.parties.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'clients', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderClients();
+      showToast(`Imported ${imported} client${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importServicesData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['services', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const serviceId = rec.service_id || uuid();
+        const nameLower = (rec.name || '').toLowerCase();
+        const existing = file.services.find(s =>
+          s.service_id === serviceId ||
+          (nameLower && s.name && s.name.toLowerCase() === nameLower)
+        );
+        if (existing) { skipped++; return; }
+        const saved = {
+          service_id: serviceId,
+          name: rec.name || 'Service',
+          default_rate_cents: rec.default_rate_cents !== undefined ? Number(rec.default_rate_cents) || 0 : moneyToCents(rec.rate || 0),
+          billing_type: rec.billing_type || 'flat',
+          default_description: rec.default_description || rec.description || '',
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.services.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'services', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderServices();
+      showToast(`Imported ${imported} service${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const handleEntityImportFile = (fileObj, handler) => {
+      if (!fileObj) return;
+      const ext = (fileObj.name || '').toLowerCase().split('.').pop();
+      const format = ext === 'csv' ? 'csv' : 'json';
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = reader.result;
+          const parsed = format === 'csv' ? parseCSV(text) : JSON.parse(text);
+          handler(parsed, format);
+        } catch (e) {
+          showModal(`
+            <div class="stack">
+              <h3>Import Error</h3>
+              <p style="color:var(--danger)">Failed to import: ${e.message}</p>
+              <div class="row" style="justify-content:flex-end">
+                <button data-cancel class="primary">OK</button>
+              </div>
+            </div>
+          `, () => {});
+        }
+      };
+      reader.readAsText(fileObj);
+    };
+
     // ---------- Reports ----------
     const postedLines = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:entry',data:{ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length,entries:file.ledger_entries.map(e=>({id:e.ledger_entry_id,type:e.entry_type,linkedTxn:e.linked_transaction_id||null,linkedPay:e.linked_payment_id||null}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
-      return file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
+      const lines = file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:after',data:{returned:lines.length,postedIdsCount:postedIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      return lines;
     };
 
     const runPL = () => {
-      const start = $('#pl-start').value || '1900-01-01';
-      const end = $('#pl-end').value || '2999-12-31';
+      const { start, end } = getReportsDateRange();
       const lines = postedLines().filter(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         return entry && entry.entry_date >= start && entry.entry_date <= end;
@@ -2265,11 +3649,17 @@
         if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
         if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
       });
+      
+      // Also include invoice income for the date range
+      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      invoices.forEach(inv => {
+        income += invoiceSubtotal(inv);
+      });
+      
       $('#pl-output').innerHTML = `
-        <div class="row" style="justify-content:space-between"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
-        <div class="row" style="justify-content:space-between"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
-        <hr>
-        <div class="row" style="justify-content:space-between"><span>Net</span><strong>${fmt(income-expense,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between; padding: 12px 0; margin-top: 8px; font-weight: 600; font-size: 1.1rem"><span>Net</span><strong style="color: var(--accent)">${fmt(income-expense,file.business.base_currency)}</strong></div>
       `;
     };
 
@@ -2291,13 +3681,14 @@
     };
 
     const clientRevenue = () => {
+      const { start, end } = getReportsDateRange();
       const result = {};
-      file.payment_applications.forEach(pa=>{
-        const inv = file.invoices.find(i=>i.invoice_id===pa.invoice_id);
-        if (!inv) return;
+      // Use invoices directly (by issue date) instead of just payments
+      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      invoices.forEach(inv => {
         const party = file.parties.find(p=>p.party_id===inv.party_id);
         const name = party?.name || 'Unknown';
-        result[name] = (result[name]||0) + pa.amount_cents;
+        result[name] = (result[name]||0) + invoiceSubtotal(inv);
       });
       return result;
     };
@@ -2319,15 +3710,25 @@
     };
 
     const taxSummary = () => {
-      // simple mapping: taxes payable account
+      const { start, end } = getReportsDateRange();
       const map = {};
       postedLines().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry || entry.entry_date < start || entry.entry_date > end) return;
         if (l.account_code === '2200') {
           const delta = (l.credit_cents||0)-(l.debit_cents||0);
           map['Taxes Payable'] = (map['Taxes Payable']||0) + delta;
         }
       });
       return map;
+    };
+
+    const refreshReports = () => {
+      runPL();
+      renderSummary(summaryByAccount('expense'), $('#report-expense'));
+      renderSummary(clientRevenue(), $('#report-client'));
+      renderSummary(projectProfit(), $('#report-project'));
+      renderSummary(taxSummary(), $('#report-tax'));
     };
 
     // ---------- Settings ----------
@@ -2339,6 +3740,9 @@
     };
 
     const runIntegrity = () => {
+      if (!file) return;
+      const output = $('#integrity-output');
+      if (!output) return;
       const unbalanced = [];
       const orphan = [];
       file.ledger_entries.forEach(e=>{
@@ -2348,11 +3752,39 @@
         if (deb!==cred) unbalanced.push(e.ledger_entry_id);
         if (!lines.length) orphan.push(e.ledger_entry_id);
       });
-      $('#integrity-output').innerHTML = `
+      output.innerHTML = `
         <div>Unbalanced entries: ${unbalanced.length}</div>
         <div>Orphaned entries: ${orphan.length}</div>
         <div>Missing links: manual review</div>
       `;
+    };
+
+    const updateHeaderImagePreview = () => {
+      if (!file) return;
+      const preview = $('#header-image-preview');
+      const removeBtn = $('#remove-header-image');
+      const headerImage = file.settings?.headerImageDataUrl;
+      const fitSelect = $('#header-image-fit');
+      const opacitySlider = $('#header-image-opacity');
+      const opacityValue = $('#header-opacity-value');
+      
+      if (preview) {
+        if (headerImage) {
+          const fit = file.settings?.headerImageFit || 'cover';
+          const opacity = file.settings?.headerImageOpacity || 10;
+          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px; object-fit:${fit}">`;
+          if (removeBtn) removeBtn.style.display = 'block';
+          if (fitSelect) fitSelect.value = fit;
+          if (opacitySlider) opacitySlider.value = opacity;
+          if (opacityValue) opacityValue.textContent = opacity + '%';
+        } else {
+          preview.innerHTML = '';
+          if (removeBtn) removeBtn.style.display = 'none';
+          if (fitSelect) fitSelect.value = 'cover';
+          if (opacitySlider) opacitySlider.value = 10;
+          if (opacityValue) opacityValue.textContent = '10%';
+        }
+      }
     };
 
     const handleImport = (fileObj) => {
@@ -2518,6 +3950,1271 @@
       reader.readAsText(fileObj);
     };
 
+    // ---------- Analytics ----------
+    let analyticsCharts = {};
+    const isDarkMode = () => document.documentElement.classList.contains('dark');
+    const getChartColors = () => {
+      const isDark = isDarkMode();
+      return {
+        text: isDark ? '#f5f7fb' : '#1c1e26',
+        grid: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+        income: '#1fb37a',
+        expense: '#e25555',
+        profit: '#3a7ff5',
+        accent: isDark ? '#5aa3ff' : '#3a7ff5'
+      };
+    };
+
+    const getDateRange = () => {
+      const start = $('#analytics-start').value || '1900-01-01';
+      const end = $('#analytics-end').value || '2999-12-31';
+      return { start, end };
+    };
+
+    const setDatePreset = (preset, section = 'analytics') => {
+      const today = new Date();
+      const startInput = section === 'reports' ? $('#reports-start') : $('#analytics-start');
+      const endInput = section === 'reports' ? $('#reports-end') : $('#analytics-end');
+      let start, end;
+
+      switch(preset) {
+        case 'today':
+          start = end = today.toISOString().split('T')[0];
+          break;
+        case 'week':
+          const weekStart = new Date(today);
+          weekStart.setDate(today.getDate() - today.getDay());
+          start = weekStart.toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'month':
+          start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'quarter':
+          const quarter = Math.floor(today.getMonth() / 3);
+          start = new Date(today.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'year':
+          start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+          end = today.toISOString().split('T')[0];
+          break;
+        case 'all':
+          start = '1900-01-01';
+          end = '2999-12-31';
+          break;
+        default:
+          return;
+      }
+
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
+      $$(`.date-preset-btn[data-for="${section}"]`).forEach(btn => btn.classList.remove('active'));
+      $(`.date-preset-btn[data-preset="${preset}"][data-for="${section}"]`)?.classList.add('active');
+    };
+
+    const getReportsDateRange = () => {
+      const start = $('#reports-start')?.value || '1900-01-01';
+      const end = $('#reports-end')?.value || '2999-12-31';
+      return { start, end };
+    };
+
+    const getFilteredLines = () => {
+      const { start, end } = getDateRange();
+      const posted = postedLines();
+      return posted.filter(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        return entry && entry.entry_date >= start && entry.entry_date <= end;
+      });
+    };
+
+    const getFilteredInvoices = () => {
+      const { start, end } = getDateRange();
+      return file.invoices.filter(inv => {
+        return inv.issue_date >= start && inv.issue_date <= end;
+      });
+    };
+
+    const getInvoiceIncome = () => {
+      const invoices = getFilteredInvoices();
+      const monthlyData = {};
+      invoices.forEach(inv => {
+        // Check if invoice has a ledger entry (meaning it's been paid)
+        const hasLedgerEntry = file.ledger_entries.some(e => 
+          e.linked_invoice_id === inv.invoice_id && e.status === 'posted'
+        );
+        // Only count unpaid invoices (or all invoices if you want to see all)
+        // For now, let's show all invoices to see total invoiced amount
+        const month = inv.issue_date.substring(0, 7);
+        if (!monthlyData[month]) monthlyData[month] = 0;
+        monthlyData[month] += invoiceSubtotal(inv);
+      });
+      return monthlyData;
+    };
+
+    const getInvoiceIncomeByCategory = () => {
+      const invoices = getFilteredInvoices();
+      const categoryMap = {};
+      invoices.forEach(inv => {
+        const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+        lines.forEach(line => {
+          const acct = file.accounts.find(a => a.code === line.income_account_code);
+          const accountName = acct ? acct.name : 'Uncategorized Income';
+          categoryMap[accountName] = (categoryMap[accountName] || 0) + (line.line_total_cents || 0);
+        });
+      });
+      return categoryMap;
+    };
+
+    const destroyChart = (chartId) => {
+      if (analyticsCharts[chartId]) {
+        analyticsCharts[chartId].destroy();
+        delete analyticsCharts[chartId];
+      }
+    };
+
+    const renderIncomeExpenseChart = () => {
+      try {
+        destroyChart('incomeExpense');
+        const lines = getFilteredLines();
+        const monthlyData = {};
+        
+        // Add income from ledger entries
+        lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          
+          if (acct.type === 'income') {
+            monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          } else if (acct.type === 'expense') {
+            monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+
+        // Add income from invoices (even if not paid yet)
+        const invoiceIncome = getInvoiceIncome();
+        Object.keys(invoiceIncome).forEach(month => {
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          monthlyData[month].income += invoiceIncome[month];
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const chartEl = document.getElementById('income-expense-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if it was replaced
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="income-expense-chart"></canvas>';
+        }
+        
+        if (!months.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        
+        analyticsCharts['incomeExpense'] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              borderColor: colors.income,
+              backgroundColor: colors.income + '20',
+              tension: 0.4,
+              fill: true
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              borderColor: colors.expense,
+              backgroundColor: colors.expense + '20',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: { 
+                labels: { color: colors.text },
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${fmt(context.parsed.y * 100, file.business.base_currency)}`
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { color: colors.text, maxRotation: 45, minRotation: 0 }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                }, 
+                grid: { color: colors.grid } 
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering income expense chart:', error);
+        const chartEl = document.getElementById('income-expense-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderProfitLossChart = () => {
+      try {
+        destroyChart('profitLoss');
+        const lines = getFilteredLines();
+        let income = 0, expense = 0;
+        
+        lines.forEach(l => {
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income') income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+        });
+
+        // Add invoice income
+        const invoiceIncome = getInvoiceIncome();
+        Object.values(invoiceIncome).forEach(amt => income += amt);
+
+        const profit = income - expense;
+        const total = income + expense + Math.abs(Math.min(0, profit));
+        const chartEl = document.getElementById('profit-loss-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="profit-loss-chart"></canvas>';
+        }
+        
+        if (total === 0) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        
+        analyticsCharts['profitLoss'] = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Income', 'Expenses', profit > 0 ? 'Profit' : 'Loss'],
+            datasets: [{
+              data: [income / 100, expense / 100, Math.abs(profit) / 100],
+              backgroundColor: [colors.income, colors.expense, profit > 0 ? colors.profit : colors.expense],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { 
+                position: 'bottom', 
+                labels: { 
+                  color: colors.text,
+                  padding: 12,
+                  usePointStyle: true
+                } 
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percent = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering profit loss chart:', error);
+        const chartEl = document.getElementById('profit-loss-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderExpenseCategoryChart = () => {
+      try {
+        destroyChart('expenseCategory');
+        const lines = getFilteredLines();
+        const categoryMap = {};
+        
+        lines.forEach(l => {
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct || acct.type !== 'expense') return;
+          const amount = (l.debit_cents || 0) - (l.credit_cents || 0);
+          if (amount > 0) {
+            categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
+          }
+        });
+
+        const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const chartEl = document.getElementById('expense-category-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="expense-category-chart"></canvas>';
+        }
+        
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No expense data available</div>';
+          return;
+        }
+
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const chartColors = [
+          '#e25555', '#ff8b8b', '#ff6b6b', '#ff5252', '#ff4444',
+          '#ff3333', '#ff2222', '#ff1111', '#ff0000', '#ee0000'
+        ];
+        
+        analyticsCharts['expenseCategory'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              label: 'Expenses',
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: chartColors.slice(0, entries.length),
+              borderColor: chartColors.slice(0, entries.length),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed.x * 100 / total) * 100).toFixed(1) : 0;
+                    return `${fmt(context.parsed.x * 100, file.business.base_currency)} (${percent}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency),
+                  maxRotation: 0
+                }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  font: { size: 11 }
+                }, 
+                grid: { color: colors.grid } 
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering expense category chart:', error);
+        const chartEl = document.getElementById('expense-category-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderIncomeCategoryChart = () => {
+      try {
+        destroyChart('incomeCategory');
+        const lines = getFilteredLines();
+        const categoryMap = {};
+        
+        // Add income from ledger entries
+        lines.forEach(l => {
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct || acct.type !== 'income') return;
+          const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
+          if (amount > 0) {
+            categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
+          }
+        });
+
+        // Add income from invoices
+        const invoiceCategoryMap = getInvoiceIncomeByCategory();
+        Object.keys(invoiceCategoryMap).forEach(cat => {
+          categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
+        });
+
+        const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const chartEl = document.getElementById('income-category-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="income-category-chart"></canvas>';
+        }
+        
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No income data available</div>';
+          return;
+        }
+
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const chartColors = [
+          '#1fb37a', '#3dd09c', '#4dd0a1', '#66d9b3', '#7de2c5',
+          '#8eebd1', '#9ff4dd', '#b0fde9', '#c1fff5', '#d2fff1'
+        ];
+        
+        analyticsCharts['incomeCategory'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              label: 'Income',
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: chartColors.slice(0, entries.length),
+              borderColor: chartColors.slice(0, entries.length),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed.x * 100 / total) * 100).toFixed(1) : 0;
+                    return `${fmt(context.parsed.x * 100, file.business.base_currency)} (${percent}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency),
+                  maxRotation: 0
+                }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  font: { size: 11 }
+                }, 
+                grid: { color: colors.grid } 
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering income category chart:', error);
+        const chartEl = document.getElementById('income-category-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderClientRevenueChart = () => {
+      try {
+        destroyChart('clientRevenue');
+        const { start, end } = getDateRange();
+        const clientMap = {};
+        
+        // Add revenue from invoices (based on invoice date, not payment date)
+        const invoices = getFilteredInvoices();
+        invoices.forEach(inv => {
+          const party = file.parties.find(p => p.party_id === inv.party_id);
+          const name = party?.name || 'Unknown';
+          const invSubtotal = invoiceSubtotal(inv);
+          if (invSubtotal > 0) {
+            clientMap[name] = (clientMap[name] || 0) + invSubtotal;
+          }
+        });
+
+        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const chartEl = document.getElementById('client-revenue-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="client-revenue-chart"></canvas>';
+        }
+        
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
+          return;
+        }
+
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const pieColors = [
+          '#3a7ff5', '#5aa3ff', '#7ab5ff', '#9ac7ff', '#bad9ff',
+          '#daebff', '#f0f7ff', '#ffd9ff', '#ffc7ff', '#ffb5ff'
+        ];
+        
+        analyticsCharts['clientRevenue'] = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: pieColors.slice(0, entries.length),
+              borderWidth: 2,
+              borderColor: isDarkMode() ? '#111624' : '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { 
+                position: 'bottom', 
+                labels: { 
+                  color: colors.text,
+                  padding: 12,
+                  usePointStyle: true,
+                  font: { size: 11 }
+                } 
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed * 100 / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering client revenue chart:', error);
+        const chartEl = document.getElementById('client-revenue-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderMonthlySummaryChart = () => {
+      try {
+        destroyChart('monthlySummary');
+        const lines = getFilteredLines();
+        const monthlyData = {};
+        
+        lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          
+          if (acct.type === 'income') {
+            const amt = (l.credit_cents || 0) - (l.debit_cents || 0);
+            monthlyData[month].income += amt;
+          } else if (acct.type === 'expense') {
+            const amt = (l.debit_cents || 0) - (l.credit_cents || 0);
+            monthlyData[month].expense += amt;
+          }
+        });
+
+        // Add invoice income
+        const invoiceIncome = getInvoiceIncome();
+        Object.keys(invoiceIncome).forEach(month => {
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          monthlyData[month].income += invoiceIncome[month];
+        });
+
+        Object.keys(monthlyData).forEach(month => {
+          monthlyData[month].profit = monthlyData[month].income - monthlyData[month].expense;
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const chartEl = document.getElementById('monthly-summary-chart');
+        if (!chartEl) return;
+        
+        // Restore canvas if needed
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="monthly-summary-chart"></canvas>';
+        }
+        
+        if (!months.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        
+        analyticsCharts['monthlySummary'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              backgroundColor: colors.income + '80',
+              borderColor: colors.income,
+              borderWidth: 1
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              backgroundColor: colors.expense + '80',
+              borderColor: colors.expense,
+              borderWidth: 1
+            }, {
+              label: 'Profit',
+              data: months.map(m => monthlyData[m].profit / 100),
+              backgroundColor: colors.profit + '80',
+              borderColor: colors.profit,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: { 
+                labels: { 
+                  color: colors.text,
+                  usePointStyle: true
+                },
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.dataset.label || '';
+                    const value = fmt(context.parsed.y * 100, file.business.base_currency);
+                    return `${label}: ${value}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { 
+                  color: colors.text,
+                  maxRotation: 45,
+                  minRotation: 0
+                }, 
+                grid: { color: colors.grid } 
+              },
+              y: { 
+                ticks: { 
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                }, 
+                grid: { color: colors.grid } 
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering monthly summary chart:', error);
+        const chartEl = document.getElementById('monthly-summary-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderAnalytics = () => {
+      if (!file) {
+        console.warn('Cannot render analytics: no file loaded');
+        return;
+      }
+      try {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          renderIncomeExpenseChart();
+          renderProfitLossChart();
+          renderExpenseCategoryChart();
+          renderIncomeCategoryChart();
+          renderClientRevenueChart();
+          renderMonthlySummaryChart();
+        }, 50);
+      } catch (error) {
+        console.error('Error rendering analytics:', error);
+        showToast('Error loading analytics. Please try again.');
+      }
+    };
+
+    // ---------- Print-friendly builders ----------
+    const getLogoSrc = () => {
+      if (!file) return '';
+      return file.settings?.logoLightDataUrl || file.settings?.logoDarkDataUrl || '';
+    };
+
+    const createPrintContainer = (title, dateRangeLabel) => {
+      const wrapper = document.createElement('div');
+      wrapper.style.width = '100%';
+      wrapper.style.maxWidth = '760px';
+      wrapper.style.margin = '0 auto';
+      wrapper.style.padding = '12px 0 8px 0';
+      wrapper.style.background = '#ffffff';
+      wrapper.style.color = '#111';
+      wrapper.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      wrapper.style.lineHeight = '1.4';
+      wrapper.style.fontSize = '14px';
+
+      const header = document.createElement('div');
+      header.style.display = 'flex';
+      header.style.alignItems = 'center';
+      header.style.gap = '12px';
+      header.style.marginBottom = '8px';
+
+      const logo = getLogoSrc();
+      if (logo) {
+        const img = document.createElement('img');
+        img.src = logo;
+        img.style.height = '40px';
+        img.style.objectFit = 'contain';
+        img.style.flexShrink = '0';
+        header.appendChild(img);
+      }
+
+      const heading = document.createElement('div');
+      heading.innerHTML = `
+        <h1 style="margin:0;font-size:20px;font-weight:700;color:#111">${title}</h1>
+        <p style="margin:2px 0 0 0;color:#444;font-size:13px">${dateRangeLabel}</p>
+      `;
+      header.appendChild(heading);
+      wrapper.appendChild(header);
+
+      const hr = document.createElement('div');
+      hr.style.borderBottom = '1px solid #e5e7eb';
+      hr.style.margin = '8px 0 12px 0';
+      wrapper.appendChild(hr);
+
+      return wrapper;
+    };
+
+    const addSection = (wrapper, title, bodyEl) => {
+      const section = document.createElement('section');
+      section.style.marginBottom = '16px';
+      const h = document.createElement('h2');
+      h.textContent = title;
+      h.style.margin = '0 0 6px 0';
+      h.style.fontSize = '16px';
+      h.style.fontWeight = '700';
+      h.style.color = '#111';
+      section.appendChild(h);
+      section.appendChild(bodyEl);
+      wrapper.appendChild(section);
+    };
+
+    const mapToTable = (map, currency, emptyText='No data', limit=10) => {
+      const entries = Object.entries(map || {}).sort((a,b)=>b[1]-a[1]).slice(0, limit);
+      if (!entries.length) {
+        const p = document.createElement('p');
+        p.textContent = emptyText;
+        p.style.margin = '0';
+        p.style.color = '#555';
+        return p;
+      }
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.fontSize = '13px';
+      entries.forEach(([k,v], idx)=>{
+        const row = document.createElement('tr');
+        row.style.borderBottom = idx === entries.length-1 ? 'none' : '1px solid #e5e7eb';
+        const name = document.createElement('td');
+        name.textContent = k;
+        name.style.padding = '6px 4px';
+        name.style.color = '#111';
+        const val = document.createElement('td');
+        val.textContent = fmt(v, currency);
+        val.style.padding = '6px 4px';
+        val.style.textAlign = 'right';
+        val.style.color = '#111';
+        val.style.fontWeight = '600';
+        row.appendChild(name);
+        row.appendChild(val);
+        table.appendChild(row);
+      });
+      return table;
+    };
+
+    const simpleNote = (text) => {
+      const p = document.createElement('p');
+      p.textContent = text;
+      p.style.margin = '0';
+      p.style.color = '#555';
+      return p;
+    };
+
+    const getCanvasImage = (canvas) => {
+      if (!canvas) return null;
+      const tmp = document.createElement('canvas');
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
+      const ctx = tmp.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,tmp.width,tmp.height);
+      ctx.drawImage(canvas,0,0);
+      return tmp.toDataURL('image/png');
+    };
+
+    const chartBlock = (canvasId) => {
+      const container = document.createElement('div');
+      container.style.border = '1px solid #e5e7eb';
+      container.style.borderRadius = '8px';
+      container.style.padding = '8px';
+      container.style.background = '#ffffff';
+      container.style.minHeight = '60px';
+      const canvas = document.getElementById(canvasId);
+      // Nudge chart legend color darker before capture
+      if (window.Chart && Chart.getChart) {
+        const ch = Chart.getChart(canvasId);
+        if (ch?.options?.plugins?.legend?.labels) {
+          ch.options.plugins.legend.labels.color = '#111';
+          ch.update('none');
+        }
+      }
+      const imgSrc = getCanvasImage(canvas);
+      if (imgSrc) {
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.style.width = '260px';
+        img.style.height = '260px';
+        img.style.maxWidth = '100%';
+        img.style.objectFit = 'contain';
+        img.style.display = 'block';
+        img.style.margin = '0 auto';
+        container.appendChild(img);
+        const legend = chartLegend(canvasId);
+        if (legend) container.appendChild(legend);
+      } else {
+        container.appendChild(simpleNote('No data'));
+      }
+      return container;
+    };
+
+    const chartLegend = (canvasId) => {
+      if (!window.Chart || !Chart.getChart) return null;
+      const chart = Chart.getChart(canvasId);
+      if (!chart || !chart.data?.datasets?.length) return null;
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.flexWrap = 'wrap';
+      wrap.style.gap = '8px 12px';
+      wrap.style.marginTop = '8px';
+      const currency = file?.business?.base_currency || 'USD';
+      const addItem = (label, color, val) => {
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.gap = '6px';
+        const swatch = document.createElement('span');
+        swatch.style.width = '10px';
+        swatch.style.height = '10px';
+        swatch.style.borderRadius = '50%';
+        swatch.style.background = color || '#1d4ed8';
+        swatch.style.border = '1px solid #ccc';
+        const text = document.createElement('span');
+        text.textContent = `${label}${val !== undefined ? `: ${fmt((Number(val)||0)*100, currency)}` : ''}`;
+        text.style.fontSize = '12px';
+        text.style.color = '#111';
+        item.appendChild(swatch);
+        item.appendChild(text);
+        wrap.appendChild(item);
+      };
+
+      chart.data.datasets.forEach(ds => {
+        const colors = Array.isArray(ds.backgroundColor) ? ds.backgroundColor : [ds.backgroundColor || '#1d4ed8'];
+        const dataArray = Array.isArray(ds.data) ? ds.data : [ds.data];
+        const labels = Array.isArray(chart.data.labels) ? chart.data.labels : [];
+        if (chart.config?.type === 'doughnut' || chart.config?.type === 'pie') {
+          dataArray.forEach((val, idx) => {
+            addItem(labels[idx] || ds.label || 'Series', colors[idx % colors.length], val);
+          });
+        } else {
+          const total = dataArray.reduce((s,n)=>s+(Number(n)||0),0);
+          addItem(ds.label || 'Series', colors[0], total);
+        }
+      });
+      return wrap.childNodes.length ? wrap : null;
+    };
+
+    const postedLinesInRange = () => {
+      const { start, end } = getReportsDateRange();
+      return postedLines().filter(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        return entry && entry.entry_date >= start && entry.entry_date <= end;
+      });
+    };
+
+    const plSummaryData = () => {
+      const { start, end } = getReportsDateRange();
+      const lines = postedLinesInRange();
+      let income=0, expense=0;
+      lines.forEach(l=>{
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct) return;
+        if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
+        if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
+      });
+      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      invoices.forEach(inv => { income += invoiceSubtotal(inv); });
+      return { income, expense, net: income - expense };
+    };
+
+    const expenseSummaryMap = () => {
+      const map = {};
+      postedLinesInRange().forEach(l=>{
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct || acct.type!=='expense') return;
+        const delta = (l.debit_cents||0)-(l.credit_cents||0);
+        map[acct.name] = (map[acct.name]||0) + delta;
+      });
+      return map;
+    };
+
+    const projectProfitMap = () => {
+      const map = {};
+      postedLinesInRange().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry?.project_id) return;
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct) return;
+        const delta = (l.credit_cents||0)-(l.debit_cents||0);
+        map[entry.project_id] = (map[entry.project_id]||0) + delta;
+      });
+      const named = {};
+      Object.entries(map).forEach(([pid, val])=>{
+        const project = file.projects.find(p=>p.project_id===pid);
+        const name = project?.name || 'Unknown Project';
+        named[name] = val;
+      });
+      return named;
+    };
+
+    const buildPrintAnalytics = () => {
+      const { start, end } = getDateRange();
+      const wrapper = createPrintContainer('Analytics Report', `Date Range: ${start} to ${end}`);
+      const chartSections = [
+        { title:'Income vs Expenses Trend', id:'income-expense-chart' },
+        { title:'Profit & Loss', id:'profit-loss-chart' },
+        { title:'Expense by Category', id:'expense-category-chart' },
+        { title:'Income by Category', id:'income-category-chart' },
+        { title:'Client Revenue', id:'client-revenue-chart' },
+        { title:'Monthly Summary', id:'monthly-summary-chart' }
+      ];
+      chartSections.forEach(sec=>{
+        addSection(wrapper, sec.title, chartBlock(sec.id));
+      });
+      return wrapper;
+    };
+
+    const buildPrintReports = () => {
+      const { start, end } = getReportsDateRange();
+      const wrapper = createPrintContainer('Financial Reports', `Date Range: ${start} to ${end}`);
+      const pl = plSummaryData();
+      const plTable = document.createElement('table');
+      plTable.style.width = '100%';
+      plTable.style.borderCollapse = 'collapse';
+      [['Income', pl.income], ['Expenses', pl.expense], ['Net', pl.net]].forEach(([label,val], idx)=>{
+        const row = document.createElement('tr');
+        row.style.borderBottom = idx===2 ? 'none' : '1px solid #e5e7eb';
+        const name = document.createElement('td');
+        name.textContent = label;
+        name.style.padding = '8px 4px';
+        name.style.fontWeight = idx===2 ? '700' : '600';
+        const num = document.createElement('td');
+        num.textContent = fmt(val, file.business.base_currency);
+        num.style.padding = '8px 4px';
+        num.style.textAlign = 'right';
+        num.style.fontWeight = idx===2 ? '700' : '600';
+        num.style.color = idx===2 ? '#1d4ed8' : '#111';
+        row.appendChild(name);
+        row.appendChild(num);
+        plTable.appendChild(row);
+      });
+      addSection(wrapper, 'Profit & Loss', plTable);
+
+      addSection(wrapper, 'Expense by Category', mapToTable(expenseSummaryMap(), file.business.base_currency, 'No expenses found'));
+      addSection(wrapper, 'Client Revenue', mapToTable(clientRevenue(), file.business.base_currency, 'No client revenue'));
+      addSection(wrapper, 'Project Profitability', mapToTable(projectProfitMap(), file.business.base_currency, 'No project data'));
+      addSection(wrapper, 'Tax Summary', mapToTable(taxSummary(), file.business.base_currency, 'No tax data'));
+
+      return wrapper;
+    };
+
+    const addImageToPdf = (pdf, imgData, canvas, margin = 10) => {
+      const pageWidth = 210;   // mm (A4)
+      const pageHeight = 297;  // mm (A4)
+      const maxWidth = pageWidth - margin * 2;
+      const maxHeight = pageHeight - margin * 2;
+      const aspect = canvas.height / canvas.width;
+      let targetWidth = maxWidth;
+      let targetHeight = targetWidth * aspect;
+      if (targetHeight > maxHeight) {
+        targetHeight = maxHeight;
+        targetWidth = targetHeight / aspect;
+      }
+      const x = (pageWidth - targetWidth) / 2;
+      const y = (pageHeight - targetHeight) / 2;
+      pdf.addImage(imgData, 'PNG', x, y, targetWidth, targetHeight, undefined, 'FAST');
+    };
+
+    const exportAnalyticsPDF = async () => {
+      if (!window.jspdf || !window.html2canvas) {
+        alert('PDF export libraries not loaded. Please refresh the page.');
+        return;
+      }
+      
+      const { jsPDF } = window.jspdf;
+      const printable = buildPrintAnalytics();
+      if (!printable) {
+        alert('No data to export');
+        return;
+      }
+      
+      // Show loading indicator
+      showToast('Generating PDF...');
+      
+      printable.style.position = 'absolute';
+      printable.style.left = '-9999px';
+      printable.style.width = '210mm';
+      printable.style.padding = '20px';
+      document.body.appendChild(printable);
+      
+      try {
+        const canvas = await html2canvas(printable, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: printable.scrollWidth,
+          height: printable.scrollHeight,
+          windowWidth: printable.scrollWidth,
+          windowHeight: printable.scrollHeight
+        });
+        document.body.removeChild(printable);
+        
+        const imgData = canvas.toDataURL('image/png', 0.95);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        // Add business name if available
+        if (file && file.business && file.business.name) {
+          pdf.setFontSize(16);
+          pdf.text(file.business.name, 10, 15);
+          pdf.setFontSize(10);
+          pdf.text('Analytics Report', 10, 22);
+          const { start, end } = getDateRange();
+          pdf.text(`Date Range: ${start} to ${end}`, 10, 28);
+          pdf.setDrawColor(200, 200, 200);
+          pdf.line(10, 32, 200, 32);
+        }
+        
+        addImageToPdf(pdf, imgData, canvas, file && file.business && file.business.name ? 35 : 10);
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        pdf.save(`Analytics_Report_${dateStr}.pdf`);
+        setTimeout(() => showToast('PDF exported successfully!'), 500);
+      } catch (error) {
+        console.error('PDF export error:', error);
+        document.body.removeChild(printable);
+        alert('Error generating PDF: ' + (error.message || 'Unknown error'));
+      }
+    };
+
+    const printAnalytics = () => {
+      const printable = buildPrintAnalytics();
+      if (!printable) {
+        alert('No data to print');
+        return;
+      }
+      
+      // Enhance printable for better printing
+      printable.style.width = '210mm';
+      printable.style.margin = '0 auto';
+      printable.style.padding = '20mm';
+      
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert('Please allow popups to print');
+        return;
+      }
+      
+      const { start, end } = getDateRange();
+      const businessName = file && file.business && file.business.name ? file.business.name : 'Analytics Report';
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Analytics Report - ${businessName}</title>
+          <meta charset="utf-8">
+          <style>
+            @page { 
+              size: A4 portrait; 
+              margin: 12mm; 
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body { 
+              font-family: system-ui, -apple-system, "Segoe UI", sans-serif; 
+              padding: 0; 
+              margin: 0;
+              background: #ffffff; 
+              color: #111; 
+              line-height: 1.6;
+            }
+            img { 
+              max-width: 100%; 
+              height: auto;
+              display: block;
+              margin: 0 auto;
+            }
+            table { 
+              border-collapse: collapse; 
+              width: 100%;
+              margin: 10px 0;
+            }
+            table td, table th {
+              padding: 8px;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            h1, h2 {
+              margin: 16px 0 8px 0;
+            }
+            section {
+              page-break-inside: avoid;
+              margin-bottom: 20px;
+            }
+            @media print {
+              body { 
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+              section {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+            <h1 style="margin: 0; font-size: 24px;">${businessName}</h1>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Analytics Report</p>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Date Range: ${start} to ${end}</p>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 11px;">Generated: ${new Date().toLocaleString()}</p>
+          </div>
+          ${printable.outerHTML}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      // Wait for images to load before printing
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      };
+    };
+
+    const exportReportsPDF = async () => {
+      const { jsPDF } = window.jspdf;
+      const printable = buildPrintReports();
+      if (!printable) return;
+      printable.style.position = 'absolute';
+      printable.style.left = '-9999px';
+      document.body.appendChild(printable);
+      
+      try {
+        const canvas = await html2canvas(printable, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+        document.body.removeChild(printable);
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        addImageToPdf(pdf, imgData, canvas);
+        pdf.save('Financial_Reports.pdf');
+      } catch (error) {
+        document.body.removeChild(printable);
+        alert('Error generating PDF: ' + error.message);
+      }
+    };
+
+    const printReports = () => {
+      const printable = buildPrintReports();
+      if (!printable) return;
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Reports</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            body { font-family: system-ui, sans-serif; padding: 0; background: #ffffff; color: #111; }
+            img { max-width: 100%; }
+            table { border-collapse: collapse; }
+          </style>
+        </head>
+        <body>${printable.outerHTML}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.onload = () => printWindow.print();
+    };
+
     // ---------- Dashboard ----------
     const renderDashboard = () => {
       if (!file) return;
@@ -2527,6 +5224,9 @@
         .reduce((s,l)=>s+(l.credit_cents||0)-(l.debit_cents||0),0);
       const expense = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='expense')
         .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:renderDashboard',message:'renderDashboard:totals',data:{income,expense,postedCount:posted.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const net = income - expense;
       const openInvoices = file.invoices.filter(i=>i.status!=='paid').length;
       const cards = [
@@ -2544,7 +5244,11 @@
       });
       const act = $('#dashboard-activity'); act.innerHTML = '';
       const activity = [];
-      file.invoices.forEach(i=>activity.push({ date:i.issue_date, text:`Invoice #${i.number} ${i.status}`, amount:i.total_cents }));
+      file.invoices.forEach(i=>{
+        const party = file.parties.find(p=>p.party_id===i.party_id);
+        const clientName = party ? ` - ${party.name}` : '';
+        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:invoiceTotal(i), status:i.status });
+      });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
       activity.slice(0,8).forEach(a=>{
@@ -2554,7 +5258,8 @@
         row.style.paddingBottom='12px';
         row.style.marginBottom='8px';
         row.style.borderBottom='1px solid var(--border)';
-        row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
+        const statusDot = a.status ? `<span class="status-dot ${a.status==='paid'?'status-posted':'status-void'}"></span>` : '';
+        row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
         act.appendChild(row);
       });
     };
@@ -2574,22 +5279,139 @@
         const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => editInvoice({});
         const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => editTxn({});
         const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => editTxn({});
+        const exportInvoicesJsonBtn = $('#export-invoices-json'); if (exportInvoicesJsonBtn) exportInvoicesJsonBtn.onclick = () => exportInvoicesData('json');
+        const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
+        const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
+        const importInvoicesFile = $('#import-invoices-file'); if (importInvoicesFile) importInvoicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importInvoicesData); e.target.value=''; } };
+        const invoiceSearch = $('#invoice-search'); if (invoiceSearch) invoiceSearch.oninput = () => renderInvoices();
+        const exportTxnJsonBtn = $('#export-txn-json'); if (exportTxnJsonBtn) exportTxnJsonBtn.onclick = () => exportTransactionsData('json');
+        const exportTxnCsvBtn = $('#export-txn-csv'); if (exportTxnCsvBtn) exportTxnCsvBtn.onclick = () => exportTransactionsData('csv');
+        const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
+        const importTxnFile = $('#import-txn-file'); if (importTxnFile) importTxnFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importTransactionsData); e.target.value=''; } };
+        const txnSearch = $('#txn-search'); if (txnSearch) txnSearch.oninput = () => renderTransactions();
+        const exportClientsJsonBtn = $('#export-clients-json'); if (exportClientsJsonBtn) exportClientsJsonBtn.onclick = () => exportClientsData('json');
+        const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
+        const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
+        const importClientsFile = $('#import-clients-file'); if (importClientsFile) importClientsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importClientsData); e.target.value=''; } };
+        const exportServicesJsonBtn = $('#export-services-json'); if (exportServicesJsonBtn) exportServicesJsonBtn.onclick = () => exportServicesData('json');
+        const exportServicesCsvBtn = $('#export-services-csv'); if (exportServicesCsvBtn) exportServicesCsvBtn.onclick = () => exportServicesData('csv');
+        const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
+        const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
         const addService = $('#add-service'); if (addService) addService.onclick = () => editService({});
         const closePanelBtn = $('#close-panel'); if (closePanelBtn) closePanelBtn.onclick = closePanel;
-        const txnFilter = $('#txn-filter'); if (txnFilter) txnFilter.onchange = renderTransactions;
         const runPl = $('#run-pl'); if (runPl) runPl.onclick = runPL;
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
         const runProjectSummary = $('#run-project-summary'); if (runProjectSummary) runProjectSummary.onclick = () => renderSummary(projectProfit(), $('#report-project'));
         const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderSummary(taxSummary(), $('#report-tax'));
-        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); } };
-        const motionSelect = $('#motion-select'); if (motionSelect) motionSelect.onchange = (e)=>{ if(file) { file.settings.motion = e.target.value; saveFile(); applyTheme(); } };
+        // Reports date preset handlers
+        $$('.date-preset-btn[data-for="reports"]').forEach(btn => {
+          btn.onclick = () => {
+            setDatePreset(btn.dataset.preset, 'reports');
+            refreshReports();
+          };
+        });
+        const refreshReportsBtn = $('#refresh-reports'); if (refreshReportsBtn) refreshReportsBtn.onclick = refreshReports;
+        const reportsStart = $('#reports-start'); if (reportsStart) reportsStart.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
+        const reportsEnd = $('#reports-end'); if (reportsEnd) reportsEnd.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
+        const exportReportsPDFBtn = $('#export-reports-pdf'); if (exportReportsPDFBtn) exportReportsPDFBtn.onclick = exportReportsPDF;
+        const printReportsBtn = $('#print-reports'); if (printReportsBtn) printReportsBtn.onclick = printReports;
+        // Analytics event handlers
+        $$('.date-preset-btn[data-for="analytics"]').forEach(btn => {
+          btn.onclick = () => {
+            setDatePreset(btn.dataset.preset, 'analytics');
+            showToast('Updating analytics...');
+            setTimeout(() => renderAnalytics(), 100);
+          };
+        });
+        const refreshAnalytics = $('#refresh-analytics'); 
+        if (refreshAnalytics) {
+          refreshAnalytics.onclick = () => {
+            showToast('Refreshing analytics...');
+            setTimeout(() => renderAnalytics(), 100);
+          };
+        }
+        const exportAnalyticsPDFBtn = $('#export-analytics-pdf'); if (exportAnalyticsPDFBtn) exportAnalyticsPDFBtn.onclick = exportAnalyticsPDF;
+        const printAnalyticsBtn = $('#print-analytics'); if (printAnalyticsBtn) printAnalyticsBtn.onclick = printAnalytics;
+        const analyticsStart = $('#analytics-start'); 
+        if (analyticsStart) {
+          analyticsStart.onchange = () => { 
+            $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); 
+            // Validate date range
+            const endInput = $('#analytics-end');
+            if (endInput && analyticsStart.value && endInput.value && analyticsStart.value > endInput.value) {
+              showToast('Start date cannot be after end date');
+              return;
+            }
+            // Auto-refresh analytics when date changes
+            if (file) {
+              showToast('Updating analytics...');
+              setTimeout(() => renderAnalytics(), 100);
+            }
+          };
+        }
+        const analyticsEnd = $('#analytics-end'); 
+        if (analyticsEnd) {
+          analyticsEnd.onchange = () => { 
+            $$('.date-preset-btn[data-for="analytics"]').forEach(b => b.classList.remove('active')); 
+            // Validate date range
+            const startInput = $('#analytics-start');
+            if (startInput && analyticsEnd.value && startInput.value && startInput.value > analyticsEnd.value) {
+              showToast('End date cannot be before start date');
+              return;
+            }
+            // Auto-refresh analytics when date changes
+            if (file) {
+              showToast('Updating analytics...');
+              setTimeout(() => renderAnalytics(), 100);
+            }
+          };
+        }
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
+        const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
+        const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
+          if(file) { 
+            file.settings.headerImageDataUrl=url; 
+            if (!file.settings.headerImageFit) file.settings.headerImageFit = 'cover';
+            if (!file.settings.headerImageOpacity) file.settings.headerImageOpacity = 10;
+            saveFile(); 
+            applyTheme(); 
+            updateHeaderImagePreview();
+          } 
+        });
+        const headerImageFit = $('#header-image-fit'); if (headerImageFit) headerImageFit.onchange = (e) => {
+          if(file) {
+            file.settings.headerImageFit = e.target.value;
+            saveFile();
+            applyTheme();
+          }
+        };
+        const headerImageOpacity = $('#header-image-opacity'); if (headerImageOpacity) {
+          headerImageOpacity.oninput = (e) => {
+            const value = parseInt(e.target.value);
+            $('#header-opacity-value').textContent = value + '%';
+            if(file) {
+              file.settings.headerImageOpacity = value;
+              saveFile();
+              applyTheme();
+            }
+          };
+        }
+        const removeHeaderImage = $('#remove-header-image'); if (removeHeaderImage) removeHeaderImage.onclick = () => {
+          if(file) {
+            file.settings.headerImageDataUrl = null;
+            saveFile();
+            applyTheme();
+            updateHeaderImagePreview();
+          }
+        };
         const exportJson = $('#export-json'); if (exportJson) exportJson.onclick = () => {
           if (!file) {
             showToast('No business data to export');
@@ -2607,6 +5429,7 @@
           download(JSON.stringify(exportData, null, 2), filename);
           showToast('Business data exported successfully');
         };
+        const exportAuditLogBtn = $('#export-audit-log'); if (exportAuditLogBtn) exportAuditLogBtn.onclick = exportAuditLog;
         const exportAll = $('#export-all'); if (exportAll) exportAll.onclick = () => {
           if (!businessList.length) {
             showToast('No businesses to export');
@@ -2649,13 +5472,150 @@
             e.target.value = '';
           }
         };
-        const integrityCheck = $('#integrity-check'); if (integrityCheck) integrityCheck.onclick = runIntegrity;
+        const resetAllData = $('#reset-all-data'); if (resetAllData) resetAllData.onclick = () => {
+          showModal(`
+            <div class="stack">
+              <h3>Reset All Data</h3>
+              <p><strong style="color:var(--danger)">WARNING: This will permanently delete ALL businesses and ALL data.</strong></p>
+              <p>This includes:</p>
+              <ul style="margin:10px 0; padding-left:20px">
+                <li>All businesses</li>
+                <li>All invoices</li>
+                <li>All transactions</li>
+                <li>All clients</li>
+                <li>All services</li>
+                <li>All settings</li>
+                <li>Everything else</li>
+              </ul>
+              <p><strong>This action CANNOT be undone.</strong></p>
+              <p>Make sure you have exported backups if you want to keep any data.</p>
+              <div class="row" style="justify-content:flex-end; gap:8px">
+                <button data-cancel>Cancel</button>
+                <button data-confirm class="primary" style="background:var(--danger)">Reset All Data</button>
+              </div>
+            </div>
+          `, () => {
+            // Clear all localStorage items related to the app
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('ck5_') || key.startsWith('checkmark_'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            // Reset state
+            businessList = [];
+            activeId = null;
+            file = null;
+            
+            // Reload
+            loadList();
+            loadActive();
+            showToast('All data has been reset');
+          });
+        };
         const newBusiness = $('#new-business'); if (newBusiness) newBusiness.onclick = () => {
-          const name = prompt('Business name');
-          if (name) createBusiness(name);
+          showModal(`
+            <div class="stack">
+              <h3>Create New Business</h3>
+              <label>Business Name</label>
+              <input type="text" id="new-business-name-modal" placeholder="My Business" value="My Business" autofocus>
+              <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
+                <button data-cancel>Cancel</button>
+                <button data-confirm class="primary">Create Business</button>
+              </div>
+            </div>
+          `, () => {
+            const nameInput = $('#new-business-name-modal');
+            const name = nameInput?.value?.trim() || 'My Business';
+            if (name) {
+              createBusiness(name);
+              closeModal();
+            }
+          });
+          
+          // Auto-focus and allow Enter key to submit
+          setTimeout(() => {
+            const nameInput = $('#new-business-name-modal');
+            if (nameInput) {
+              nameInput.focus();
+              nameInput.select();
+              nameInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                  const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+                  if (confirmBtn) confirmBtn.click();
+                }
+              };
+            }
+          }, 100);
+        };
+        deleteBusinessBtn = $('#delete-business'); if (deleteBusinessBtn) deleteBusinessBtn.onclick = () => {
+          if (!activeId) {
+            showToast('No business selected');
+            return;
+          }
+          deleteBusiness(activeId);
         };
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
+        
+        // Close side-panel when clicking outside of it (but not on calculator or interactive elements)
+        document.addEventListener('click', (e) => {
+          const target = e.target;
+          const sidePanel = $('#side-panel');
+          const calculatorWindow = $('#calculator-window');
+          const calculatorMinimized = $('#calculator-minimized');
+          
+          // Always exclude calculator window and minimized calculator from closing logic
+          if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
+            return;
+          }
+          if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
+            return;
+          }
+          
+          // Don't close if clicking on interactive elements (buttons, links, inputs, etc.)
+          // These elements might open windows, so let their handlers run without interference
+          const isInteractive = target.tagName === 'BUTTON' || 
+                                target.tagName === 'A' || 
+                                target.tagName === 'INPUT' ||
+                                target.tagName === 'SELECT' ||
+                                target.tagName === 'TEXTAREA' ||
+                                target.closest('button') || 
+                                target.closest('a') ||
+                                target.closest('input') ||
+                                target.closest('select') ||
+                                target.closest('textarea') ||
+                                target.closest('[onclick]') ||
+                                target.closest('.modal') ||
+                                target.closest('#modal-overlay');
+          
+          if (isInteractive) {
+            return; // Let interactive elements handle their own clicks
+          }
+          
+          if (sidePanel && sidePanel.classList.contains('open')) {
+            // Check if click is outside the side-panel
+            if (!sidePanel.contains(target)) {
+              // Close the panel
+              closePanel();
+            }
+          }
+        });
+        
+        // Close modal when clicking on overlay background (not on modal itself)
+        const modalOverlay = $('#modal-overlay');
+        if (modalOverlay) {
+          modalOverlay.addEventListener('click', (e) => {
+            // Only close if clicking directly on the overlay, not on the modal
+            if (e.target === modalOverlay) {
+              closeModal();
+            }
+          });
+        }
+        
         // #region agent log
         logDebug('bindUI:complete','bindUI completed successfully',{},'B');
         // #endregion
@@ -2675,12 +5635,56 @@
       r.readAsDataURL(file);
     };
 
-    const download = (data, filename) => {
-      const blob = new Blob([data], { type: 'application/json' });
+    const download = (data, filename, mime='application/json') => {
+      const blob = new Blob([data], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
+    };
+
+    // Remove ledger entries/lines whose linked transaction or payment no longer exists
+    const cleanOrphanLedgerEntries = () => {
+      const txIds = new Set(file.transactions.map(t=>t.transaction_id));
+      const payIds = new Set(file.payments.map(p=>p.payment_id));
+      const beforeEntries = file.ledger_entries.length;
+      const beforeLines = file.ledger_lines.length;
+      const keepEntry = (e) => {
+        if (e.linked_transaction_id && !txIds.has(e.linked_transaction_id)) return false;
+        if (e.linked_payment_id && !payIds.has(e.linked_payment_id)) return false;
+        return true;
+      };
+      const keptIds = [];
+      file.ledger_entries = file.ledger_entries.filter(e=>{
+        const keep = keepEntry(e);
+        if (keep) keptIds.push(e.ledger_entry_id);
+        return keep;
+      });
+      file.ledger_lines = file.ledger_lines.filter(l=>keptIds.includes(l.ledger_entry_id));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:cleanOrphanLedgerEntries',message:'cleanOrphanLedgerEntries:result',data:{beforeEntries,afterEntries:file.ledger_entries.length,beforeLines,afterLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (beforeEntries !== file.ledger_entries.length || beforeLines !== file.ledger_lines.length) saveFile();
+    };
+
+    const renderBusinessInfo = () => {
+      const info = $('#business-info');
+      if (!info) return;
+      if (!file || !file.business) {
+        info.innerHTML = '<div style="color:var(--muted)">No business selected. Create a new business to get started.</div>';
+        if (deleteBusinessBtn) deleteBusinessBtn.style.display = 'none';
+        return;
+      }
+      const business = file.business;
+      info.innerHTML = `
+        <div><strong>Name:</strong> ${business.name || '—'}</div>
+        <div><strong>Currency:</strong> ${business.base_currency || 'USD'}</div>
+        <div><strong>Created:</strong> ${business.created_at ? new Date(business.created_at).toLocaleDateString() : '—'}</div>
+        <div><strong>Updated:</strong> ${business.updated_at ? new Date(business.updated_at).toLocaleDateString() : '—'}</div>
+      `;
+      if (deleteBusinessBtn) {
+        deleteBusinessBtn.style.display = activeId && businessList.length > 0 ? 'block' : 'none';
+      }
     };
 
     // ---------- Render all ----------
@@ -2703,12 +5707,15 @@
       renderServices();
       renderDashboard();
       const themeSelect = $('#theme-select');
-      const motionSelect = $('#motion-select');
       const logoVariant = $('#logo-variant');
+      const defaultTaxPercent = $('#default-tax-percent');
       if (themeSelect) themeSelect.value = file.settings.theme;
-      if (motionSelect) motionSelect.value = file.settings.motion;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
+      if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
+      updateHeaderImagePreview();
+      renderBusinessInfo();
       renderMigrationBlock();
+      runIntegrity();
       // #region agent log
       logDebug('renderAll:complete','renderAll completed',{},'F');
       // #endregion
@@ -2979,15 +5986,32 @@
       calculatorState.minimized = true;
       calculatorState.open = true; // Keep open=true so toggle knows it's minimized but not closed
       $('#calculator-window').classList.add('hidden');
-      $('#calculator-minimized').classList.remove('hidden');
+      const calcMinimized = $('#calculator-minimized');
+      if (calcMinimized) {
+        calcMinimized.classList.remove('hidden');
+        // Re-attach handlers when element becomes visible to ensure they work
+        calcMinimized.onclick = function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        };
+        const restoreBtn = calcMinimized.querySelector('#calculator-restore');
+        if (restoreBtn) {
+          restoreBtn.onclick = function(e) {
+            e.stopPropagation();
+            restoreCalculator();
+          };
+        }
+      }
       saveCalculatorState();
     };
 
     const restoreCalculator = () => {
       calculatorState.minimized = false;
       calculatorState.open = true;
-      $('#calculator-window').classList.remove('hidden');
-      $('#calculator-minimized').classList.add('hidden');
+      const calcWindow = $('#calculator-window');
+      const calcMinimized = $('#calculator-minimized');
+      if (calcWindow) calcWindow.classList.remove('hidden');
+      if (calcMinimized) calcMinimized.classList.add('hidden');
       updateCalculatorPosition();
       updateCalculatorSize();
       saveCalculatorState();
@@ -3033,8 +6057,47 @@
           closeCalculator();
         };
       }
+      // Make the entire minimized box clickable to restore calculator
+      // Use event delegation on document with capture phase to ensure it runs first
+      document.addEventListener('click', function(e) {
+        const target = e.target;
+        const calcMinimizedEl = $('#calculator-minimized');
+        const isCalcRestoreBtn = target.id === 'calculator-restore';
+        const isCalcMinimized = target.id === 'calculator-minimized';
+        const isInsideCalcMinimized = calcMinimizedEl && calcMinimizedEl.contains(target);
+        const isCalcRelated = isCalcRestoreBtn || isCalcMinimized || isInsideCalcMinimized;
+        
+        if (isCalcRelated && calcMinimizedEl && !calcMinimizedEl.classList.contains('hidden')) {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          restoreCalculator();
+          return;
+        }
+      }, true); // Use capture phase to run before other handlers
+      
+      // Also add direct handlers as backup
+      const calculatorMinimized = $('#calculator-minimized');
+      if (calculatorMinimized) {
+        calculatorMinimized.style.cursor = 'pointer';
+        calculatorMinimized.onclick = function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        };
+        calculatorMinimized.addEventListener('click', function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        });
+      }
+      
       if (restoreBtn) {
-        restoreBtn.onclick = restoreCalculator;
+        restoreBtn.onclick = function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        };
+        restoreBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          restoreCalculator();
+        });
       }
 
       document.addEventListener('mousemove', (e) => {
@@ -3071,10 +6134,8 @@
         if (!businessList.length && detectV4()) {
           renderMigrationBlock();
           setTab('settings');
-        } else if (!businessList.length) {
-          createBusiness('My Business');
         } else {
-          loadActive();
+          loadActive(); // This will prompt to create a business if none exists
         }
         // #region agent log
         logDebug('initApp:complete','initApp completed successfully',{},'A');
