@@ -2002,10 +2002,33 @@
     };
 
     const renumberInvoices = () => {
-      if (!file?.invoices?.length) return;
-      file.invoices.forEach((inv, index) => {
-        inv.number = index + 1;
+      if (!file?.invoices?.length) return false;
+      const sorted = [...file.invoices].sort((a, b) => {
+        const issueA = a.issue_date || '9999-12-31';
+        const issueB = b.issue_date || '9999-12-31';
+        if (issueA !== issueB) return issueA.localeCompare(issueB);
+        const createdA = a.created_at || '9999-12-31T23:59:59.999Z';
+        const createdB = b.created_at || '9999-12-31T23:59:59.999Z';
+        if (createdA !== createdB) return createdA.localeCompare(createdB);
+        const legacyA = Number.isFinite(Number(a.legacy_id)) ? Number(a.legacy_id) : Number.MAX_SAFE_INTEGER;
+        const legacyB = Number.isFinite(Number(b.legacy_id)) ? Number(b.legacy_id) : Number.MAX_SAFE_INTEGER;
+        if (legacyA !== legacyB) return legacyA - legacyB;
+        return String(a.invoice_id || '').localeCompare(String(b.invoice_id || ''));
       });
+      let changed = false;
+      sorted.forEach((inv, index) => {
+        const nextNumber = index + 1;
+        if (inv.number !== nextNumber) {
+          inv.number = nextNumber;
+          changed = true;
+        }
+      });
+      const orderChanged = sorted.some((inv, index) => inv.invoice_id !== file.invoices[index]?.invoice_id);
+      if (orderChanged) {
+        file.invoices = sorted;
+        changed = true;
+      }
+      return changed;
     };
 
     const renderInvoices = () => {
