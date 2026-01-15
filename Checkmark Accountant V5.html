@@ -1987,6 +1987,22 @@
     const matchesSearch = (value, query) => normalizeSearchValue(value).includes(query);
 
     // ---------- Invoices ----------
+    const getNextInvoiceNumber = () => {
+      if (!file?.invoices?.length) return 1;
+      const numbers = file.invoices
+        .map(inv => Number(inv.number))
+        .filter(n => Number.isFinite(n));
+      const maxNumber = numbers.length ? Math.max(...numbers) : file.invoices.length;
+      return maxNumber + 1;
+    };
+
+    const renumberInvoices = () => {
+      if (!file?.invoices?.length) return;
+      file.invoices.forEach((inv, index) => {
+        inv.number = index + 1;
+      });
+    };
+
     const renderInvoices = () => {
       if (!file) return;
       const tbody = $('#invoice-rows'); tbody.innerHTML = '';
@@ -2250,7 +2266,7 @@
           invoice_id: invoice.invoice_id,
           party_id: data.get('party_id'),
           project_id: data.get('project_id') || null,
-          number: inv.number || (file.invoices.length+1),
+          number: inv.number || getNextInvoiceNumber(),
           issue_date: data.get('issue_date') || today(),
           status: invoice.status || 'draft',
           subtotal_cents: subtotal,
@@ -2383,9 +2399,13 @@
       const removedLines = file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id);
       file.invoices = file.invoices.filter(i=>i.invoice_id!==inv.invoice_id);
       file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==inv.invoice_id);
+      renumberInvoices();
       saveFile(); renderInvoices();
       showToast('Invoice deleted', () => {
-        file.invoices.push(inv); file.invoice_lines = file.invoice_lines.concat(removedLines); saveFile(); renderInvoices();
+        file.invoices.push(inv);
+        file.invoice_lines = file.invoice_lines.concat(removedLines);
+        renumberInvoices();
+        saveFile(); renderInvoices();
       });
     };
 
@@ -3394,7 +3414,7 @@
         const total = Number(rec.total_cents) || subtotal + taxCents;
         const saved = {
           invoice_id: invoiceId,
-          number: rec.number || (file.invoices.length + 1),
+          number: rec.number || getNextInvoiceNumber(),
           party_id: partyMatch,
           project_id: rec.project_id || null,
           issue_date: rec.issue_date || today(),
