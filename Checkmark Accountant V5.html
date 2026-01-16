@@ -1045,6 +1045,8 @@
               <div id="report-project"></div>
               <button id="run-tax-summary">Tax Summary</button>
               <button id="calc-grt" class="ghost">Calculate GRT</button>
+              <button id="calc-grt-year" class="ghost">GRT Whole Year</button>
+              <div id="grt-range" class="muted" style="margin-bottom:6px"></div>
               <div id="report-tax"></div>
               <div id="grt-meta" class="muted" style="margin-bottom:12px"></div>
             </div>
@@ -1101,8 +1103,9 @@
           <select id="grt-basis">
             <option value="invoices">Invoices issued</option>
             <option value="payments">Payments received</option>
+            <option value="both">Both</option>
           </select>
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Invoices use totals (including tax/tip) for gross receipts.</p>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Invoices use totals (including tax/tip). Both can double-count if invoices were paid.</p>
           <label style="margin-top:16px">GRT Filing Frequency</label>
           <select id="grt-filing-frequency">
             <option value="monthly">Monthly</option>
@@ -3754,7 +3757,9 @@
 
     const grtBaseForRange = (start, end) => {
       const basis = file?.settings?.grt_basis || 'payments';
-      return basis === 'invoices' ? grtInvoiceBase(start, end) : grtGrossReceipts(start, end);
+      if (basis === 'invoices') return grtInvoiceBase(start, end);
+      if (basis === 'both') return grtInvoiceBase(start, end) + grtGrossReceipts(start, end);
+      return grtGrossReceipts(start, end);
     };
 
     const grtDueDate = (endDate) => {
@@ -3790,6 +3795,11 @@
       const target = $('#report-tax');
       if (!target) return;
       renderSummary(taxSummary(), target);
+      const rangeEl = $('#grt-range');
+      if (rangeEl) {
+        const { start, end } = getReportsDateRange();
+        rangeEl.textContent = `Range: ${start} to ${end}`;
+      }
       const meta = $('#grt-meta');
       if (!meta) return;
       const grtPercent = Math.max(0, Number(file?.settings?.grt_percent)||0);
@@ -4155,6 +4165,16 @@
         start = new Date(year, month, 1);
         end = new Date(year, month + 1, 0);
       }
+      return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+      };
+    };
+
+    const currentYearRange = () => {
+      const year = new Date().getFullYear();
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31);
       return {
         start: start.toISOString().split('T')[0],
         end: end.toISOString().split('T')[0]
@@ -5466,6 +5486,11 @@
           if (!lastBase) {
             range = currentFilingPeriod(frequency);
           }
+          setReportsRange(range.start, range.end);
+          refreshReports();
+        };
+        const calcGRTYear = $('#calc-grt-year'); if (calcGRTYear) calcGRTYear.onclick = () => {
+          const range = currentYearRange();
           setReportsRange(range.start, range.end);
           refreshReports();
         };
