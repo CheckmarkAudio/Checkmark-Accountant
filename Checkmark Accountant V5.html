@@ -1102,7 +1102,7 @@
             <option value="invoices">Invoices issued</option>
             <option value="payments">Payments received</option>
           </select>
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">If you invoice and then receive payments later, choose invoices.</p>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Invoices use totals (including tax/tip) for gross receipts.</p>
           <label style="margin-top:16px">GRT Filing Frequency</label>
           <select id="grt-filing-frequency">
             <option value="monthly">Monthly</option>
@@ -3748,7 +3748,7 @@
       let total = 0;
       file.invoices
         .filter(inv => inv.issue_date >= start && inv.issue_date <= end)
-        .forEach(inv => { total += invoiceSubtotal(inv); });
+        .forEach(inv => { total += invoiceTotal(inv); });
       return total;
     };
 
