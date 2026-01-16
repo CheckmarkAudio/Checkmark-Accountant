@@ -1045,7 +1045,10 @@
               <div id="report-project"></div>
               <button id="run-tax-summary">Tax Summary</button>
               <button id="calc-grt" class="ghost">Calculate GRT</button>
-              <button id="calc-grt-year" class="ghost">GRT Whole Year</button>
+              <div class="row" style="gap:8px; align-items:center">
+                <button id="calc-grt-year" class="ghost">GRT Whole Year</button>
+                <select id="grt-year" style="max-width:140px"></select>
+              </div>
               <div id="grt-range" class="muted" style="margin-bottom:6px"></div>
               <div id="report-tax"></div>
               <div id="grt-meta" class="muted" style="margin-bottom:12px"></div>
@@ -3815,6 +3818,7 @@
     };
 
     const refreshReports = () => {
+      populateGRTYearSelect();
       runPL();
       renderSummary(summaryByAccount('expense'), $('#report-expense'));
       renderSummary(clientRevenue(), $('#report-client'));
@@ -4171,14 +4175,35 @@
       };
     };
 
-    const currentYearRange = () => {
-      const year = new Date().getFullYear();
+    const yearRange = (year) => {
       const start = new Date(year, 0, 1);
       const end = new Date(year, 11, 31);
       return {
         start: start.toISOString().split('T')[0],
         end: end.toISOString().split('T')[0]
       };
+    };
+
+    const getGRTYearOptions = () => {
+      const years = new Set();
+      const currentYear = new Date().getFullYear();
+      years.add(currentYear);
+      file.invoices.forEach(inv => {
+        if (inv.issue_date) years.add(Number(inv.issue_date.slice(0, 4)));
+      });
+      file.ledger_entries.forEach(entry => {
+        if (entry.entry_date) years.add(Number(entry.entry_date.slice(0, 4)));
+      });
+      return Array.from(years).filter(Boolean).sort((a,b)=>b-a);
+    };
+
+    const populateGRTYearSelect = () => {
+      const select = $('#grt-year');
+      if (!select) return;
+      const options = getGRTYearOptions();
+      const current = String(new Date().getFullYear());
+      select.innerHTML = options.map(y => `<option value="${y}">${y}</option>`).join('');
+      if (!select.value) select.value = current;
     };
 
     const getReportsDateRange = () => {
@@ -5490,7 +5515,8 @@
           refreshReports();
         };
         const calcGRTYear = $('#calc-grt-year'); if (calcGRTYear) calcGRTYear.onclick = () => {
-          const range = currentYearRange();
+          const year = Number($('#grt-year')?.value) || new Date().getFullYear();
+          const range = yearRange(year);
           setReportsRange(range.start, range.end);
           refreshReports();
         };
@@ -5912,6 +5938,7 @@
       renderBusinessInfo();
       renderMigrationBlock();
       runIntegrity();
+      populateGRTYearSelect();
       // #region agent log
       logDebug('renderAll:complete','renderAll completed',{},'F');
       // #endregion
