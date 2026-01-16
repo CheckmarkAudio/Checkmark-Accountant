@@ -1099,9 +1099,10 @@
           <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
           <label style="margin-top:16px">GRT Basis</label>
           <select id="grt-basis">
-            <option value="payments">Payments received</option>
             <option value="invoices">Invoices issued</option>
+            <option value="payments">Payments received</option>
           </select>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">If you invoice and then receive payments later, choose invoices.</p>
           <label style="margin-top:16px">GRT Filing Frequency</label>
           <select id="grt-filing-frequency">
             <option value="monthly">Monthly</option>
@@ -1421,7 +1422,7 @@
       depreciation_model: 'report_only',
       default_tax_percent: 0,
       grt_percent: 0,
-      grt_basis: 'payments',
+      grt_basis: 'invoices',
       grt_filing_frequency: 'monthly'
     });
 
@@ -1517,7 +1518,7 @@
       if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
       if (file.settings.default_tax_percent === undefined || file.settings.default_tax_percent === null) file.settings.default_tax_percent = 0;
       if (file.settings.grt_percent === undefined || file.settings.grt_percent === null) file.settings.grt_percent = 0;
-      if (!file.settings.grt_basis) file.settings.grt_basis = 'payments';
+      if (!file.settings.grt_basis) file.settings.grt_basis = 'invoices';
       if (!file.settings.grt_filing_frequency) file.settings.grt_filing_frequency = 'monthly';
       migrateProjectPartyIds(file);
     };
@@ -5875,7 +5876,7 @@
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
-      if (grtBasis) grtBasis.value = file.settings.grt_basis || 'payments';
+      if (grtBasis) grtBasis.value = file.settings.grt_basis || 'invoices';
       if (grtFilingFrequency) grtFilingFrequency.value = file.settings.grt_filing_frequency || 'monthly';
       updateHeaderImagePreview();
       renderBusinessInfo();
