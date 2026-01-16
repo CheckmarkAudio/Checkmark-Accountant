@@ -4167,6 +4167,11 @@
       return { start, end };
     };
 
+    const isReportsActive = () => {
+      const reportsSection = $$('section[data-section="reports"]')[0];
+      return reportsSection && !reportsSection.classList.contains('hidden');
+    };
+
     const getFilteredLines = () => {
       const { start, end } = getDateRange();
       const posted = postedLines();
@@ -5533,9 +5538,9 @@
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
         const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
-        const grtPercent = $('#grt-percent'); if (grtPercent) grtPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.grt_percent = val; saveFile(); } };
-        const grtBasis = $('#grt-basis'); if (grtBasis) grtBasis.onchange = (e)=>{ if(file) { file.settings.grt_basis = e.target.value; saveFile(); } };
-        const grtFilingFrequency = $('#grt-filing-frequency'); if (grtFilingFrequency) grtFilingFrequency.onchange = (e)=>{ if(file) { file.settings.grt_filing_frequency = e.target.value; saveFile(); } };
+        const grtPercent = $('#grt-percent'); if (grtPercent) grtPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.grt_percent = val; saveFile(); if (isReportsActive()) refreshReports(); } };
+        const grtBasis = $('#grt-basis'); if (grtBasis) grtBasis.onchange = (e)=>{ if(file) { file.settings.grt_basis = e.target.value; saveFile(); if (isReportsActive()) refreshReports(); } };
+        const grtFilingFrequency = $('#grt-filing-frequency'); if (grtFilingFrequency) grtFilingFrequency.onchange = (e)=>{ if(file) { file.settings.grt_filing_frequency = e.target.value; saveFile(); if (isReportsActive()) refreshReports(); } };
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
