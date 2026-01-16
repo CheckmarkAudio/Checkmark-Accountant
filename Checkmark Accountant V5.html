@@ -1044,7 +1044,9 @@
               <button id="run-project-summary">Project Profitability</button>
               <div id="report-project"></div>
               <button id="run-tax-summary">Tax Summary</button>
+              <button id="calc-grt" class="ghost">Calculate GRT</button>
               <div id="report-tax"></div>
+              <div id="grt-meta" class="muted" style="margin-bottom:12px"></div>
             </div>
           </div>
         </div>
@@ -1093,6 +1095,15 @@
           <label>Default Tax % (optional)</label>
           <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
           <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
+          <label style="margin-top:16px">GRT % (optional)</label>
+          <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
+          <label style="margin-top:16px">GRT Filing Frequency</label>
+          <select id="grt-filing-frequency">
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="semiannual">Semi-annual</option>
+          </select>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Used by the GRT calculator in Reports.</p>
         </div>
         <div class="card" style="grid-column:3">
           <h3>Data</h3>
@@ -1403,7 +1414,9 @@
       default_uncategorized_expense_code: '6900',
       mileage_model: 'tax_only',
       depreciation_model: 'report_only',
-      default_tax_percent: 0
+      default_tax_percent: 0,
+      grt_percent: 0,
+      grt_filing_frequency: 'monthly'
     });
 
     const newBusinessFile = (name='My Business') => ({
@@ -1497,6 +1510,8 @@
       if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = DEFAULT_LOGO_LIGHT_URL;
       if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
       if (file.settings.default_tax_percent === undefined || file.settings.default_tax_percent === null) file.settings.default_tax_percent = 0;
+      if (file.settings.grt_percent === undefined || file.settings.grt_percent === null) file.settings.grt_percent = 0;
+      if (!file.settings.grt_filing_frequency) file.settings.grt_filing_frequency = 'monthly';
       migrateProjectPartyIds(file);
     };
 
@@ -3709,9 +3724,31 @@
       return map;
     };
 
+    const grtGrossReceipts = (start, end) => {
+      let total = 0;
+      postedLines().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry || entry.entry_date < start || entry.entry_date > end) return;
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct || acct.type !== 'income') return;
+        total += (l.credit_cents||0)-(l.debit_cents||0);
+      });
+      return total;
+    };
+
+    const grtDueDate = (endDate) => {
+      const [y, m] = endDate.split('-').map(Number);
+      if (!y || !m) return '';
+      const dueMonth = m === 12 ? 0 : m;
+      const dueYear = m === 12 ? y + 1 : y;
+      return new Date(dueYear, dueMonth, 25).toISOString().split('T')[0];
+    };
+
     const taxSummary = () => {
       const { start, end } = getReportsDateRange();
       const map = {};
+      const grtPercent = Math.max(0, Number(file?.settings?.grt_percent)||0);
+      const grossReceipts = grtGrossReceipts(start, end);
       postedLines().forEach(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         if (!entry || entry.entry_date < start || entry.entry_date > end) return;
@@ -3720,7 +3757,29 @@
           map['Taxes Payable'] = (map['Taxes Payable']||0) + delta;
         }
       });
+      if (grtPercent > 0) {
+        map['Gross Receipts'] = grossReceipts;
+        map['Estimated GRT'] = Math.round(grossReceipts * (grtPercent / 100));
+      }
       return map;
+    };
+
+    const renderTaxSummary = () => {
+      const target = $('#report-tax');
+      if (!target) return;
+      renderSummary(taxSummary(), target);
+      const meta = $('#grt-meta');
+      if (!meta) return;
+      const grtPercent = Math.max(0, Number(file?.settings?.grt_percent)||0);
+      if (!grtPercent) {
+        meta.textContent = 'Set GRT % in Settings to estimate tax.';
+        return;
+      }
+      const { end } = getReportsDateRange();
+      const due = grtDueDate(end);
+      meta.textContent = due
+        ? `Estimated due date: ${due} (next business day if weekend/holiday).`
+        : '';
     };
 
     const refreshReports = () => {
@@ -3728,7 +3787,7 @@
       renderSummary(summaryByAccount('expense'), $('#report-expense'));
       renderSummary(clientRevenue(), $('#report-client'));
       renderSummary(projectProfit(), $('#report-project'));
-      renderSummary(taxSummary(), $('#report-tax'));
+      renderTaxSummary();
     };
 
     // ---------- Settings ----------
@@ -4012,6 +4071,44 @@
       if (endInput) endInput.value = end;
       $$(`.date-preset-btn[data-for="${section}"]`).forEach(btn => btn.classList.remove('active'));
       $(`.date-preset-btn[data-preset="${preset}"][data-for="${section}"]`)?.classList.add('active');
+    };
+
+    const setReportsRange = (start, end) => {
+      const startInput = $('#reports-start');
+      const endInput = $('#reports-end');
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
+      $$('.date-preset-btn[data-for="reports"]').forEach(btn => btn.classList.remove('active'));
+    };
+
+    const lastFullFilingPeriod = (frequency) => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      let start;
+      let end;
+      if (frequency === 'quarterly') {
+        const currentQuarter = Math.floor(month / 3);
+        const prevQuarter = currentQuarter === 0 ? 3 : currentQuarter - 1;
+        const prevYear = currentQuarter === 0 ? year - 1 : year;
+        start = new Date(prevYear, prevQuarter * 3, 1);
+        end = new Date(prevYear, prevQuarter * 3 + 3, 0);
+      } else if (frequency === 'semiannual') {
+        if (month < 6) {
+          start = new Date(year - 1, 6, 1);
+          end = new Date(year - 1, 12, 0);
+        } else {
+          start = new Date(year, 0, 1);
+          end = new Date(year, 6, 0);
+        }
+      } else {
+        start = new Date(year, month - 1, 1);
+        end = new Date(year, month, 0);
+      }
+      return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+      };
     };
 
     const getReportsDateRange = () => {
@@ -5306,7 +5403,13 @@
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
         const runProjectSummary = $('#run-project-summary'); if (runProjectSummary) runProjectSummary.onclick = () => renderSummary(projectProfit(), $('#report-project'));
-        const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderSummary(taxSummary(), $('#report-tax'));
+        const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderTaxSummary();
+        const calcGRT = $('#calc-grt'); if (calcGRT) calcGRT.onclick = () => {
+          const frequency = file?.settings?.grt_filing_frequency || 'monthly';
+          const range = lastFullFilingPeriod(frequency);
+          setReportsRange(range.start, range.end);
+          refreshReports();
+        };
         // Reports date preset handlers
         $$('.date-preset-btn[data-for="reports"]').forEach(btn => {
           btn.onclick = () => {
@@ -5376,6 +5479,8 @@
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
         const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
+        const grtPercent = $('#grt-percent'); if (grtPercent) grtPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.grt_percent = val; saveFile(); } };
+        const grtFilingFrequency = $('#grt-filing-frequency'); if (grtFilingFrequency) grtFilingFrequency.onchange = (e)=>{ if(file) { file.settings.grt_filing_frequency = e.target.value; saveFile(); } };
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
@@ -5709,9 +5814,13 @@
       const themeSelect = $('#theme-select');
       const logoVariant = $('#logo-variant');
       const defaultTaxPercent = $('#default-tax-percent');
+      const grtPercent = $('#grt-percent');
+      const grtFilingFrequency = $('#grt-filing-frequency');
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
+      if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
+      if (grtFilingFrequency) grtFilingFrequency.value = file.settings.grt_filing_frequency || 'monthly';
       updateHeaderImagePreview();
       renderBusinessInfo();
       renderMigrationBlock();
