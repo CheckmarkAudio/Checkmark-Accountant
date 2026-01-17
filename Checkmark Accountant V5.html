@@ -828,6 +828,14 @@
   </style>
 </head>
 <body>
+  <div id="splash-overlay" class="splash-overlay hidden" role="dialog" aria-label="Brand intro">
+    <div class="splash-card">
+      <video id="splash-video" class="splash-video" muted playsinline preload="auto">
+        <source src="https://video.wixstatic.com/video/afbb39_e14c423bb1284b77942bc3badbd6f881/1080p/mp4/file.mp4" type="video/mp4">
+      </video>
+      <button id="splash-skip" class="ghost">Skip</button>
+    </div>
+  </div>
   <div class="app">
     <header class="topbar">
       <img id="custom-header-image" class="custom-header-image" alt="" style="display:none">
@@ -1870,6 +1878,28 @@
       }
       if (tab === 'settings') {
         runIntegrity();
+      }
+    };
+
+    const showSplashVideo = () => {
+      const overlay = $('#splash-overlay');
+      const video = $('#splash-video');
+      if (!overlay || !video) return;
+      const skip = $('#splash-skip');
+      const close = () => {
+        overlay.classList.add('hidden');
+        video.pause();
+        video.currentTime = 0;
+      };
+      overlay.classList.remove('hidden');
+      overlay.onclick = (e) => { if (e.target === overlay) close(); };
+      if (skip) skip.onclick = close;
+      video.onended = close;
+      const playAttempt = video.play();
+      if (playAttempt && typeof playAttempt.catch === 'function') {
+        playAttempt.catch(() => {
+          video.setAttribute('controls', 'controls');
+        });
       }
     };
 
@@ -6376,6 +6406,7 @@
       // #endregion
       try {
         bindUI();
+        showSplashVideo();
         // #region agent log
         logDebug('initApp:after-bindUI','bindUI completed',{},'A');
         // #endregion
