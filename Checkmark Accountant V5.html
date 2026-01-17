@@ -834,7 +834,7 @@
         <source src="https://video.wixstatic.com/video/afbb39_e14c423bb1284b77942bc3badbd6f881/1080p/mp4/file.mp4" type="video/mp4">
       </video>
       <div class="row" style="gap:8px">
-        <button id="splash-play" class="primary">Play with Sound</button>
+        <button id="splash-mute" class="ghost">Mute</button>
         <button id="splash-skip" class="ghost">Skip</button>
       </div>
     </div>
@@ -1889,7 +1889,7 @@
       const video = $('#splash-video');
       if (!overlay || !video) return;
       const skip = $('#splash-skip');
-      const playBtn = $('#splash-play');
+      const muteBtn = $('#splash-mute');
       const close = () => {
         overlay.classList.add('hidden');
         video.pause();
@@ -1898,15 +1898,18 @@
       overlay.classList.remove('hidden');
       overlay.onclick = (e) => { if (e.target === overlay) close(); };
       if (skip) skip.onclick = close;
-      if (playBtn) playBtn.onclick = () => {
-        video.muted = false;
-        video.play();
+      if (muteBtn) muteBtn.onclick = () => {
+        video.muted = !video.muted;
+        muteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
       };
       video.onended = close;
+      video.muted = false;
       const playAttempt = video.play();
       if (playAttempt && typeof playAttempt.catch === 'function') {
         playAttempt.catch(() => {
-          video.setAttribute('controls', 'controls');
+          video.muted = true;
+          if (muteBtn) muteBtn.textContent = 'Unmute';
+          video.play();
         });
       }
     };
