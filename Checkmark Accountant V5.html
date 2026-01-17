@@ -361,6 +361,36 @@
     tr td { transition: background 150ms ease; }
     tr:last-child td { border-bottom: none; }
     .hidden { display: none !important; }
+    .splash-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 14, 22, 0.7);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 24px;
+    }
+    .splash-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      max-width: 640px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+    .splash-video {
+      width: 100%;
+      max-height: 360px;
+      border-radius: 12px;
+      background: #000;
+    }
     .pill { padding: 8px 14px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
     .stack { display: flex; flex-direction: column; gap: 16px; }
     .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
