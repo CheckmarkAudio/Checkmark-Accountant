@@ -54,6 +54,7 @@
       --spacing-lg: 24px;
       --spacing-xl: 32px;
       --spacing-2xl: 48px;
+      --topbar-height: 76px;
     }
     html.dark {
       --bg: #0d1017;
@@ -139,6 +140,30 @@
       background: var(--accent);
       color: #fff;
       border-color: var(--accent);
+    }
+    @media (max-width: 1100px) {
+      header.topbar {
+        flex-wrap: wrap;
+        row-gap: 12px;
+      }
+      nav.tabs {
+        flex-wrap: wrap;
+        row-gap: 10px;
+      }
+      nav.tabs .top-actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+    @media (max-width: 900px) {
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+      #invoice-rows td {
+        white-space: normal;
+      }
     }
     @media (max-width: 768px) {
       .grid.cols-2 { grid-template-columns: 1fr; }
@@ -279,7 +304,7 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: sticky;
-      top: 76px;
+      top: var(--topbar-height, 76px);
       z-index: 10;
     }
     nav.tabs button {
@@ -323,6 +348,8 @@
     }
     .grid { display: grid; gap: 28px; }
     .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .grid.cols-4 > .card { grid-column: auto !important; }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -666,8 +693,10 @@
     }
     .calculator-window {
       position: fixed;
-      width: 320px;
-      height: 400px;
+      width: min(320px, 92vw);
+      height: min(400px, 80vh);
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -859,8 +888,10 @@
     }
     .note-window {
       position: fixed;
-      width: 420px;
-      height: 460px;
+      width: min(420px, 92vw);
+      height: min(460px, 80vh);
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -1483,6 +1514,11 @@
       const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
       return v.toString(16);
     });
+    const syncStickyOffsets = () => {
+      const topbar = document.querySelector('header.topbar');
+      if (!topbar) return;
+      document.documentElement.style.setProperty('--topbar-height', `${topbar.offsetHeight}px`);
+    };
     const moneyToCents = (val) => Math.round((Number(val) || 0) * 100);
     const centsToMoney = (c) => (c || 0) / 100;
     const trimTrailingZeros = (val) => {
@@ -7552,6 +7588,8 @@
       logDebug('initApp:entry','initApp called - app initialization started',{},'A');
       // #endregion
       try {
+        syncStickyOffsets();
+        window.addEventListener('resize', syncStickyOffsets);
         bindUI();
         // #region agent log
         logDebug('initApp:after-bindUI','bindUI completed',{},'A');
