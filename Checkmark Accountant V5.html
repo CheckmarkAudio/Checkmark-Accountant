@@ -886,6 +886,7 @@
       letter-spacing: 0.02em;
     }
     #note-content {
+      order: 0;
       flex: 1;
       width: 100%;
       resize: none;
@@ -1375,6 +1376,7 @@
       </div>
     </div>
     <div class="note-body">
+      <textarea id="note-content" placeholder="Write a quick note..."></textarea>
       <div class="note-toolbar">
         <select id="note-menu"></select>
         <button id="note-new" class="ghost">New</button>
@@ -1384,9 +1386,7 @@
         <button class="ghost note-header-btn" data-level="1" title="Insert H1">H1</button>
         <button class="ghost note-header-btn" data-level="2" title="Insert H2">H2</button>
         <button class="ghost note-header-btn" data-level="3" title="Insert H3">H3</button>
-        <span id="note-saved-status" class="saved-flag">Saved</span>
       </div>
-      <textarea id="note-content" placeholder="Write a quick note..."></textarea>
     </div>
     <div class="note-resize-handle" id="note-resize"></div>
   </div>
@@ -6228,14 +6228,9 @@
     const setNoteDirty = (dirty) => {
       noteDirty = dirty;
       const saveBtn = $('#note-save');
-      const status = $('#note-saved-status');
       const note = getNoteById(noteState.currentId);
       const needsName = noteNeedsName(note);
       if (saveBtn) saveBtn.disabled = !dirty && !needsName;
-      if (status) {
-        status.textContent = dirty ? 'Unsaved' : 'Saved';
-        status.classList.toggle('note-unsaved', dirty);
-      }
       updateNoteActions();
     };
 
