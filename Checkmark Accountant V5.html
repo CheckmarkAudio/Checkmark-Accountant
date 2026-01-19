@@ -4426,12 +4426,12 @@
       const end = $('#analytics-end').value || '2999-12-31';
       return { start, end };
     };
-    const getDashboardRangeFilter = () => {
-      const { start, end } = getDashboardRange();
+    const getDashboardRangeFilter = (range = getDashboardRange()) => {
+      const { start, end } = range;
       return { start, end, allTime: isAllTimeRange(start, end) };
     };
-    const getDashboardFilteredLines = () => {
-      const { start, end, allTime } = getDashboardRangeFilter();
+    const getDashboardFilteredLines = (range) => {
+      const { start, end, allTime } = getDashboardRangeFilter(range);
       const posted = postedLines();
       return posted.filter(l => {
         const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
@@ -4440,8 +4440,8 @@
         return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
     };
-    const getDashboardFilteredInvoices = () => {
-      const { start, end, allTime } = getDashboardRangeFilter();
+    const getDashboardFilteredInvoices = (range) => {
+      const { start, end, allTime } = getDashboardRangeFilter(range);
       return file.invoices.filter(inv => {
         if (inv.status === 'void') return false;
         if (!inv.issue_date) return allTime;
@@ -5262,11 +5262,11 @@
       }
     };
 
-    const renderDashboardIncomeExpenseChart = () => {
+    const renderDashboardIncomeExpenseChart = (range) => {
       try {
         destroyDashboardChart('incomeExpense');
-        const lines = getDashboardFilteredLines();
-        const invoices = getDashboardFilteredInvoices();
+        const lines = getDashboardFilteredLines(range);
+        const invoices = getDashboardFilteredInvoices(range);
         const monthlyData = {};
 
         lines.forEach(l => {
@@ -5349,10 +5349,10 @@
       }
     };
 
-    const renderDashboardClientRevenueChart = () => {
+    const renderDashboardClientRevenueChart = (range) => {
       try {
         destroyDashboardChart('clientRevenue');
-        const invoices = getDashboardFilteredInvoices();
+        const invoices = getDashboardFilteredInvoices(range);
         const clientMap = {};
         invoices.forEach(inv => {
           const party = file.parties.find(p => p.party_id === inv.party_id);
@@ -6078,8 +6078,8 @@
         row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
         act.appendChild(row);
       });
-      renderDashboardIncomeExpenseChart();
-      renderDashboardClientRevenueChart();
+      renderDashboardIncomeExpenseChart({ start, end });
+      renderDashboardClientRevenueChart({ start, end });
     };
 
     // ---------- Event wiring ----------
