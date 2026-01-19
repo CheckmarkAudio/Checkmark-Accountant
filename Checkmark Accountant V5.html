@@ -371,6 +371,11 @@
       justify-content: center;
       z-index: 1000;
       padding: 24px;
+      opacity: 1;
+      transition: opacity 220ms ease;
+    }
+    .splash-overlay.fade-out {
+      opacity: 0;
     }
     .splash-card {
       background: transparent;
@@ -1885,11 +1890,16 @@
       const video = $('#splash-video');
       if (!overlay || !video) return;
       const close = () => {
-        overlay.classList.add('hidden');
-        video.pause();
-        video.currentTime = 0;
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+          overlay.classList.remove('fade-out');
+          video.pause();
+          video.currentTime = 0;
+        }, 220);
       };
       overlay.classList.remove('hidden');
+      overlay.classList.remove('fade-out');
       overlay.onclick = (e) => { if (e.target === overlay) close(); };
       video.onclick = (e) => {
         e.stopPropagation();
