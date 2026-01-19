@@ -6442,34 +6442,6 @@
       }
     };
 
-    const insertHeader = (level) => {
-      const textarea = $('#note-content');
-      if (!textarea) return;
-      textarea.focus();
-      document.execCommand('formatBlock', false, 'H' + level);
-      scheduleNoteAutosave();
-    };
-
-    const isSelectionInHeader = (level) => {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return false;
-      let node = selection.anchorNode;
-      while (node && node !== document.body) {
-        if (node.nodeType === 1 && node.tagName === 'H' + level) return true;
-        node = node.parentNode;
-      }
-      return false;
-    };
-
-    const toggleHeaderShortcut = () => {
-      const level = 2;
-      if (isSelectionInHeader(level)) {
-        document.execCommand('formatBlock', false, 'P');
-      } else {
-        document.execCommand('formatBlock', false, 'H' + level);
-      }
-      scheduleNoteAutosave();
-    };
 
     const renderNotes = () => {
       if (!file) return;
@@ -7115,14 +7087,6 @@
       if (deleteBtn) deleteBtn.onclick = () => deleteCurrentNote();
       if (copyBtn) copyBtn.onclick = () => copyCurrentNote();
       if (contentInput) contentInput.oninput = scheduleNoteAutosave;
-      if (contentInput) {
-        contentInput.addEventListener('keydown', (e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'h') {
-            e.preventDefault();
-            toggleHeaderShortcut();
-          }
-        });
-      }
 
       document.addEventListener('mousemove', (e) => {
         onNoteDrag(e);
