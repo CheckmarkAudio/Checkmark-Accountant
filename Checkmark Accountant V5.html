@@ -1037,12 +1037,6 @@
           <div class="grid cols-2" id="dashboard-kpis"></div>
           <div class="stack" style="margin-top: 20px; gap: 16px;">
             <div>
-              <h4 style="margin: 0 0 8px 0;">Income vs Expenses</h4>
-              <div id="dashboard-income-expense-container" style="position: relative; height: 240px;">
-                <canvas id="dashboard-income-expense-chart"></canvas>
-              </div>
-            </div>
-            <div>
               <h4 style="margin: 0 0 8px 0;">Client Revenue</h4>
               <div id="dashboard-client-revenue-container" style="position: relative; height: 240px;">
                 <canvas id="dashboard-client-revenue-chart"></canvas>
@@ -6082,7 +6076,6 @@
         row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
         act.appendChild(row);
       });
-      renderDashboardIncomeExpenseChart({ start, end });
       renderDashboardClientRevenueChart({ start, end });
     };
 
