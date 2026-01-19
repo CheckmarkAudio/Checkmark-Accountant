@@ -1035,6 +1035,20 @@
           </div>
           <div id="dashboard-range" class="muted" style="margin-bottom: 12px;"></div>
           <div class="grid cols-2" id="dashboard-kpis"></div>
+          <div class="stack" style="margin-top: 20px; gap: 16px;">
+            <div>
+              <h4 style="margin: 0 0 8px 0;">Income vs Expenses</h4>
+              <div style="position: relative; height: 240px;">
+                <canvas id="dashboard-income-expense-chart"></canvas>
+              </div>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 8px 0;">Client Revenue</h4>
+              <div style="position: relative; height: 240px;">
+                <canvas id="dashboard-client-revenue-chart"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="card">
           <h3>Recent Activity</h3>
@@ -4356,6 +4370,7 @@
     // ---------- Analytics ----------
     let analyticsCharts = {};
     const isDarkMode = () => document.documentElement.classList.contains('dark');
+    let dashboardCharts = {};
     const getChartColors = () => {
       const isDark = isDarkMode();
       return {
@@ -4410,6 +4425,28 @@
       const start = $('#analytics-start').value || '1900-01-01';
       const end = $('#analytics-end').value || '2999-12-31';
       return { start, end };
+    };
+    const getDashboardRangeFilter = () => {
+      const { start, end } = getDashboardRange();
+      return { start, end, allTime: isAllTimeRange(start, end) };
+    };
+    const getDashboardFilteredLines = () => {
+      const { start, end, allTime } = getDashboardRangeFilter();
+      const posted = postedLines();
+      return posted.filter(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
+      });
+    };
+    const getDashboardFilteredInvoices = () => {
+      const { start, end, allTime } = getDashboardRangeFilter();
+      return file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
     };
 
     const setDatePreset = (preset, section = 'analytics') => {
@@ -5218,6 +5255,169 @@
       }
     };
 
+    const destroyDashboardChart = (chartId) => {
+      if (dashboardCharts[chartId]) {
+        dashboardCharts[chartId].destroy();
+        delete dashboardCharts[chartId];
+      }
+    };
+
+    const renderDashboardIncomeExpenseChart = () => {
+      try {
+        destroyDashboardChart('incomeExpense');
+        const lines = getDashboardFilteredLines();
+        const invoices = getDashboardFilteredInvoices();
+        const monthlyData = {};
+
+        lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry || !entry.entry_date) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income' && !entry.linked_invoice_id) {
+            monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          } else if (acct.type === 'expense') {
+            monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+
+        invoices.forEach(inv => {
+          if (!inv.issue_date) return;
+          const month = inv.issue_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          monthlyData[month].income += invoiceTotal(inv);
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const chartEl = document.getElementById('dashboard-income-expense-chart');
+        if (!chartEl) return;
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="dashboard-income-expense-chart"></canvas>';
+        }
+        if (!months.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        dashboardCharts['incomeExpense'] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              borderColor: colors.income,
+              backgroundColor: colors.income + '20',
+              tension: 0.35,
+              fill: true
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              borderColor: colors.expense,
+              backgroundColor: colors.expense + '20',
+              tension: 0.35,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: { labels: { color: colors.text }, position: 'top' },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${fmt(context.parsed.y * 100, file.business.base_currency)}`
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: colors.text, maxRotation: 45, minRotation: 0 }, grid: { color: colors.grid } },
+              y: { ticks: { color: colors.text, callback: (value) => fmt(value * 100, file.business.base_currency) }, grid: { color: colors.grid } }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering dashboard income expense chart:', error);
+        const chartEl = document.getElementById('dashboard-income-expense-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderDashboardClientRevenueChart = () => {
+      try {
+        destroyDashboardChart('clientRevenue');
+        const invoices = getDashboardFilteredInvoices();
+        const clientMap = {};
+        invoices.forEach(inv => {
+          const party = file.parties.find(p => p.party_id === inv.party_id);
+          const name = party?.name || 'Unknown';
+          const invTotal = invoiceTotal(inv);
+          if (invTotal > 0) {
+            clientMap[name] = (clientMap[name] || 0) + invTotal;
+          }
+        });
+
+        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const chartEl = document.getElementById('dashboard-client-revenue-chart');
+        if (!chartEl) return;
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="dashboard-client-revenue-chart"></canvas>';
+        }
+        if (!entries.length) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const pieColors = [
+          '#3a7ff5', '#5aa3ff', '#7ab5ff', '#9ac7ff', '#bad9ff',
+          '#daebff', '#f0f7ff', '#ffd9ff'
+        ];
+        dashboardCharts['clientRevenue'] = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: pieColors.slice(0, entries.length),
+              borderWidth: 2,
+              borderColor: isDarkMode() ? '#111624' : '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: colors.text, padding: 12, usePointStyle: true, font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed * 100 / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering dashboard client revenue chart:', error);
+        const chartEl = document.getElementById('dashboard-client-revenue-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
     const renderAnalytics = () => {
       if (!file) {
         console.warn('Cannot render analytics: no file loaded');
@@ -5878,6 +6078,8 @@
         row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
         act.appendChild(row);
       });
+      renderDashboardIncomeExpenseChart();
+      renderDashboardClientRevenueChart();
     };
 
     // ---------- Event wiring ----------
