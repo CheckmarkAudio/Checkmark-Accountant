@@ -3955,28 +3955,25 @@
         return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
       let income=0, expense=0;
-      const useAccrual = isAccrualBasis();
       lines.forEach(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         const acct = file.accounts.find(a=>a.code===l.account_code);
         if (!acct) return;
-        if (acct.type==='income' && (!useAccrual || !entry?.linked_invoice_id)) {
+        if (acct.type==='income' && !entry?.linked_invoice_id) {
           income += (l.credit_cents||0)-(l.debit_cents||0);
         }
         if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
       });
       
-      // Also include invoice income for the date range on accrual basis
-      if (useAccrual) {
-        const invoices = file.invoices.filter(inv => {
-          if (inv.status === 'void') return false;
-          if (!inv.issue_date) return allTime;
-          return allTime || (inv.issue_date >= start && inv.issue_date <= end);
-        });
-        invoices.forEach(inv => {
-          income += invoiceTotal(inv);
-        });
-      }
+      // Include invoice income for the date range
+      const invoices = file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
+      invoices.forEach(inv => {
+        income += invoiceTotal(inv);
+      });
       
       $('#pl-output').innerHTML = `
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
