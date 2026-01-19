@@ -969,9 +969,6 @@
       <div class="logo-chip" id="logo-chip"><img id="logo-img" alt="Logo"></div>
       <div class="stack" style="gap:4px">
         <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
-        <div class="row" style="gap:8px">
-          <select id="business-selector"></select>
-        </div>
       </div>
       <div class="row" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary">Quick Invoice</button>
@@ -1307,6 +1304,8 @@
         </div>
         <div class="card" style="grid-column:4">
           <h3>Business</h3>
+          <label>Selected Business</label>
+          <select id="business-selector"></select>
           <div id="business-info" class="stack"></div>
           <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
           <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
