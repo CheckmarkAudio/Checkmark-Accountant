@@ -5767,20 +5767,38 @@
     const renderDashboard = () => {
       if (!file) return;
       const kpi = $('#dashboard-kpis'); kpi.innerHTML = '';
-      const posted = postedLines();
-      const income = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
+      const todayDate = new Date();
+      const start = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1).toISOString().split('T')[0];
+      const end = todayDate.toISOString().split('T')[0];
+      const posted = postedLines().filter(l => {
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry || !entry.entry_date) return false;
+        return entry.entry_date >= start && entry.entry_date <= end;
+      });
+      const incomeFromLedger = posted
+        .filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
+        .filter(l=>{
+          const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+          return !entry?.linked_invoice_id;
+        })
         .reduce((s,l)=>s+(l.credit_cents||0)-(l.debit_cents||0),0);
       const expense = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='expense')
         .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
+      const invoiceIncome = file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return false;
+        return inv.issue_date >= start && inv.issue_date <= end;
+      }).reduce((s, inv)=>s+invoiceTotal(inv),0);
+      const income = incomeFromLedger + invoiceIncome;
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:renderDashboard',message:'renderDashboard:totals',data:{income,expense,postedCount:posted.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       const net = income - expense;
       const openInvoices = file.invoices.filter(i=>i.status!=='paid').length;
       const cards = [
-        { label:'Income', value:fmt(income,file.business.base_currency) },
-        { label:'Expenses', value:fmt(expense,file.business.base_currency) },
-        { label:'Net', value:fmt(net,file.business.base_currency) },
+        { label:'Income (This Month)', value:fmt(income,file.business.base_currency) },
+        { label:'Expenses (This Month)', value:fmt(expense,file.business.base_currency) },
+        { label:'Net (This Month)', value:fmt(net,file.business.base_currency) },
         { label:'Open Invoices', value:openInvoices }
       ];
       cards.forEach(c=>{
