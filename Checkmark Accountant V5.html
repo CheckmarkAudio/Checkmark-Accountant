@@ -880,16 +880,10 @@
     #note-menu {
       min-width: 180px;
     }
-    #note-header-select {
-      min-width: 140px;
-    }
-    #note-title {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--surface-soft);
-      color: var(--text);
+    .note-header-btn {
+      padding: 8px 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
     #note-content {
       flex: 1;
@@ -1387,15 +1381,11 @@
         <button id="note-save" class="primary">Save</button>
         <button id="note-delete" class="ghost">Delete</button>
         <button id="note-copy" class="ghost">Copy</button>
-        <select id="note-header-select" class="ghost" title="Insert header">
-          <option value="">Header</option>
-          <option value="1">Heading 1</option>
-          <option value="2">Heading 2</option>
-          <option value="3">Heading 3</option>
-        </select>
+        <button class="ghost note-header-btn" data-level="1" title="Insert H1">H1</button>
+        <button class="ghost note-header-btn" data-level="2" title="Insert H2">H2</button>
+        <button class="ghost note-header-btn" data-level="3" title="Insert H3">H3</button>
         <span id="note-saved-status" class="saved-flag">Saved</span>
       </div>
-      <input id="note-title" type="text" placeholder="Note title">
       <textarea id="note-content" placeholder="Write a quick note..."></textarea>
     </div>
     <div class="note-resize-handle" id="note-resize"></div>
@@ -6221,12 +6211,16 @@
 
     const getNoteById = (id) => getNotes().find(n => n.id === id);
 
+    const noteNeedsName = (note) => !note || !note.title || note.title === 'Untitled note';
+
     const updateNoteActions = () => {
       const hasNote = !!noteState.currentId;
       const saveBtn = $('#note-save');
       const deleteBtn = $('#note-delete');
       const copyBtn = $('#note-copy');
-      if (saveBtn) saveBtn.disabled = !noteDirty;
+      const note = getNoteById(noteState.currentId);
+      const needsName = noteNeedsName(note);
+      if (saveBtn) saveBtn.disabled = !noteDirty && !needsName;
       if (deleteBtn) deleteBtn.disabled = !hasNote;
       if (copyBtn) copyBtn.disabled = !hasNote;
     };
@@ -6235,7 +6229,9 @@
       noteDirty = dirty;
       const saveBtn = $('#note-save');
       const status = $('#note-saved-status');
-      if (saveBtn) saveBtn.disabled = !dirty;
+      const note = getNoteById(noteState.currentId);
+      const needsName = noteNeedsName(note);
+      if (saveBtn) saveBtn.disabled = !dirty && !needsName;
       if (status) {
         status.textContent = dirty ? 'Unsaved' : 'Saved';
         status.classList.toggle('note-unsaved', dirty);
@@ -6246,9 +6242,7 @@
     const normalizeNoteTitle = (val) => (val || '').trim() || 'Untitled note';
 
     const loadNoteIntoEditor = (note) => {
-      const titleInput = $('#note-title');
       const contentInput = $('#note-content');
-      if (titleInput) titleInput.value = note?.title || '';
       if (contentInput) contentInput.value = note?.content || '';
       setNoteDirty(false);
     };
@@ -6307,15 +6301,14 @@
       return note;
     };
 
-    const createNoteFromEditor = ({ silent = false } = {}) => {
+    const createNoteFromEditor = ({ title, silent = false } = {}) => {
       if (!file) return null;
       if (!file.notes) file.notes = [];
-      const titleInput = $('#note-title');
       const contentInput = $('#note-content');
       const now = nowIso();
       const note = {
         id: uuid(),
-        title: normalizeNoteTitle(titleInput?.value || ''),
+        title: normalizeNoteTitle(title || ''),
         content: contentInput?.value || '',
         created_at: now,
         updated_at: now
@@ -6328,22 +6321,18 @@
       return note;
     };
 
-    const saveCurrentNote = ({ silent = false } = {}) => {
+    const saveCurrentNote = ({ silent = false, titleOverride } = {}) => {
       if (!file) return;
-      const titleInput = $('#note-title');
       const contentInput = $('#note-content');
-      if (!titleInput || !contentInput) return;
-      const title = normalizeNoteTitle(titleInput.value);
+      if (!contentInput) return;
+      const title = normalizeNoteTitle(titleOverride);
       const content = contentInput.value || '';
       let note = noteState.currentId ? getNoteById(noteState.currentId) : null;
       if (!note) {
-        note = createNoteFromEditor({ silent: true });
-        setNoteDirty(false);
-        if (!silent) showToast('Note saved');
-        return;
+        note = createNoteFromEditor({ title, silent: true });
       }
       if (!note) return;
-      note.title = title;
+      if (titleOverride) note.title = title;
       note.content = content;
       note.updated_at = nowIso();
       saveFile();
@@ -6355,11 +6344,50 @@
     const scheduleNoteAutosave = () => {
       if (!file) return;
       if (!noteState.currentId) {
-        createNoteFromEditor({ silent: true });
+        createNoteFromEditor({ title: 'Untitled note', silent: true });
       }
       setNoteDirty(true);
       clearTimeout(noteAutoSaveTimer);
       noteAutoSaveTimer = setTimeout(() => saveCurrentNote({ silent: true }), 700);
+    };
+
+    const promptNoteTitle = (defaultTitle, onConfirm) => {
+      showModal(`
+        <div class="stack">
+          <h3>Name this note</h3>
+          <input type="text" id="note-title-input" placeholder="Note name" value="${defaultTitle || ''}">
+          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary">Save Note</button>
+          </div>
+        </div>
+      `, () => {
+        const input = $('#note-title-input');
+        const title = normalizeNoteTitle(input?.value || '');
+        onConfirm(title);
+      });
+      setTimeout(() => {
+        const input = $('#note-title-input');
+        if (input) {
+          input.focus();
+          input.select();
+          input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+              const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+              if (confirmBtn) confirmBtn.click();
+            }
+          };
+        }
+      }, 50);
+    };
+
+    const handleNoteSaveClick = () => {
+      const note = getNoteById(noteState.currentId);
+      if (noteNeedsName(note)) {
+        promptNoteTitle('', (title) => saveCurrentNote({ titleOverride: title }));
+        return;
+      }
+      saveCurrentNote();
     };
 
     const deleteCurrentNote = () => {
@@ -7029,9 +7057,8 @@
       const saveBtn = $('#note-save');
       const deleteBtn = $('#note-delete');
       const copyBtn = $('#note-copy');
-      const titleInput = $('#note-title');
       const contentInput = $('#note-content');
-      const headerSelect = $('#note-header-select');
+      const headerButtons = $$('.note-header-btn');
 
       if (header) {
         header.addEventListener('mousedown', startNoteDrag);
@@ -7070,18 +7097,16 @@
         if (noteDirty) saveCurrentNote({ silent: true });
         createNote();
       };
-      if (saveBtn) saveBtn.onclick = () => saveCurrentNote();
+      if (saveBtn) saveBtn.onclick = () => handleNoteSaveClick();
       if (deleteBtn) deleteBtn.onclick = () => deleteCurrentNote();
       if (copyBtn) copyBtn.onclick = () => copyCurrentNote();
-      if (titleInput) titleInput.oninput = scheduleNoteAutosave;
       if (contentInput) contentInput.oninput = scheduleNoteAutosave;
-      if (headerSelect) {
-        headerSelect.onchange = (e) => {
-          const level = Number(e.target.value);
+      headerButtons.forEach(btn => {
+        btn.onclick = () => {
+          const level = Number(btn.dataset.level || 0);
           if (level) insertHeader(level);
-          e.target.value = '';
         };
-      }
+      });
 
       document.addEventListener('mousemove', (e) => {
         onNoteDrag(e);
