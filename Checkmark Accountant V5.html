@@ -412,6 +412,11 @@
     .pill { padding: 8px 14px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
     .stack { display: flex; flex-direction: column; gap: 16px; }
     .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .actions {
+      flex-wrap: nowrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
     .space { margin-top: 20px; }
     .side-panel {
       position: fixed;
@@ -3321,7 +3326,7 @@
       rows.forEach(t => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category||'—'}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
-        <td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        <td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editTxn(t);
         tr.querySelector('[data-del]').onclick = () => delTxn(t);
         tbody.appendChild(tr);
@@ -3460,7 +3465,7 @@
       if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
       sortPartiesByName(file.parties).forEach(p => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${p.name}</td><td>${p.email||''}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${p.name}</td><td>${p.email||''}</td><td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editClient(p);
         tr.querySelector('[data-del]').onclick = () => {
           file.parties = file.parties.filter(x=>x.party_id!==p.party_id); saveFile(); renderClients();
