@@ -4540,20 +4540,19 @@
 
     const isAccrualBasis = () => (file?.settings?.accounting_basis || 'cash') === 'accrual';
     const getInvoiceIncome = () => {
-      if (!isAccrualBasis()) return {};
-      const invoices = getFilteredInvoices();
+      const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
       const monthlyData = {};
       invoices.forEach(inv => {
+        if (!inv.issue_date) return;
         const month = inv.issue_date.substring(0, 7);
         if (!monthlyData[month]) monthlyData[month] = 0;
-        monthlyData[month] += invoiceSubtotal(inv);
+        monthlyData[month] += invoiceTotal(inv);
       });
       return monthlyData;
     };
 
     const getInvoiceIncomeByCategory = () => {
-      if (!isAccrualBasis()) return {};
-      const invoices = getFilteredInvoices();
+      const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
       const categoryMap = {};
       invoices.forEach(inv => {
         const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
@@ -4579,7 +4578,6 @@
         const lines = getFilteredLines();
         const monthlyData = {};
         
-        const useAccrual = isAccrualBasis();
         // Add income/expense from ledger entries
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
@@ -4590,21 +4588,19 @@
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
           
-          if (acct.type === 'income' && (!useAccrual || !entry.linked_invoice_id)) {
+          if (acct.type === 'income' && !entry.linked_invoice_id) {
             monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
           } else if (acct.type === 'expense') {
             monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
           }
         });
 
-        // Add income from invoices for accrual basis
-        if (useAccrual) {
-          const invoiceIncome = getInvoiceIncome();
-          Object.keys(invoiceIncome).forEach(month => {
-            if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
-            monthlyData[month].income += invoiceIncome[month];
-          });
-        }
+        // Add income from invoices
+        const invoiceIncome = getInvoiceIncome();
+        Object.keys(invoiceIncome).forEach(month => {
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          monthlyData[month].income += invoiceIncome[month];
+        });
 
         const months = Object.keys(monthlyData).sort();
         const chartEl = document.getElementById('income-expense-chart');
@@ -4689,23 +4685,20 @@
         destroyChart('profitLoss');
         const lines = getFilteredLines();
         let income = 0, expense = 0;
-        const useAccrual = isAccrualBasis();
         
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
-          if (acct.type === 'income' && (!useAccrual || !entry?.linked_invoice_id)) {
+          if (acct.type === 'income' && !entry?.linked_invoice_id) {
             income += (l.credit_cents || 0) - (l.debit_cents || 0);
           }
           if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
         });
 
-        // Add invoice income for accrual basis
-        if (useAccrual) {
-          const invoiceIncome = getInvoiceIncome();
-          Object.values(invoiceIncome).forEach(amt => income += amt);
-        }
+        // Add invoice income
+        const invoiceIncome = getInvoiceIncome();
+        Object.values(invoiceIncome).forEach(amt => income += amt);
 
         const profit = income - expense;
         const total = income + expense + Math.abs(Math.min(0, profit));
@@ -4867,27 +4860,24 @@
         destroyChart('incomeCategory');
         const lines = getFilteredLines();
         const categoryMap = {};
-        const useAccrual = isAccrualBasis();
         
         // Add income from ledger entries
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct || acct.type !== 'income') return;
-          if (useAccrual && entry?.linked_invoice_id) return;
+          if (entry?.linked_invoice_id) return;
           const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
           if (amount > 0) {
             categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
           }
         });
 
-        // Add income from invoices for accrual basis
-        if (useAccrual) {
-          const invoiceCategoryMap = getInvoiceIncomeByCategory();
-          Object.keys(invoiceCategoryMap).forEach(cat => {
-            categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
-          });
-        }
+        // Add income from invoices
+        const invoiceCategoryMap = getInvoiceIncomeByCategory();
+        Object.keys(invoiceCategoryMap).forEach(cat => {
+          categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
+        });
 
         const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
         const chartEl = document.getElementById('income-category-chart');
@@ -4969,17 +4959,16 @@
     const renderClientRevenueChart = () => {
       try {
         destroyChart('clientRevenue');
-        const { start, end } = getDateRange();
         const clientMap = {};
         
         // Add revenue from invoices (based on invoice date, not payment date)
-        const invoices = getFilteredInvoices();
+        const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
         invoices.forEach(inv => {
           const party = file.parties.find(p => p.party_id === inv.party_id);
           const name = party?.name || 'Unknown';
-          const invSubtotal = invoiceSubtotal(inv);
-          if (invSubtotal > 0) {
-            clientMap[name] = (clientMap[name] || 0) + invSubtotal;
+          const invTotal = invoiceTotal(inv);
+          if (invTotal > 0) {
+            clientMap[name] = (clientMap[name] || 0) + invTotal;
           }
         });
 
@@ -5059,7 +5048,7 @@
         
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-          if (!entry) return;
+          if (!entry || !entry.entry_date) return;
           const month = entry.entry_date.substring(0, 7);
           if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
           
@@ -5067,6 +5056,7 @@
           if (!acct) return;
           
           if (acct.type === 'income') {
+            if (entry.linked_invoice_id) return;
             const amt = (l.credit_cents || 0) - (l.debit_cents || 0);
             monthlyData[month].income += amt;
           } else if (acct.type === 'expense') {
