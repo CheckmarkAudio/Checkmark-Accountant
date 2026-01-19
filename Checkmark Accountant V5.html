@@ -3947,9 +3947,12 @@
 
     const runPL = () => {
       const { start, end } = getReportsDateRange();
+      const allTime = isAllTimeRange(start, end);
       const lines = postedLines().filter(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
-        return entry && entry.entry_date >= start && entry.entry_date <= end;
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
       let income=0, expense=0;
       const useAccrual = isAccrualBasis();
@@ -3965,7 +3968,10 @@
       
       // Also include invoice income for the date range on accrual basis
       if (useAccrual) {
-        const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+        const invoices = file.invoices.filter(inv => {
+          if (!inv.issue_date) return allTime;
+          return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+        });
         invoices.forEach(inv => {
           income += invoiceSubtotal(inv);
         });
@@ -3999,7 +4005,11 @@
       const { start, end } = getReportsDateRange();
       const result = {};
       // Use invoices directly (by issue date) instead of just payments
-      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      const allTime = isAllTimeRange(start, end);
+      const invoices = file.invoices.filter(inv => {
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
       invoices.forEach(inv => {
         const party = file.parties.find(p=>p.party_id===inv.party_id);
         const name = party?.name || 'Unknown';
@@ -4038,8 +4048,12 @@
 
     const grtInvoiceBase = (start, end) => {
       let total = 0;
+      const allTime = isAllTimeRange(start, end);
       file.invoices
-        .filter(inv => inv.issue_date >= start && inv.issue_date <= end)
+        .filter(inv => {
+          if (!inv.issue_date) return allTime;
+          return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+        })
         .forEach(inv => { total += invoiceTotal(inv); });
       return total;
     };
@@ -4346,6 +4360,7 @@
       };
     };
 
+    const isAllTimeRange = (start, end) => start === '1900-01-01' && end === '2999-12-31';
     const getDateRange = () => {
       const start = $('#analytics-start').value || '1900-01-01';
       const end = $('#analytics-end').value || '2999-12-31';
@@ -4505,17 +4520,22 @@
 
     const getFilteredLines = () => {
       const { start, end } = getDateRange();
+      const allTime = isAllTimeRange(start, end);
       const posted = postedLines();
       return posted.filter(l => {
         const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-        return entry && entry.entry_date >= start && entry.entry_date <= end;
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
     };
 
     const getFilteredInvoices = () => {
       const { start, end } = getDateRange();
+      const allTime = isAllTimeRange(start, end);
       return file.invoices.filter(inv => {
-        return inv.issue_date >= start && inv.issue_date <= end;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       });
     };
 
