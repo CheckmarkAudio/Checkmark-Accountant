@@ -297,6 +297,25 @@
       color: var(--text);
       border-color: var(--border);
     }
+    nav.tabs .top-actions {
+      margin-left: auto;
+      gap: 12px;
+    }
+    nav.tabs .top-actions button {
+      background: var(--text);
+      color: #fff;
+      border-color: transparent;
+    }
+    nav.tabs .top-actions button:hover {
+      background: var(--text);
+      border-color: transparent;
+      opacity: 0.9;
+    }
+    nav.tabs .top-actions button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: transparent;
+    }
     main { padding: 28px; }
     section[data-section] {
       margin-bottom: 40px;
@@ -996,7 +1015,7 @@
       <button data-tab="services">Services</button>
       <button data-tab="analytics">Analytics</button>
       <button data-tab="reports">Reports</button>
-      <div class="row" style="margin-left:auto; gap:16px">
+      <div class="row top-actions" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary">Quick Invoice</button>
         <button id="quick-add-transaction">Quick Txn</button>
         <button id="open-calculator">Calculator</button>
