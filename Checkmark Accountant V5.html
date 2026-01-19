@@ -869,9 +869,11 @@
     }
     .note-toolbar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
       align-items: center;
+      overflow-x: auto;
+      white-space: nowrap;
     }
     .note-toolbar select,
     .note-toolbar input {
@@ -887,7 +889,7 @@
     }
     #note-content {
       order: 0;
-      flex: 1;
+      flex: 0 0 auto;
       width: 100%;
       resize: none;
       border-radius: 12px;
@@ -897,6 +899,7 @@
       color: var(--text);
       font-size: 0.95rem;
       line-height: 1.5;
+      min-height: 42px;
     }
     .note-resize-handle {
       position: absolute;
@@ -6943,7 +6946,7 @@
       const deltaX = e.clientX - noteResizeStart.x;
       const deltaY = e.clientY - noteResizeStart.y;
       const minWidth = 280;
-      const minHeight = 260;
+      const minHeight = 140;
       noteState.width = Math.max(minWidth, noteResizeStart.width + deltaX);
       noteState.height = Math.max(minHeight, noteResizeStart.height + deltaY);
       updateNoteSize();
