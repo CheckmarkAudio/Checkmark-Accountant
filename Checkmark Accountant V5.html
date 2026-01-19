@@ -6946,7 +6946,7 @@
       const deltaX = e.clientX - noteResizeStart.x;
       const deltaY = e.clientY - noteResizeStart.y;
       const minWidth = 280;
-      const minHeight = 140;
+      const minHeight = 120;
       noteState.width = Math.max(minWidth, noteResizeStart.width + deltaX);
       noteState.height = Math.max(minHeight, noteResizeStart.height + deltaY);
       updateNoteSize();
