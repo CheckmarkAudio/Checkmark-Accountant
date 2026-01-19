@@ -373,16 +373,16 @@
       padding: 24px;
     }
     .splash-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      box-shadow: var(--shadow);
-      padding: 16px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 0;
       max-width: 640px;
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 0;
       align-items: center;
     }
     .splash-video {
@@ -833,10 +833,6 @@
       <video id="splash-video" class="splash-video" playsinline preload="auto">
         <source src="https://video.wixstatic.com/video/afbb39_32010cb1c1e1423184fe68fec0b8c47c/1080p/mp4/file.mp4" type="video/mp4">
       </video>
-      <div class="row" style="gap:8px">
-        <button id="splash-mute" class="ghost">Mute</button>
-        <button id="splash-skip" class="ghost">Skip</button>
-      </div>
     </div>
   </div>
   <div class="app">
@@ -1888,8 +1884,6 @@
       const overlay = $('#splash-overlay');
       const video = $('#splash-video');
       if (!overlay || !video) return;
-      const skip = $('#splash-skip');
-      const muteBtn = $('#splash-mute');
       const close = () => {
         overlay.classList.add('hidden');
         video.pause();
@@ -1897,10 +1891,10 @@
       };
       overlay.classList.remove('hidden');
       overlay.onclick = (e) => { if (e.target === overlay) close(); };
-      if (skip) skip.onclick = close;
-      if (muteBtn) muteBtn.onclick = () => {
+      video.onclick = (e) => {
+        e.stopPropagation();
+        if (video.paused) video.play();
         video.muted = !video.muted;
-        muteBtn.textContent = video.muted ? 'Unmute' : 'Mute';
       };
       video.onended = close;
       video.muted = false;
@@ -1908,7 +1902,6 @@
       if (playAttempt && typeof playAttempt.catch === 'function') {
         playAttempt.catch(() => {
           video.muted = true;
-          if (muteBtn) muteBtn.textContent = 'Unmute';
           video.play();
         });
       }
