@@ -4660,7 +4660,7 @@
         // Add income/expense from ledger entries
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-          if (!entry) return;
+          if (!entry || !entry.entry_date) return;
           const month = entry.entry_date.substring(0, 7);
           if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
           
