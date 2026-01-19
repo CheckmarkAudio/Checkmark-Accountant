@@ -1438,7 +1438,9 @@
   <script>
     // ---------- Utilities ----------
     // #region agent log
+    const DEBUG = false;
     const logDebug = (location, message, data, hypothesisId) => {
+      if (!DEBUG) return;
       const logEntry = {location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
       console.log('[DEBUG]', logEntry);
       try {
@@ -1470,6 +1472,13 @@
       if (val === undefined || val === null) return '';
       return String(val).replace(/(\.\d*?[1-9])0+$|\.0*$/,'$1');
     };
+    const escapeHtml = (val) => String(val ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[ch]);
     const normalizeTimeInput = (val) => {
       const digits = String(val||'').replace(/\D/g,'');
       if (!digits) return '';
@@ -2336,8 +2345,8 @@
       rows.forEach(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${inv.number||'—'}</td><td>${party?.name||'—'}</td><td>${inv.issue_date||''}</td>
-        <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${inv.status||'draft'}</td>
+        tr.innerHTML = `<td>${escapeHtml(inv.number||'—')}</td><td>${escapeHtml(party?.name||'—')}</td><td>${escapeHtml(inv.issue_date||'')}</td>
+        <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${escapeHtml(inv.status||'draft')}</td>
         <td>${fmt(invoiceTotal(inv),file.business.base_currency)}</td>
         <td class="row">
           <button data-action="view">View</button>
@@ -2363,8 +2372,8 @@
       if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
       container.innerHTML = `
         <div class="stack">
-          <div><strong>Client:</strong> ${draft.party_name||'—'}</div>
-          <div><strong>Date:</strong> ${draft.issue_date||today()}</div>
+          <div><strong>Client:</strong> ${escapeHtml(draft.party_name||'—')}</div>
+          <div><strong>Date:</strong> ${escapeHtml(draft.issue_date||today())}</div>
           <div><strong>Total:</strong> ${fmt(invoiceTotal(draft),file.business.base_currency)}</div>
           <button id="resume-draft">Resume</button>
         </div>`;
@@ -2378,7 +2387,7 @@
 
     const invoiceForm = (inv={}) => {
       const partyOptions = sortPartiesByName(file.parties)
-        .map(p=>`<option value="${p.party_id}" ${p.party_id===inv.party_id?'selected':''}>${p.name}</option>`)
+        .map(p=>`<option value="${escapeHtml(p.party_id)}" ${p.party_id===inv.party_id?'selected':''}>${escapeHtml(p.name)}</option>`)
         .join('');
       const serviceRecent = file.services.slice(-3).reverse();
       const lines = inv.lines || [];
@@ -2403,10 +2412,10 @@
           <label>Date</label>
           <input name="issue_date" type="date" value="${inv.issue_date||today()}">
           <label>Project</label>
-          <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
+          <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===inv.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
           <div class="row" style="gap:8px; flex-wrap:wrap">
             <span class="muted">Recent services:</span>
-            ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${s.service_id}">${s.name}</button>`).join('')}
+            ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${escapeHtml(s.service_id)}">${escapeHtml(s.name)}</button>`).join('')}
             <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
           </div>
           <div id="line-container" class="stack">${lineItems || ''}</div>
@@ -2433,17 +2442,17 @@
       const timeNote = billing === 'hourly'
         ? (Number(qtyVal) ? `= ${trimTrailingZeros((Number(qtyVal)||0).toFixed(2))} hrs` : 'Enter hh:mm to convert')
         : '';
-      return `<div class="card" data-line="${line.invoice_line_id||uuid()}" data-billing="${billing}" style="padding:20px; box-shadow:none; margin-bottom:12px">
+      return `<div class="card" data-line="${escapeHtml(line.invoice_line_id||uuid())}" data-billing="${billing}" style="padding:20px; box-shadow:none; margin-bottom:12px">
         <div class="row" style="gap:8px; align-items:center">
-          <input class="line-name" placeholder="Service / Description" value="${line.service_name||''}">
-          <input class="line-qty" type="number" step="0.01" value="${qtyVal}" style="width:90px" title="${billing==='hourly'?'Hours':'Quantity'}">
+          <input class="line-name" placeholder="Service / Description" value="${escapeHtml(line.service_name||'')}">
+          <input class="line-qty" type="number" step="0.01" value="${escapeHtml(qtyVal)}" style="width:90px" title="${billing==='hourly'?'Hours':'Quantity'}">
           <input class="line-rate" type="number" step="0.01" value="${centsToMoney(line.rate_cents||0)}" style="width:110px">
           <button type="button" data-remove>Delete</button>
         </div>
         ${billing==='hourly'?`<div class="row" style="gap:8px; align-items:center; margin-top:8px">
           <label style="margin:0; font-size:0.9rem; color: var(--muted); min-width:110px;">Time (HH:MM)</label>
-          <input class="line-time" placeholder="1:30" value="${timeVal||''}" style="width:120px">
-          <span class="muted" data-time-note style="font-size:0.9rem;">${timeNote}</span>
+          <input class="line-time" placeholder="1:30" value="${escapeHtml(timeVal||'')}" style="width:120px">
+          <span class="muted" data-time-note style="font-size:0.9rem;">${escapeHtml(timeNote)}</span>
         </div>`:''}
       </div>`;
     };
@@ -2528,7 +2537,7 @@
           const partyIds = p.party_ids || (p.party_id ? [p.party_id] : []);
           return partyIds.includes(selectedPartyId);
         }) : [];
-        projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${p.project_id}">${p.name}</option>`).join('');
+        projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${escapeHtml(p.project_id)}">${escapeHtml(p.name)}</option>`).join('');
         // Try to preserve the current project if it's still valid
         if (currentProjectId && filteredProjects.find(p=>p.project_id===currentProjectId)) {
           projectSelect.value = currentProjectId;
@@ -3342,7 +3351,7 @@
       if (file.transactions.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       rows.forEach(t => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category||'—'}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
+        tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
         <td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editTxn(t);
         tr.querySelector('[data-del]').onclick = () => delTxn(t);
@@ -3356,8 +3365,8 @@
       const container = $('#txn-draft');
       if (!container) return;
       if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
-      container.innerHTML = `<div class="stack"><div><strong>${draft.type}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
-      <div>${draft.memo||''}</div><button id="resume-txn">Resume</button></div>`;
+      container.innerHTML = `<div class="stack"><div><strong>${escapeHtml(draft.type)}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
+      <div>${escapeHtml(draft.memo||'')}</div><button id="resume-txn">Resume</button></div>`;
       const resumeBtn = $('#resume-txn');
       if (resumeBtn) resumeBtn.onclick = () => editTxn(draft,true);
     };
@@ -3374,12 +3383,12 @@
             ${['income','expense','transfer'].map(v=>`<button type="button" class="type-toggle ${typeValue===v?'active':''}" data-type="${v}">${v}</button>`).join('')}
           </div>
           <label>Category</label>
-          <input name="category" value="${t.category||''}" list="cat-list">
-          <datalist id="cat-list">${file.accounts.map(a=>`<option value="${a.code} - ${a.name}">`).join('')}</datalist>
-          <div class="row" style="gap:8px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${c}">${c}</button>`).join('')}</div>
+          <input name="category" value="${escapeHtml(t.category||'')}" list="cat-list">
+          <datalist id="cat-list">${file.accounts.map(a=>`<option value="${escapeHtml(a.code)} - ${escapeHtml(a.name)}">`).join('')}</datalist>
+          <div class="row" style="gap:8px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>
           <label>Amount</label><input name="amount" type="number" step="0.01" value="${centsToMoney(t.amount_cents||0)}">
-          <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${p.project_id}" ${p.project_id===t.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
-          <label>Memo</label><input name="memo" value="${t.memo||''}">
+          <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===t.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
+          <label>Memo</label><input name="memo" value="${escapeHtml(t.memo||'')}">
           <div class="row" style="gap:8px">
             <button type="submit" class="primary">Save</button>
             <button type="button" id="cancel-txn">Cancel</button>
@@ -3482,7 +3491,7 @@
       if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
       sortPartiesByName(file.parties).forEach(p => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${p.name}</td><td>${p.email||''}</td><td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.email||'')}</td><td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editClient(p);
         tr.querySelector('[data-del]').onclick = () => {
           file.parties = file.parties.filter(x=>x.party_id!==p.party_id); saveFile(); renderClients();
@@ -3495,10 +3504,10 @@
       if (!file) return;
       openPanel('Client', `
         <form id="client-form" class="stack">
-          <label>Name</label><input name="name" value="${p.name||''}">
-          <label>Email</label><input name="email" value="${p.email||''}">
-          <label>Phone</label><input name="phone" value="${p.phone||''}">
-          <label>Address</label><textarea name="address">${p.address||''}</textarea>
+          <label>Name</label><input name="name" value="${escapeHtml(p.name||'')}">
+          <label>Email</label><input name="email" value="${escapeHtml(p.email||'')}">
+          <label>Phone</label><input name="phone" value="${escapeHtml(p.phone||'')}">
+          <label>Address</label><textarea name="address">${escapeHtml(p.address||'')}</textarea>
           <div class="row"><button type="submit" class="primary">Save</button><button type="button" id="cancel-client">Cancel</button></div>
         </form>
       `);
@@ -3531,7 +3540,7 @@
         const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
         const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${pr.name}</td><td>${clientNames}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(pr.name)}</td><td>${escapeHtml(clientNames)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editProject(pr);
         tr.querySelector('[data-del]').onclick = () => { file.projects = file.projects.filter(x=>x.project_id!==pr.project_id); saveFile(); renderProjects(); };
         tbody.appendChild(tr);
@@ -3544,11 +3553,11 @@
       const currentPartyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
       const partyCheckboxes = sortPartiesByName(file.parties).map(p=>{
         const checked = currentPartyIds.includes(p.party_id) ? 'checked' : '';
-        return `<label style="display:flex; align-items:center; gap:8px; margin:8px 0; cursor:pointer;"><input type="checkbox" name="party_ids" value="${p.party_id}" ${checked} style="width:auto;">${p.name}</label>`;
+        return `<label style="display:flex; align-items:center; gap:8px; margin:8px 0; cursor:pointer;"><input type="checkbox" name="party_ids" value="${escapeHtml(p.party_id)}" ${checked} style="width:auto;">${escapeHtml(p.name)}</label>`;
       }).join('');
       openPanel('Project', `
         <form id="project-form" class="stack">
-          <label>Name</label><input name="name" value="${pr.name||''}">
+          <label>Name</label><input name="name" value="${escapeHtml(pr.name||'')}">
           <label>Clients</label>
           <div style="border:1px solid var(--border); border-radius:12px; padding:16px; background:var(--surface-soft); max-height:300px; overflow-y:auto;">
             ${partyCheckboxes || '<div class="muted">No clients available. Add clients first.</div>'}
@@ -3582,7 +3591,7 @@
       file.services.forEach(s => {
         const tr = document.createElement('tr');
         const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
-        tr.innerHTML = `<td>${s.name}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${billing}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editService(s);
         tr.querySelector('[data-del]').onclick = () => {
           file.services = file.services.filter(x=>x.service_id!==s.service_id); saveFile(); renderServices();
@@ -3595,7 +3604,7 @@
       if (!file) return;
       openPanel('Service', `
         <form id="service-form" class="stack">
-          <label>Name</label><input name="name" value="${s.name||''}">
+          <label>Name</label><input name="name" value="${escapeHtml(s.name||'')}">
           <label>Default rate</label><input name="rate" type="number" step="0.01" value="${centsToMoney(s.default_rate_cents||0)}">
           <label>Billing</label>
           <select name="billing_type">
@@ -3603,7 +3612,7 @@
             <option value="hourly" ${s.billing_type==='hourly'?'selected':''}>Time-based (hourly)</option>
           </select>
           <div class="muted" style="font-size:0.9rem;">Hourly adds an hh:mm field on invoices so you can enter time (e.g. 1:30) without creating another service.</div>
-          <label>Description</label><textarea name="desc">${s.default_description||''}</textarea>
+          <label>Description</label><textarea name="desc">${escapeHtml(s.default_description||'')}</textarea>
           <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-service">Cancel</button></div>
         </form>
       `);
@@ -3943,18 +3952,24 @@
         return entry && entry.entry_date >= start && entry.entry_date <= end;
       });
       let income=0, expense=0;
+      const useAccrual = isAccrualBasis();
       lines.forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         const acct = file.accounts.find(a=>a.code===l.account_code);
         if (!acct) return;
-        if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
+        if (acct.type==='income' && (!useAccrual || !entry?.linked_invoice_id)) {
+          income += (l.credit_cents||0)-(l.debit_cents||0);
+        }
         if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
       });
       
-      // Also include invoice income for the date range
-      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
-      invoices.forEach(inv => {
-        income += invoiceSubtotal(inv);
-      });
+      // Also include invoice income for the date range on accrual basis
+      if (useAccrual) {
+        const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+        invoices.forEach(inv => {
+          income += invoiceSubtotal(inv);
+        });
+      }
       
       $('#pl-output').innerHTML = `
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
@@ -4504,16 +4519,12 @@
       });
     };
 
+    const isAccrualBasis = () => (file?.settings?.accounting_basis || 'cash') === 'accrual';
     const getInvoiceIncome = () => {
+      if (!isAccrualBasis()) return {};
       const invoices = getFilteredInvoices();
       const monthlyData = {};
       invoices.forEach(inv => {
-        // Check if invoice has a ledger entry (meaning it's been paid)
-        const hasLedgerEntry = file.ledger_entries.some(e => 
-          e.linked_invoice_id === inv.invoice_id && e.status === 'posted'
-        );
-        // Only count unpaid invoices (or all invoices if you want to see all)
-        // For now, let's show all invoices to see total invoiced amount
         const month = inv.issue_date.substring(0, 7);
         if (!monthlyData[month]) monthlyData[month] = 0;
         monthlyData[month] += invoiceSubtotal(inv);
@@ -4522,6 +4533,7 @@
     };
 
     const getInvoiceIncomeByCategory = () => {
+      if (!isAccrualBasis()) return {};
       const invoices = getFilteredInvoices();
       const categoryMap = {};
       invoices.forEach(inv => {
@@ -4548,7 +4560,8 @@
         const lines = getFilteredLines();
         const monthlyData = {};
         
-        // Add income from ledger entries
+        const useAccrual = isAccrualBasis();
+        // Add income/expense from ledger entries
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           if (!entry) return;
@@ -4558,19 +4571,21 @@
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
           
-          if (acct.type === 'income') {
+          if (acct.type === 'income' && (!useAccrual || !entry.linked_invoice_id)) {
             monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
           } else if (acct.type === 'expense') {
             monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
           }
         });
 
-        // Add income from invoices (even if not paid yet)
-        const invoiceIncome = getInvoiceIncome();
-        Object.keys(invoiceIncome).forEach(month => {
-          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
-          monthlyData[month].income += invoiceIncome[month];
-        });
+        // Add income from invoices for accrual basis
+        if (useAccrual) {
+          const invoiceIncome = getInvoiceIncome();
+          Object.keys(invoiceIncome).forEach(month => {
+            if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+            monthlyData[month].income += invoiceIncome[month];
+          });
+        }
 
         const months = Object.keys(monthlyData).sort();
         const chartEl = document.getElementById('income-expense-chart');
@@ -4655,17 +4670,23 @@
         destroyChart('profitLoss');
         const lines = getFilteredLines();
         let income = 0, expense = 0;
+        const useAccrual = isAccrualBasis();
         
         lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
-          if (acct.type === 'income') income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          if (acct.type === 'income' && (!useAccrual || !entry?.linked_invoice_id)) {
+            income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          }
           if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
         });
 
-        // Add invoice income
-        const invoiceIncome = getInvoiceIncome();
-        Object.values(invoiceIncome).forEach(amt => income += amt);
+        // Add invoice income for accrual basis
+        if (useAccrual) {
+          const invoiceIncome = getInvoiceIncome();
+          Object.values(invoiceIncome).forEach(amt => income += amt);
+        }
 
         const profit = income - expense;
         const total = income + expense + Math.abs(Math.min(0, profit));
@@ -4827,22 +4848,27 @@
         destroyChart('incomeCategory');
         const lines = getFilteredLines();
         const categoryMap = {};
+        const useAccrual = isAccrualBasis();
         
         // Add income from ledger entries
         lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct || acct.type !== 'income') return;
+          if (useAccrual && entry?.linked_invoice_id) return;
           const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
           if (amount > 0) {
             categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
           }
         });
 
-        // Add income from invoices
-        const invoiceCategoryMap = getInvoiceIncomeByCategory();
-        Object.keys(invoiceCategoryMap).forEach(cat => {
-          categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
-        });
+        // Add income from invoices for accrual basis
+        if (useAccrual) {
+          const invoiceCategoryMap = getInvoiceIncomeByCategory();
+          Object.keys(invoiceCategoryMap).forEach(cat => {
+            categoryMap[cat] = (categoryMap[cat] || 0) + invoiceCategoryMap[cat];
+          });
+        }
 
         const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
         const chartEl = document.getElementById('income-category-chart');
