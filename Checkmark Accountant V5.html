@@ -602,7 +602,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 40;
+      z-index: 80;
       backdrop-filter: blur(2px);
     }
     .overlay.show { display: flex; }
@@ -900,6 +900,11 @@
       font-size: 0.95rem;
       line-height: 1.5;
       min-height: 42px;
+      overflow: auto;
+    }
+    #note-content[contenteditable="true"]:empty::before {
+      content: attr(data-placeholder);
+      color: var(--muted);
     }
     .note-resize-handle {
       position: absolute;
@@ -1379,7 +1384,7 @@
       </div>
     </div>
     <div class="note-body">
-      <textarea id="note-content" placeholder="Write a quick note..."></textarea>
+      <div id="note-content" class="note-editor" contenteditable="true" data-placeholder="Write a quick note..."></div>
       <div class="note-toolbar">
         <select id="note-menu"></select>
         <button id="note-new" class="ghost">New</button>
@@ -6241,7 +6246,11 @@
 
     const loadNoteIntoEditor = (note) => {
       const contentInput = $('#note-content');
-      if (contentInput) contentInput.value = note?.content || '';
+      if (contentInput) {
+        const raw = note?.content || '';
+        const isHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+        contentInput.innerHTML = isHtml ? raw : raw.replace(/\n/g, '<br>');
+      }
       setNoteDirty(false);
     };
 
@@ -6307,7 +6316,7 @@
       const note = {
         id: uuid(),
         title: normalizeNoteTitle(title || ''),
-        content: contentInput?.value || '',
+        content: contentInput?.innerHTML || '',
         created_at: now,
         updated_at: now
       };
@@ -6324,7 +6333,7 @@
       const contentInput = $('#note-content');
       if (!contentInput) return;
       const title = normalizeNoteTitle(titleOverride);
-      const content = contentInput.value || '';
+      const content = contentInput.innerHTML || '';
       let note = noteState.currentId ? getNoteById(noteState.currentId) : null;
       if (!note) {
         note = createNoteFromEditor({ title, silent: true });
@@ -6347,6 +6356,12 @@
       setNoteDirty(true);
       clearTimeout(noteAutoSaveTimer);
       noteAutoSaveTimer = setTimeout(() => saveCurrentNote({ silent: true }), 700);
+    };
+
+    const noteContentToText = (html) => {
+      const container = document.createElement('div');
+      container.innerHTML = html || '';
+      return container.innerText || '';
     };
 
     const promptNoteTitle = (defaultTitle, onConfirm) => {
@@ -6412,7 +6427,8 @@
     const copyCurrentNote = async () => {
       const note = getNoteById(noteState.currentId);
       if (!note) return;
-      const text = `${note.title ? note.title + '\n\n' : ''}${note.content || ''}`.trim();
+      const body = noteContentToText(note.content || '');
+      const text = `${note.title ? note.title + '\n\n' : ''}${body}`.trim();
       if (!text) {
         showToast('Nothing to copy');
         return;
@@ -6437,20 +6453,8 @@
     const insertHeader = (level) => {
       const textarea = $('#note-content');
       if (!textarea) return;
-      const value = textarea.value || '';
-      const start = textarea.selectionStart ?? 0;
-      const end = textarea.selectionEnd ?? 0;
-      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-      const lineEnd = value.indexOf('\n', end);
-      const actualLineEnd = lineEnd === -1 ? value.length : lineEnd;
-      const line = value.slice(lineStart, actualLineEnd);
-      const cleaned = line.replace(/^#{1,3}\s+/, '');
-      const prefix = '#'.repeat(level) + ' ';
-      const newLine = prefix + cleaned;
-      textarea.value = value.slice(0, lineStart) + newLine + value.slice(actualLineEnd);
-      const cursor = lineStart + prefix.length;
-      textarea.selectionStart = cursor;
-      textarea.selectionEnd = cursor;
+      textarea.focus();
+      document.execCommand('formatBlock', false, 'H' + level);
       scheduleNoteAutosave();
     };
 
