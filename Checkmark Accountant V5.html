@@ -5076,6 +5076,52 @@
       return tmp.toDataURL('image/png');
     };
 
+    const applyPrintChartTheme = (chart) => {
+      if (!chart?.options) return null;
+      const original = {
+        legendColor: chart.options.plugins?.legend?.labels?.color,
+        titleColor: chart.options.plugins?.title?.color,
+        scales: {}
+      };
+      const textColor = '#111';
+      if (chart.options.plugins?.legend?.labels) {
+        chart.options.plugins.legend.labels.color = textColor;
+      }
+      if (chart.options.plugins?.title) {
+        chart.options.plugins.title.color = textColor;
+      }
+      if (chart.options.scales) {
+        Object.entries(chart.options.scales).forEach(([key, scale]) => {
+          original.scales[key] = {
+            ticksColor: scale.ticks?.color,
+            titleColor: scale.title?.color,
+            gridColor: scale.grid?.color
+          };
+          if (scale.ticks) scale.ticks.color = textColor;
+          if (scale.title) scale.title.color = textColor;
+          if (scale.grid) scale.grid.color = 'rgba(0,0,0,0.1)';
+        });
+      }
+      chart.update('none');
+      return () => {
+        if (chart.options.plugins?.legend?.labels) {
+          chart.options.plugins.legend.labels.color = original.legendColor;
+        }
+        if (chart.options.plugins?.title) {
+          chart.options.plugins.title.color = original.titleColor;
+        }
+        if (chart.options.scales) {
+          Object.entries(chart.options.scales).forEach(([key, scale]) => {
+            const prev = original.scales[key] || {};
+            if (scale.ticks) scale.ticks.color = prev.ticksColor;
+            if (scale.title) scale.title.color = prev.titleColor;
+            if (scale.grid) scale.grid.color = prev.gridColor;
+          });
+        }
+        chart.update('none');
+      };
+    };
+
     const chartBlock = (canvasId) => {
       const container = document.createElement('div');
       container.style.border = '1px solid #e5e7eb';
@@ -5084,15 +5130,14 @@
       container.style.background = '#ffffff';
       container.style.minHeight = '60px';
       const canvas = document.getElementById(canvasId);
-      // Nudge chart legend color darker before capture
+      // Nudge chart text to black before capture
+      let restoreTheme = null;
       if (window.Chart && Chart.getChart) {
         const ch = Chart.getChart(canvasId);
-        if (ch?.options?.plugins?.legend?.labels) {
-          ch.options.plugins.legend.labels.color = '#111';
-          ch.update('none');
-        }
+        restoreTheme = applyPrintChartTheme(ch);
       }
       const imgSrc = getCanvasImage(canvas);
+      if (restoreTheme) restoreTheme();
       if (imgSrc) {
         const img = document.createElement('img');
         img.src = imgSrc;
