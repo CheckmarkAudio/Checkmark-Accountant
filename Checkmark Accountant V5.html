@@ -1230,6 +1230,8 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+          <label style="margin-top:16px">Show Intro Video on Startup</label>
+          <input type="checkbox" id="splash-video-toggle">
           <label>Logo (Light)</label>
           <input type="file" id="logo-light" accept="image/*">
           <label>Logo (Dark)</label>
@@ -1609,6 +1611,7 @@
     const defaultSettings = () => ({
       accounting_basis: 'cash',
       theme: 'system',
+      show_splash_video: true,
       logoVariant: 'auto',
       logoLightDataUrl: DEFAULT_LOGO_LIGHT_URL,
       logoDarkDataUrl: DEFAULT_LOGO_DARK_URL,
@@ -5909,6 +5912,7 @@
           };
         }
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+        const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onchange = (e)=>{ if(file) { file.settings.show_splash_video = !!e.target.checked; saveFile(); } };
 
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
@@ -6527,6 +6531,7 @@
       const businessNameInput = $('#business-name-input');
       const businessCurrencyInput = $('#business-currency-input');
       const themeSelect = $('#theme-select');
+      const splashVideoToggle = $('#splash-video-toggle');
       const logoVariant = $('#logo-variant');
       const defaultTaxPercent = $('#default-tax-percent');
       const grtPercent = $('#grt-percent');
@@ -6535,6 +6540,7 @@
       if (businessNameInput) businessNameInput.value = file.business?.name || '';
       if (businessCurrencyInput) businessCurrencyInput.value = file.business?.base_currency || 'USD';
       if (themeSelect) themeSelect.value = file.settings.theme;
+      if (splashVideoToggle) splashVideoToggle.checked = file.settings.show_splash_video !== false;
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
@@ -7183,7 +7189,6 @@
       // #endregion
       try {
         bindUI();
-        showSplashVideo();
         // #region agent log
         logDebug('initApp:after-bindUI','bindUI completed',{},'A');
         // #endregion
@@ -7198,6 +7203,9 @@
           setTab('settings');
         } else {
           loadActive(); // This will prompt to create a business if none exists
+        }
+        if (file?.settings?.show_splash_video !== false) {
+          showSplashVideo();
         }
         // #region agent log
         logDebug('initApp:complete','initApp completed successfully',{},'A');
