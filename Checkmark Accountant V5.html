@@ -6364,9 +6364,11 @@
           applyTheme();
           const themeSelect = $('#theme-select');
           if (themeSelect) themeSelect.value = nextTheme;
+          const dashboardSection = $$('section[data-section="dashboard"]')[0];
+          if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard();
           if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics();
         };
-        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
         const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
           if (!file) return;
           const next = !(file.settings.show_splash_video !== false);
