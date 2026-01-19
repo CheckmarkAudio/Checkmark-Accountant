@@ -822,6 +822,130 @@
     .calculator-minimized button:active {
       transform: translateY(0);
     }
+    .note-window {
+      position: fixed;
+      width: 420px;
+      height: 460px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      z-index: 56;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .note-window.hidden {
+      display: none;
+    }
+    .note-header {
+      background: var(--surface-soft);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .note-header span {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .note-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .note-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .note-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .note-toolbar select,
+    .note-toolbar input {
+      min-height: 36px;
+    }
+    #note-menu {
+      min-width: 180px;
+    }
+    #note-header-select {
+      min-width: 140px;
+    }
+    #note-title {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+    }
+    #note-content {
+      flex: 1;
+      width: 100%;
+      resize: none;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .note-resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      background: linear-gradient(-45deg, transparent 30%, var(--border) 30%, var(--border) 35%, transparent 35%, transparent 65%, var(--border) 65%, var(--border) 70%, transparent 70%);
+    }
+    .note-resize-handle:hover {
+      background: linear-gradient(-45deg, transparent 30%, var(--accent) 30%, var(--accent) 35%, transparent 35%, transparent 65%, var(--accent) 65%, var(--accent) 70%, transparent 70%);
+    }
+    .note-minimized {
+      position: fixed;
+      bottom: 20px;
+      right: 120px;
+      z-index: 65;
+    }
+    .note-minimized.hidden {
+      display: none;
+    }
+    .note-minimized button {
+      padding: 12px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(58,127,245,0.3);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+    .note-minimized button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(58,127,245,0.4);
+    }
+    .note-minimized button:active {
+      transform: translateY(0);
+    }
+    .note-unsaved {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     @media (prefers-reduced-motion: reduce) {
       :root { --motion-scale: 0; }
       * { transition: none !important; animation: none !important; }
@@ -854,6 +978,7 @@
         <button id="quick-add-invoice" class="primary">Quick Invoice</button>
         <button id="quick-add-transaction">Quick Txn</button>
         <button id="open-calculator" class="ghost">Calculator</button>
+        <button id="open-note" class="ghost">Note</button>
         <button id="open-settings" class="ghost">Settings</button>
       </div>
     </header>
@@ -1247,8 +1372,41 @@
     <div class="calculator-resize-handle" id="calculator-resize"></div>
   </div>
 
+  <div class="note-window hidden" id="note-window">
+    <div class="note-header" id="note-header">
+      <span>Notes</span>
+      <div class="note-controls">
+        <button class="calculator-btn-minimize" id="note-minimize" title="Minimize">−</button>
+        <button class="calculator-btn-close" id="note-close" title="Close">×</button>
+      </div>
+    </div>
+    <div class="note-body">
+      <div class="note-toolbar">
+        <select id="note-menu"></select>
+        <button id="note-new" class="ghost">New</button>
+        <button id="note-save" class="primary">Save</button>
+        <button id="note-delete" class="ghost">Delete</button>
+        <button id="note-copy" class="ghost">Copy</button>
+        <select id="note-header-select" class="ghost" title="Insert header">
+          <option value="">Header</option>
+          <option value="1">Heading 1</option>
+          <option value="2">Heading 2</option>
+          <option value="3">Heading 3</option>
+        </select>
+        <span id="note-saved-status" class="saved-flag">Saved</span>
+      </div>
+      <input id="note-title" type="text" placeholder="Note title">
+      <textarea id="note-content" placeholder="Write a quick note..."></textarea>
+    </div>
+    <div class="note-resize-handle" id="note-resize"></div>
+  </div>
+
   <div class="calculator-minimized hidden" id="calculator-minimized">
     <button id="calculator-restore" title="Restore Calculator">Calc</button>
+  </div>
+
+  <div class="note-minimized hidden" id="note-minimized">
+    <button id="note-restore" title="Restore Notes">Note</button>
   </div>
 
   <script>
@@ -1500,6 +1658,7 @@
       ledger_entries: [],
       ledger_lines: [],
       attachments: [],
+      notes: [],
       change_log: []
     });
 
@@ -1564,6 +1723,7 @@
       if (!file.settings) file.settings = defaultSettings();
       if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = DEFAULT_LOGO_LIGHT_URL;
       if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
+      if (!file.notes) file.notes = [];
       if (file.settings.default_tax_percent === undefined || file.settings.default_tax_percent === null) file.settings.default_tax_percent = 0;
       if (file.settings.grt_percent === undefined || file.settings.grt_percent === null) file.settings.grt_percent = 0;
       if (!file.settings.grt_basis) file.settings.grt_basis = 'invoices';
@@ -5614,6 +5774,7 @@
         const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
         const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
+        const openNote = $('#open-note'); if (openNote) openNote.onclick = toggleNote;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
         const addService = $('#add-service'); if (addService) addService.onclick = () => editService({});
@@ -5896,18 +6057,26 @@
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
         
-        // Close side-panel when clicking outside of it (but not on calculator or interactive elements)
+        // Close side-panel when clicking outside of it (but not on calculator/notes or interactive elements)
         document.addEventListener('click', (e) => {
           const target = e.target;
           const sidePanel = $('#side-panel');
           const calculatorWindow = $('#calculator-window');
           const calculatorMinimized = $('#calculator-minimized');
+          const noteWindow = $('#note-window');
+          const noteMinimized = $('#note-minimized');
           
           // Always exclude calculator window and minimized calculator from closing logic
           if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
             return;
           }
           if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
+            return;
+          }
+          if (noteWindow && !noteWindow.classList.contains('hidden') && noteWindow.contains(target)) {
+            return;
+          }
+          if (noteMinimized && !noteMinimized.classList.contains('hidden') && noteMinimized.contains(target)) {
             return;
           }
           
@@ -6022,6 +6191,249 @@
       }
     };
 
+    // ---------- Notes ----------
+    let noteState = {
+      open: false,
+      minimized: false,
+      x: 140,
+      y: 120,
+      width: 420,
+      height: 460,
+      currentId: null
+    };
+    let noteDirty = false;
+    let noteAutoSaveTimer = null;
+
+    const loadNoteState = () => {
+      const saved = localStorage.getItem('ck5_note_state');
+      if (saved) {
+        try {
+          noteState = { ...noteState, ...JSON.parse(saved) };
+        } catch (e) {}
+      }
+    };
+
+    const saveNoteState = () => {
+      localStorage.setItem('ck5_note_state', JSON.stringify(noteState));
+    };
+
+    const getNotes = () => file?.notes || [];
+
+    const getNoteById = (id) => getNotes().find(n => n.id === id);
+
+    const updateNoteActions = () => {
+      const hasNote = !!noteState.currentId;
+      const saveBtn = $('#note-save');
+      const deleteBtn = $('#note-delete');
+      const copyBtn = $('#note-copy');
+      if (saveBtn) saveBtn.disabled = !noteDirty;
+      if (deleteBtn) deleteBtn.disabled = !hasNote;
+      if (copyBtn) copyBtn.disabled = !hasNote;
+    };
+
+    const setNoteDirty = (dirty) => {
+      noteDirty = dirty;
+      const saveBtn = $('#note-save');
+      const status = $('#note-saved-status');
+      if (saveBtn) saveBtn.disabled = !dirty;
+      if (status) {
+        status.textContent = dirty ? 'Unsaved' : 'Saved';
+        status.classList.toggle('note-unsaved', dirty);
+      }
+      updateNoteActions();
+    };
+
+    const normalizeNoteTitle = (val) => (val || '').trim() || 'Untitled note';
+
+    const loadNoteIntoEditor = (note) => {
+      const titleInput = $('#note-title');
+      const contentInput = $('#note-content');
+      if (titleInput) titleInput.value = note?.title || '';
+      if (contentInput) contentInput.value = note?.content || '';
+      setNoteDirty(false);
+    };
+
+    const renderNoteMenu = ({ preserveEditor = false } = {}) => {
+      const menu = $('#note-menu');
+      if (!menu) return;
+      const notes = getNotes()
+        .slice()
+        .sort((a, b) => ((b.updated_at || b.created_at || '') > (a.updated_at || a.created_at || '')) ? 1 : -1);
+      menu.innerHTML = '';
+      if (!notes.length) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No notes yet';
+        menu.appendChild(opt);
+        menu.disabled = true;
+        noteState.currentId = null;
+        loadNoteIntoEditor({ title: '', content: '' });
+        updateNoteActions();
+        return;
+      }
+      menu.disabled = false;
+      notes.forEach(note => {
+        const opt = document.createElement('option');
+        opt.value = note.id;
+        opt.textContent = note.title || 'Untitled note';
+        menu.appendChild(opt);
+      });
+      const hasCurrent = noteState.currentId && notes.find(n => n.id === noteState.currentId);
+      if (!hasCurrent) {
+        noteState.currentId = notes[0].id;
+      }
+      menu.value = noteState.currentId;
+      const selected = getNoteById(noteState.currentId);
+      if (selected && (!preserveEditor || !hasCurrent)) loadNoteIntoEditor(selected);
+      updateNoteActions();
+    };
+
+    const createNote = ({ silent = false } = {}) => {
+      if (!file) return null;
+      if (!file.notes) file.notes = [];
+      const now = nowIso();
+      const note = {
+        id: uuid(),
+        title: 'Untitled note',
+        content: '',
+        created_at: now,
+        updated_at: now
+      };
+      file.notes.unshift(note);
+      noteState.currentId = note.id;
+      saveFile();
+      renderNoteMenu();
+      if (!silent) showToast('Note created');
+      return note;
+    };
+
+    const createNoteFromEditor = ({ silent = false } = {}) => {
+      if (!file) return null;
+      if (!file.notes) file.notes = [];
+      const titleInput = $('#note-title');
+      const contentInput = $('#note-content');
+      const now = nowIso();
+      const note = {
+        id: uuid(),
+        title: normalizeNoteTitle(titleInput?.value || ''),
+        content: contentInput?.value || '',
+        created_at: now,
+        updated_at: now
+      };
+      file.notes.unshift(note);
+      noteState.currentId = note.id;
+      saveFile();
+      renderNoteMenu({ preserveEditor: true });
+      if (!silent) showToast('Note created');
+      return note;
+    };
+
+    const saveCurrentNote = ({ silent = false } = {}) => {
+      if (!file) return;
+      const titleInput = $('#note-title');
+      const contentInput = $('#note-content');
+      if (!titleInput || !contentInput) return;
+      const title = normalizeNoteTitle(titleInput.value);
+      const content = contentInput.value || '';
+      let note = noteState.currentId ? getNoteById(noteState.currentId) : null;
+      if (!note) {
+        note = createNoteFromEditor({ silent: true });
+        setNoteDirty(false);
+        if (!silent) showToast('Note saved');
+        return;
+      }
+      if (!note) return;
+      note.title = title;
+      note.content = content;
+      note.updated_at = nowIso();
+      saveFile();
+      setNoteDirty(false);
+      renderNoteMenu({ preserveEditor: true });
+      if (!silent) showToast('Note saved');
+    };
+
+    const scheduleNoteAutosave = () => {
+      if (!file) return;
+      if (!noteState.currentId) {
+        createNoteFromEditor({ silent: true });
+      }
+      setNoteDirty(true);
+      clearTimeout(noteAutoSaveTimer);
+      noteAutoSaveTimer = setTimeout(() => saveCurrentNote({ silent: true }), 700);
+    };
+
+    const deleteCurrentNote = () => {
+      const note = getNoteById(noteState.currentId);
+      if (!note) return;
+      showModal(`
+        <div class="stack">
+          <h3>Delete Note</h3>
+          <p>This will permanently delete "${note.title || 'Untitled note'}".</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary" style="background:var(--danger)">Delete Note</button>
+          </div>
+        </div>
+      `, () => {
+        file.notes = file.notes.filter(n => n.id !== note.id);
+        noteState.currentId = file.notes[0]?.id || null;
+        saveFile();
+        renderNoteMenu();
+        showToast('Note deleted');
+      });
+    };
+
+    const copyCurrentNote = async () => {
+      const note = getNoteById(noteState.currentId);
+      if (!note) return;
+      const text = `${note.title ? note.title + '\n\n' : ''}${note.content || ''}`.trim();
+      if (!text) {
+        showToast('Nothing to copy');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied note');
+      } catch (e) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showToast('Copied note');
+      }
+    };
+
+    const insertHeader = (level) => {
+      const textarea = $('#note-content');
+      if (!textarea) return;
+      const value = textarea.value || '';
+      const start = textarea.selectionStart ?? 0;
+      const end = textarea.selectionEnd ?? 0;
+      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+      const lineEnd = value.indexOf('\n', end);
+      const actualLineEnd = lineEnd === -1 ? value.length : lineEnd;
+      const line = value.slice(lineStart, actualLineEnd);
+      const cleaned = line.replace(/^#{1,3}\s+/, '');
+      const prefix = '#'.repeat(level) + ' ';
+      const newLine = prefix + cleaned;
+      textarea.value = value.slice(0, lineStart) + newLine + value.slice(actualLineEnd);
+      const cursor = lineStart + prefix.length;
+      textarea.selectionStart = cursor;
+      textarea.selectionEnd = cursor;
+      scheduleNoteAutosave();
+    };
+
+    const renderNotes = () => {
+      if (!file) return;
+      if (!file.notes) file.notes = [];
+      renderNoteMenu();
+    };
+
     // ---------- Render all ----------
     const renderAll = () => {
       // #region agent log
@@ -6041,6 +6453,7 @@
       renderProjects();
       renderServices();
       renderDashboard();
+      renderNotes();
       const themeSelect = $('#theme-select');
       const logoVariant = $('#logo-variant');
       const defaultTaxPercent = $('#default-tax-percent');
@@ -6458,6 +6871,247 @@
       }
     };
 
+    // ---------- Notes Window ----------
+    let isNoteDragging = false;
+    let noteDragOffset = { x: 0, y: 0 };
+    let isNoteResizing = false;
+    let noteResizeStart = { x: 0, y: 0, width: 0, height: 0 };
+
+    const startNoteDrag = (e) => {
+      if (e.target.closest('.note-controls')) return;
+      isNoteDragging = true;
+      const rect = $('#note-window').getBoundingClientRect();
+      noteDragOffset.x = e.clientX - rect.left;
+      noteDragOffset.y = e.clientY - rect.top;
+      e.preventDefault();
+    };
+
+    const onNoteDrag = (e) => {
+      if (!isNoteDragging) return;
+      const x = e.clientX - noteDragOffset.x;
+      const y = e.clientY - noteDragOffset.y;
+      const maxX = window.innerWidth - noteState.width;
+      const maxY = window.innerHeight - noteState.height;
+      noteState.x = Math.max(0, Math.min(x, maxX));
+      noteState.y = Math.max(0, Math.min(y, maxY));
+      updateNotePosition();
+    };
+
+    const endNoteDrag = () => {
+      if (isNoteDragging) {
+        isNoteDragging = false;
+        saveNoteState();
+      }
+    };
+
+    const startNoteResize = (e) => {
+      isNoteResizing = true;
+      const rect = $('#note-window').getBoundingClientRect();
+      noteResizeStart.x = e.clientX;
+      noteResizeStart.y = e.clientY;
+      noteResizeStart.width = rect.width;
+      noteResizeStart.height = rect.height;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onNoteResize = (e) => {
+      if (!isNoteResizing) return;
+      const deltaX = e.clientX - noteResizeStart.x;
+      const deltaY = e.clientY - noteResizeStart.y;
+      const minWidth = 280;
+      const minHeight = 260;
+      noteState.width = Math.max(minWidth, noteResizeStart.width + deltaX);
+      noteState.height = Math.max(minHeight, noteResizeStart.height + deltaY);
+      updateNoteSize();
+    };
+
+    const endNoteResize = () => {
+      if (isNoteResizing) {
+        isNoteResizing = false;
+        saveNoteState();
+      }
+    };
+
+    const updateNotePosition = () => {
+      const window = $('#note-window');
+      if (window) {
+        window.style.left = noteState.x + 'px';
+        window.style.top = noteState.y + 'px';
+      }
+    };
+
+    const updateNoteSize = () => {
+      const window = $('#note-window');
+      if (window) {
+        window.style.width = noteState.width + 'px';
+        window.style.height = noteState.height + 'px';
+      }
+    };
+
+    const openNote = () => {
+      noteState.open = true;
+      noteState.minimized = false;
+      $('#note-window').classList.remove('hidden');
+      $('#note-minimized').classList.add('hidden');
+      updateNotePosition();
+      updateNoteSize();
+      renderNoteMenu();
+      saveNoteState();
+    };
+
+    const closeNote = () => {
+      noteState.open = false;
+      noteState.minimized = false;
+      $('#note-window').classList.add('hidden');
+      $('#note-minimized').classList.add('hidden');
+      saveNoteState();
+    };
+
+    const minimizeNote = () => {
+      noteState.minimized = true;
+      noteState.open = true;
+      $('#note-window').classList.add('hidden');
+      const minimized = $('#note-minimized');
+      if (minimized) {
+        minimized.classList.remove('hidden');
+        minimized.onclick = function(e) {
+          e.stopPropagation();
+          restoreNote();
+        };
+        const restoreBtn = minimized.querySelector('#note-restore');
+        if (restoreBtn) {
+          restoreBtn.onclick = function(e) {
+            e.stopPropagation();
+            restoreNote();
+          };
+        }
+      }
+      saveNoteState();
+    };
+
+    const restoreNote = () => {
+      noteState.minimized = false;
+      noteState.open = true;
+      const noteWindow = $('#note-window');
+      const minimized = $('#note-minimized');
+      if (noteWindow) noteWindow.classList.remove('hidden');
+      if (minimized) minimized.classList.add('hidden');
+      updateNotePosition();
+      updateNoteSize();
+      renderNoteMenu();
+      saveNoteState();
+    };
+
+    const toggleNote = () => {
+      if (noteState.minimized) {
+        restoreNote();
+      } else if (noteState.open) {
+        closeNote();
+      } else {
+        openNote();
+      }
+    };
+
+    const initNoteWindow = () => {
+      loadNoteState();
+      updateNotePosition();
+      updateNoteSize();
+      renderNoteMenu();
+
+      const header = $('#note-header');
+      const resizeHandle = $('#note-resize');
+      const minimizeBtn = $('#note-minimize');
+      const closeBtn = $('#note-close');
+      const restoreBtn = $('#note-restore');
+      const menu = $('#note-menu');
+      const newBtn = $('#note-new');
+      const saveBtn = $('#note-save');
+      const deleteBtn = $('#note-delete');
+      const copyBtn = $('#note-copy');
+      const titleInput = $('#note-title');
+      const contentInput = $('#note-content');
+      const headerSelect = $('#note-header-select');
+
+      if (header) {
+        header.addEventListener('mousedown', startNoteDrag);
+      }
+      if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', startNoteResize);
+      }
+      if (minimizeBtn) {
+        minimizeBtn.onclick = (e) => {
+          e.stopPropagation();
+          minimizeNote();
+        };
+      }
+      if (closeBtn) {
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          closeNote();
+        };
+      }
+      if (restoreBtn) {
+        restoreBtn.onclick = function(e) {
+          e.stopPropagation();
+          restoreNote();
+        };
+      }
+      if (menu) {
+        menu.onchange = (e) => {
+          if (noteDirty) saveCurrentNote({ silent: true });
+          noteState.currentId = e.target.value || null;
+          const selected = getNoteById(noteState.currentId);
+          if (selected) loadNoteIntoEditor(selected);
+          updateNoteActions();
+        };
+      }
+      if (newBtn) newBtn.onclick = () => {
+        if (noteDirty) saveCurrentNote({ silent: true });
+        createNote();
+      };
+      if (saveBtn) saveBtn.onclick = () => saveCurrentNote();
+      if (deleteBtn) deleteBtn.onclick = () => deleteCurrentNote();
+      if (copyBtn) copyBtn.onclick = () => copyCurrentNote();
+      if (titleInput) titleInput.oninput = scheduleNoteAutosave;
+      if (contentInput) contentInput.oninput = scheduleNoteAutosave;
+      if (headerSelect) {
+        headerSelect.onchange = (e) => {
+          const level = Number(e.target.value);
+          if (level) insertHeader(level);
+          e.target.value = '';
+        };
+      }
+
+      document.addEventListener('mousemove', (e) => {
+        onNoteDrag(e);
+        onNoteResize(e);
+      });
+      document.addEventListener('mouseup', () => {
+        endNoteDrag();
+        endNoteResize();
+      });
+
+      const noteMinimized = $('#note-minimized');
+      if (noteMinimized) {
+        noteMinimized.style.cursor = 'pointer';
+        noteMinimized.onclick = function(e) {
+          e.stopPropagation();
+          restoreNote();
+        };
+        noteMinimized.addEventListener('click', function(e) {
+          e.stopPropagation();
+          restoreNote();
+        });
+      }
+
+      if (noteState.open && !noteState.minimized) {
+        openNote();
+      } else if (noteState.minimized) {
+        minimizeNote();
+      }
+    };
+
     // ---------- Init ----------
     const initApp = () => {
       // #region agent log
@@ -6470,6 +7124,7 @@
         logDebug('initApp:after-bindUI','bindUI completed',{},'A');
         // #endregion
         initCalculatorWindow();
+        initNoteWindow();
         loadList();
         // #region agent log
         logDebug('initApp:after-loadList','loadList completed',{businessListLength:businessList.length,activeId},'A');
