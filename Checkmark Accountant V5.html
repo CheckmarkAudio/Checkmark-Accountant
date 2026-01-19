@@ -775,22 +775,47 @@
       background: var(--surface-soft);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      min-height: 80px;
-      max-height: 100px;
+      padding: 12px 12px 10px;
+      margin-bottom: 12px;
+      min-height: 64px;
+      max-height: 84px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
       align-items: flex-end;
       text-align: right;
+      position: relative;
+      padding-right: 54px;
+    }
+    .calculator-display-toolbar {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .calculator-copy-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      line-height: 1;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .calculator-copy-btn:hover {
+      background: var(--border);
+      color: var(--text);
     }
     .calculator-display-secondary {
       font-size: 0.875rem;
       color: var(--muted);
-      min-height: 20px;
-      margin-bottom: 8px;
+      min-height: 16px;
+      margin-bottom: 6px;
       word-break: break-all;
     }
     .calculator-display-primary {
@@ -1434,6 +1459,9 @@
     </div>
     <div class="calculator-body" id="calculator-body">
       <div class="calculator-display">
+        <div class="calculator-display-toolbar">
+          <button class="calculator-copy-btn" id="calculator-copy" title="Copy number">Copy</button>
+        </div>
         <div class="calculator-display-secondary" id="calculator-secondary"></div>
         <div class="calculator-display-primary" id="calculator-primary">0</div>
       </div>
@@ -7002,6 +7030,26 @@
       if (secondary) secondary.textContent = calculator.secondary;
     };
 
+    const copyCalculatorValue = async () => {
+      const text = String(calculator.display ?? '').trim();
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied number');
+      } catch (e) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showToast('Copied number');
+      }
+    };
+
     const inputNumber = (num) => {
       if (calculator.waitingForOperand) {
         calculator.display = String(num);
@@ -7101,6 +7149,13 @@
 
     const initCalculator = () => {
       updateCalculatorDisplay();
+      const copyBtn = $('#calculator-copy');
+      if (copyBtn) {
+        copyBtn.onclick = (e) => {
+          e.stopPropagation();
+          copyCalculatorValue();
+        };
+      }
       const buttons = $$('.calc-btn');
       buttons.forEach(btn => {
         btn.onclick = (e) => {
