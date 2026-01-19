@@ -257,6 +257,7 @@
       min-width: 48px;
       min-height: 40px;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+      cursor: pointer;
     }
     .logo-chip img { height: 24px; width: 24px; object-fit: contain; }
     nav.tabs {
@@ -5908,6 +5909,17 @@
             renderBusinessSelector();
             renderAll();
           });
+        };
+        const logoChip = $('#logo-chip'); if (logoChip) logoChip.onclick = () => {
+          if (!file) return;
+          const currentTheme = file.settings.theme || 'system';
+          const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          file.settings.theme = nextTheme;
+          saveFile();
+          applyTheme();
+          const themeSelect = $('#theme-select');
+          if (themeSelect) themeSelect.value = nextTheme;
+          if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics();
         };
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
         const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
