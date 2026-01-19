@@ -1306,12 +1306,8 @@
         </div>
         <div class="card" style="grid-column:4">
           <h3>Business</h3>
-          <label>Business Name</label>
-          <input type="text" id="business-name-input" placeholder="Business Name">
-          <label style="margin-top:16px">Default Currency (ISO)</label>
-          <input type="text" id="business-currency-input" placeholder="USD" maxlength="3" style="text-transform:uppercase">
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Use a 3-letter ISO 4217 code (e.g., USD, EUR).</p>
           <div id="business-info" class="stack"></div>
+          <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
           <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
             <button id="new-business" class="primary" style="width:100%">+ New Business</button>
           </div>
@@ -5870,47 +5866,49 @@
             return false;
           }
         };
-        const businessNameInput = $('#business-name-input'); if (businessNameInput) {
-          businessNameInput.onkeydown = (e) => { if (e.key === 'Enter') businessNameInput.blur(); };
-          businessNameInput.onchange = () => {
-            if (!file?.business) return;
-            const nextName = businessNameInput.value.trim();
+        const editBusinessInfo = $('#edit-business-info'); if (editBusinessInfo) editBusinessInfo.onclick = () => {
+          if (!file?.business) return;
+          showModal(`
+            <div class="stack">
+              <h3>Edit Business Info</h3>
+              <label>Business Name</label>
+              <input type="text" id="edit-business-name" placeholder="Business Name" value="${file.business.name || ''}">
+              <label style="margin-top:16px">Default Currency (ISO)</label>
+              <input type="text" id="edit-business-currency" placeholder="USD" maxlength="3" style="text-transform:uppercase" value="${file.business.base_currency || 'USD'}">
+              <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Use a 3-letter ISO 4217 code (e.g., USD, EUR).</p>
+              <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
+                <button data-cancel>Cancel</button>
+                <button data-confirm class="primary">Save</button>
+              </div>
+            </div>
+          `, () => {
+            const nameInput = $('#edit-business-name');
+            const currencyInput = $('#edit-business-currency');
+            const nextName = nameInput?.value?.trim() || '';
+            const nextCode = normalizeCurrencyCode(currencyInput?.value);
             if (!nextName) {
               showToast('Business name cannot be empty');
-              businessNameInput.value = file.business.name || '';
+              return;
+            }
+            if (!nextCode) {
+              showToast('Currency code is required');
+              return;
+            }
+            if (!isValidCurrency(nextCode)) {
+              showToast('Invalid currency code');
               return;
             }
             file.business.name = nextName;
+            file.business.base_currency = nextCode;
             file.business.updated_at = nowIso();
             const listEntry = businessList.find(b => b.id === activeId);
             if (listEntry) listEntry.name = nextName;
             saveList();
             saveFile();
             renderBusinessSelector();
-            renderBusinessInfo();
-          };
-        }
-        const businessCurrencyInput = $('#business-currency-input'); if (businessCurrencyInput) {
-          businessCurrencyInput.onkeydown = (e) => { if (e.key === 'Enter') businessCurrencyInput.blur(); };
-          businessCurrencyInput.onchange = () => {
-            if (!file?.business) return;
-            const nextCode = normalizeCurrencyCode(businessCurrencyInput.value);
-            if (!nextCode) {
-              showToast('Currency code is required');
-              businessCurrencyInput.value = file.business.base_currency || 'USD';
-              return;
-            }
-            if (!isValidCurrency(nextCode)) {
-              showToast('Invalid currency code');
-              businessCurrencyInput.value = file.business.base_currency || 'USD';
-              return;
-            }
-            file.business.base_currency = nextCode;
-            file.business.updated_at = nowIso();
-            saveFile();
             renderAll();
-          };
-        }
+          });
+        };
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
         const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
           if (!file) return;
@@ -6534,8 +6532,6 @@
       renderServices();
       renderDashboard();
       renderNotes();
-      const businessNameInput = $('#business-name-input');
-      const businessCurrencyInput = $('#business-currency-input');
       const themeSelect = $('#theme-select');
       const splashVideoToggle = $('#splash-video-toggle');
       const logoVariant = $('#logo-variant');
@@ -6543,8 +6539,6 @@
       const grtPercent = $('#grt-percent');
       const grtBasis = $('#grt-basis');
       const grtFilingFrequency = $('#grt-filing-frequency');
-      if (businessNameInput) businessNameInput.value = file.business?.name || '';
-      if (businessCurrencyInput) businessCurrencyInput.value = file.business?.base_currency || 'USD';
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
