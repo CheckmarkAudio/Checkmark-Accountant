@@ -1025,6 +1025,15 @@
       <section data-section="dashboard" class="grid cols-2">
         <div class="card">
           <h3>Overview</h3>
+          <div class="row" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <button class="date-preset-btn" data-preset="today" data-for="dashboard">Today</button>
+            <button class="date-preset-btn" data-preset="week" data-for="dashboard">This Week</button>
+            <button class="date-preset-btn" data-preset="month" data-for="dashboard">This Month</button>
+            <button class="date-preset-btn" data-preset="quarter" data-for="dashboard">This Quarter</button>
+            <button class="date-preset-btn" data-preset="year" data-for="dashboard">This Year</button>
+            <button class="date-preset-btn" data-preset="all" data-for="dashboard">All Time</button>
+          </div>
+          <div id="dashboard-range" class="muted" style="margin-bottom: 12px;"></div>
           <div class="grid cols-2" id="dashboard-kpis"></div>
         </div>
         <div class="card">
@@ -4359,7 +4368,44 @@
       };
     };
 
+    const DASHBOARD_RANGE_KEY = 'ck5_dashboard_range';
     const isAllTimeRange = (start, end) => start === '1900-01-01' && end === '2999-12-31';
+    const dateRangeForPreset = (preset, now = new Date()) => {
+      let start, end;
+      switch(preset) {
+        case 'today':
+          start = end = now.toISOString().split('T')[0];
+          break;
+        case 'week': {
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay());
+          start = weekStart.toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
+          break;
+        }
+        case 'month':
+          start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
+          break;
+        case 'quarter': {
+          const quarter = Math.floor(now.getMonth() / 3);
+          start = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
+          break;
+        }
+        case 'year':
+          start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
+          break;
+        case 'all':
+          start = '1900-01-01';
+          end = '2999-12-31';
+          break;
+        default:
+          return null;
+      }
+      return { start, end };
+    };
     const getDateRange = () => {
       const start = $('#analytics-start').value || '1900-01-01';
       const end = $('#analytics-end').value || '2999-12-31';
@@ -4367,46 +4413,48 @@
     };
 
     const setDatePreset = (preset, section = 'analytics') => {
-      const today = new Date();
+      const range = dateRangeForPreset(preset);
+      if (!range) return;
       const startInput = section === 'reports' ? $('#reports-start') : $('#analytics-start');
       const endInput = section === 'reports' ? $('#reports-end') : $('#analytics-end');
-      let start, end;
-
-      switch(preset) {
-        case 'today':
-          start = end = today.toISOString().split('T')[0];
-          break;
-        case 'week':
-          const weekStart = new Date(today);
-          weekStart.setDate(today.getDate() - today.getDay());
-          start = weekStart.toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
-          break;
-        case 'month':
-          start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
-          break;
-        case 'quarter':
-          const quarter = Math.floor(today.getMonth() / 3);
-          start = new Date(today.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
-          break;
-        case 'year':
-          start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
-          break;
-        case 'all':
-          start = '1900-01-01';
-          end = '2999-12-31';
-          break;
-        default:
-          return;
-      }
+      const { start, end } = range;
 
       if (startInput) startInput.value = start;
       if (endInput) endInput.value = end;
       $$(`.date-preset-btn[data-for="${section}"]`).forEach(btn => btn.classList.remove('active'));
       $(`.date-preset-btn[data-preset="${preset}"][data-for="${section}"]`)?.classList.add('active');
+    };
+
+    const loadDashboardRange = () => {
+      try {
+        return JSON.parse(localStorage.getItem(DASHBOARD_RANGE_KEY) || 'null');
+      } catch {
+        return null;
+      }
+    };
+    const saveDashboardRange = (range, preset) => {
+      localStorage.setItem(DASHBOARD_RANGE_KEY, JSON.stringify({ range, preset }));
+    };
+    const ensureDashboardRange = () => {
+      const stored = loadDashboardRange();
+      if (stored?.range?.start && stored?.range?.end) return stored;
+      const range = dateRangeForPreset('month');
+      const preset = 'month';
+      saveDashboardRange(range, preset);
+      return { range, preset };
+    };
+    const getDashboardRange = () => ensureDashboardRange().range;
+    const getDashboardPreset = () => ensureDashboardRange().preset;
+    const updateDashboardRangeLabel = (range) => {
+      const label = $('#dashboard-range');
+      if (label) label.textContent = `Range: ${range.start} to ${range.end}`;
+    };
+    const setDashboardPreset = (preset) => {
+      const range = dateRangeForPreset(preset);
+      if (!range) return;
+      saveDashboardRange(range, preset);
+      $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === preset));
+      updateDashboardRangeLabel(range);
     };
 
     const setReportsRange = (start, end) => {
@@ -5767,13 +5815,15 @@
     const renderDashboard = () => {
       if (!file) return;
       const kpi = $('#dashboard-kpis'); kpi.innerHTML = '';
-      const todayDate = new Date();
-      const start = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1).toISOString().split('T')[0];
-      const end = todayDate.toISOString().split('T')[0];
+      const { start, end } = getDashboardRange();
+      const allTime = isAllTimeRange(start, end);
+      $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === getDashboardPreset()));
+      updateDashboardRangeLabel({ start, end });
       const posted = postedLines().filter(l => {
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
-        if (!entry || !entry.entry_date) return false;
-        return entry.entry_date >= start && entry.entry_date <= end;
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
       const incomeFromLedger = posted
         .filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
@@ -5786,8 +5836,8 @@
         .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
       const invoiceIncome = file.invoices.filter(inv => {
         if (inv.status === 'void') return false;
-        if (!inv.issue_date) return false;
-        return inv.issue_date >= start && inv.issue_date <= end;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       }).reduce((s, inv)=>s+invoiceTotal(inv),0);
       const income = incomeFromLedger + invoiceIncome;
       // #region agent log
@@ -5796,9 +5846,9 @@
       const net = income - expense;
       const openInvoices = file.invoices.filter(i=>i.status!=='paid').length;
       const cards = [
-        { label:'Income (This Month)', value:fmt(income,file.business.base_currency) },
-        { label:'Expenses (This Month)', value:fmt(expense,file.business.base_currency) },
-        { label:'Net (This Month)', value:fmt(net,file.business.base_currency) },
+        { label:'Income', value:fmt(income,file.business.base_currency) },
+        { label:'Expenses', value:fmt(expense,file.business.base_currency) },
+        { label:'Net', value:fmt(net,file.business.base_currency) },
         { label:'Open Invoices', value:openInvoices }
       ];
       cards.forEach(c=>{
@@ -5895,6 +5945,13 @@
           btn.onclick = () => {
             setDatePreset(btn.dataset.preset, 'reports');
             refreshReports();
+          };
+        });
+        // Dashboard date preset handlers
+        $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => {
+          btn.onclick = () => {
+            setDashboardPreset(btn.dataset.preset);
+            renderDashboard();
           };
         });
         const refreshReportsBtn = $('#refresh-reports'); if (refreshReportsBtn) refreshReportsBtn.onclick = refreshReports;
