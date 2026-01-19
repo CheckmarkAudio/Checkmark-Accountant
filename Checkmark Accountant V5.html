@@ -1038,13 +1038,13 @@
           <div class="stack" style="margin-top: 20px; gap: 16px;">
             <div>
               <h4 style="margin: 0 0 8px 0;">Income vs Expenses</h4>
-              <div style="position: relative; height: 240px;">
+              <div id="dashboard-income-expense-container" style="position: relative; height: 240px;">
                 <canvas id="dashboard-income-expense-chart"></canvas>
               </div>
             </div>
             <div>
               <h4 style="margin: 0 0 8px 0;">Client Revenue</h4>
-              <div style="position: relative; height: 240px;">
+              <div id="dashboard-client-revenue-container" style="position: relative; height: 240px;">
                 <canvas id="dashboard-client-revenue-chart"></canvas>
               </div>
             </div>
@@ -5291,13 +5291,15 @@
         });
 
         const months = Object.keys(monthlyData).sort();
+        const container = document.getElementById('dashboard-income-expense-container');
+        if (!container) return;
+        if (!container.querySelector('canvas')) {
+          container.innerHTML = '<canvas id="dashboard-income-expense-chart"></canvas>';
+        }
         const chartEl = document.getElementById('dashboard-income-expense-chart');
         if (!chartEl) return;
-        if (!chartEl.parentElement.querySelector('canvas')) {
-          chartEl.parentElement.innerHTML = '<canvas id="dashboard-income-expense-chart"></canvas>';
-        }
         if (!months.length) {
-          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
           return;
         }
         const colors = getChartColors();
@@ -5342,9 +5344,9 @@
         });
       } catch (error) {
         console.error('Error rendering dashboard income expense chart:', error);
-        const chartEl = document.getElementById('dashboard-income-expense-chart');
-        if (chartEl && chartEl.parentElement) {
-          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        const container = document.getElementById('dashboard-income-expense-container');
+        if (container) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
       }
     };
@@ -5364,13 +5366,15 @@
         });
 
         const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const container = document.getElementById('dashboard-client-revenue-container');
+        if (!container) return;
+        if (!container.querySelector('canvas')) {
+          container.innerHTML = '<canvas id="dashboard-client-revenue-chart"></canvas>';
+        }
         const chartEl = document.getElementById('dashboard-client-revenue-chart');
         if (!chartEl) return;
-        if (!chartEl.parentElement.querySelector('canvas')) {
-          chartEl.parentElement.innerHTML = '<canvas id="dashboard-client-revenue-chart"></canvas>';
-        }
         if (!entries.length) {
-          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
           return;
         }
         const colors = getChartColors();
@@ -5411,9 +5415,9 @@
         });
       } catch (error) {
         console.error('Error rendering dashboard client revenue chart:', error);
-        const chartEl = document.getElementById('dashboard-client-revenue-chart');
-        if (chartEl && chartEl.parentElement) {
-          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        const container = document.getElementById('dashboard-client-revenue-container');
+        if (container) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
       }
     };
