@@ -375,6 +375,23 @@
       color: var(--text);
     }
     table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-scroll {
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    section[data-section="clients"] table {
+      table-layout: fixed;
+    }
+    section[data-section="clients"] th,
+    section[data-section="clients"] td {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    section[data-section="clients"] td.actions {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
     tr { margin-bottom: 2px; }
     th, td {
       padding: 16px 18px;
@@ -1178,10 +1195,12 @@
             <button id="import-clients-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-clients-file" class="hidden" accept=".json,application/json,.csv,text/csv">
           </div>
-          <table>
-            <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
-            <tbody id="client-rows"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
+              <tbody id="client-rows"></tbody>
+            </table>
+          </div>
           <div class="empty hidden" id="client-empty">No parties yet.</div>
         </div>
         <div class="card">
@@ -1189,10 +1208,12 @@
             <h3>Projects</h3>
             <button id="add-project" class="primary">Add</button>
           </div>
-          <table>
-            <thead><tr><th>Name</th><th>Client</th><th></th></tr></thead>
-            <tbody id="project-rows"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>Client</th><th></th></tr></thead>
+              <tbody id="project-rows"></tbody>
+            </table>
+          </div>
           <div class="empty hidden" id="project-empty">No projects yet.</div>
         </div>
       </section>
