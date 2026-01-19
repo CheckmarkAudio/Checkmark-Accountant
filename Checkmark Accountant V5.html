@@ -1224,14 +1224,14 @@
       <section data-section="settings" class="grid cols-4 hidden">
         <div class="card" style="grid-column:1">
           <h3>Appearance</h3>
-          <label>Theme</label>
+          <label>Intro Video on Startup</label>
+          <button id="splash-video-toggle" class="ghost" style="width:100%">On</button>
+          <label style="margin-top:16px">Theme</label>
           <select id="theme-select">
             <option value="system">System</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
-          <label style="margin-top:16px">Show Intro Video on Startup</label>
-          <input type="checkbox" id="splash-video-toggle">
           <label>Logo (Light)</label>
           <input type="file" id="logo-light" accept="image/*">
           <label>Logo (Dark)</label>
@@ -5912,7 +5912,13 @@
           };
         }
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
-        const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onchange = (e)=>{ if(file) { file.settings.show_splash_video = !!e.target.checked; saveFile(); } };
+        const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
+          if (!file) return;
+          const next = !(file.settings.show_splash_video !== false);
+          file.settings.show_splash_video = next;
+          splashVideoToggle.textContent = next ? 'On' : 'Off';
+          saveFile();
+        };
 
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
@@ -6540,7 +6546,7 @@
       if (businessNameInput) businessNameInput.value = file.business?.name || '';
       if (businessCurrencyInput) businessCurrencyInput.value = file.business?.base_currency || 'USD';
       if (themeSelect) themeSelect.value = file.settings.theme;
-      if (splashVideoToggle) splashVideoToggle.checked = file.settings.show_splash_video !== false;
+      if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
