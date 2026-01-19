@@ -3969,11 +3969,12 @@
       // Also include invoice income for the date range on accrual basis
       if (useAccrual) {
         const invoices = file.invoices.filter(inv => {
+          if (inv.status === 'void') return false;
           if (!inv.issue_date) return allTime;
           return allTime || (inv.issue_date >= start && inv.issue_date <= end);
         });
         invoices.forEach(inv => {
-          income += invoiceSubtotal(inv);
+          income += invoiceTotal(inv);
         });
       }
       
@@ -4007,13 +4008,14 @@
       // Use invoices directly (by issue date) instead of just payments
       const allTime = isAllTimeRange(start, end);
       const invoices = file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
         if (!inv.issue_date) return allTime;
         return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       });
       invoices.forEach(inv => {
         const party = file.parties.find(p=>p.party_id===inv.party_id);
         const name = party?.name || 'Unknown';
-        result[name] = (result[name]||0) + invoiceSubtotal(inv);
+        result[name] = (result[name]||0) + invoiceTotal(inv);
       });
       return result;
     };
