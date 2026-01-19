@@ -6065,7 +6065,7 @@
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
-      activity.slice(0,8).forEach(a=>{
+      activity.slice(0,11).forEach(a=>{
         const row = document.createElement('div');
         row.className='row';
         row.style.justifyContent='space-between';
