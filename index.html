@@ -1186,6 +1186,12 @@
     </nav>
     <main>
       <section data-section="dashboard" class="grid cols-2">
+        <div id="draft-resume-card" class="card hidden" style="grid-column:1 / -1;">
+          <div class="stack" style="gap:10px">
+            <strong>You were working on:</strong>
+            <div id="draft-resume-content" class="row" style="gap:12px; flex-wrap:wrap;"></div>
+          </div>
+        </div>
         <div class="card">
           <h3>Overview</h3>
           <div class="row" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;">
@@ -2586,6 +2592,45 @@
       if (resumeBtn) resumeBtn.onclick = () => editInvoice(draft, true);
     };
 
+    const renderDraftResume = () => {
+      const card = $('#draft-resume-card');
+      const content = $('#draft-resume-content');
+      if (!card || !content) return;
+      if (!activeId) { card.classList.add('hidden'); content.innerHTML = ''; return; }
+      const invoiceDraft = JSON.parse(localStorage.getItem(STORAGE.draftInvoice(activeId)) || 'null');
+      const txnDraft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
+      if (!invoiceDraft && !txnDraft) {
+        card.classList.add('hidden');
+        content.innerHTML = '';
+        return;
+      }
+      card.classList.remove('hidden');
+      const items = [];
+      if (invoiceDraft) {
+        const dateLabel = invoiceDraft.issue_date ? ` (${escapeHtml(invoiceDraft.issue_date)})` : '';
+        items.push(`
+          <div class="row" style="gap:8px; align-items:center">
+            <span>Draft Invoice${dateLabel}</span>
+            <button id="resume-draft-invoice">Resume</button>
+          </div>
+        `);
+      }
+      if (txnDraft) {
+        const dateLabel = txnDraft.date ? ` (${escapeHtml(txnDraft.date)})` : '';
+        items.push(`
+          <div class="row" style="gap:8px; align-items:center">
+            <span>Draft Transaction${dateLabel}</span>
+            <button id="resume-draft-transaction">Resume</button>
+          </div>
+        `);
+      }
+      content.innerHTML = items.join('');
+      const resumeInvoice = $('#resume-draft-invoice');
+      if (resumeInvoice) resumeInvoice.onclick = () => { setTab('invoices'); editInvoice(invoiceDraft, true); };
+      const resumeTxn = $('#resume-draft-transaction');
+      if (resumeTxn) resumeTxn.onclick = () => { setTab('transactions'); editTxn(txnDraft, true); };
+    };
+
     const sortPartiesByName = (parties = []) => (
       [...parties].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' }))
     );
@@ -2777,6 +2822,7 @@
           party_name: file.parties.find(p=>p.party_id===form.querySelector('[name="party_id"]').value)?.name
         };
         localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify(draftObj));
+        renderDraftResume();
       };
       form.addEventListener('input', persistDraft);
       form.onsubmit = (e) => {
@@ -2822,6 +2868,7 @@
         else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
         file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
         localStorage.removeItem(STORAGE.draftInvoice(activeId));
+        renderDraftResume();
         saveFile();
         renderInvoices();
         closePanel();
@@ -2851,6 +2898,7 @@
           total_cents: cancelSubtotal + cancelTaxCents + cancelTipCents,
           lines: cancelLines
         }));
+        renderDraftResume();
         closePanel();
       };
       container.addEventListener('click', (e) => {
@@ -3563,6 +3611,7 @@
           tr.querySelector('[data-discard]').onclick = () => {
             localStorage.removeItem(STORAGE.draftTxn(activeId));
             renderTransactions();
+            renderDraftResume();
           };
         } else {
           tr.querySelector('[data-edit]').onclick = () => editTxn(t);
@@ -3637,6 +3686,7 @@
           memo: data.get('memo') || ''
         };
         localStorage.setItem(STORAGE.draftTxn(activeId), JSON.stringify(draft));
+        renderDraftResume();
       };
       form.addEventListener('input', persistDraft);
       form.onsubmit = (e) => {
@@ -3658,11 +3708,13 @@
         else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
         postTransaction(saved);
         localStorage.removeItem(STORAGE.draftTxn(activeId));
+        renderDraftResume();
         saveFile(); renderTransactions(); renderDashboard();
         closePanel();
       };
       $('#cancel-txn').onclick = () => {
         localStorage.setItem(STORAGE.draftTxn(activeId), JSON.stringify(txn));
+        renderDraftResume();
         closePanel();
       };
     };
@@ -7469,6 +7521,7 @@
       renderProjects();
       renderServices();
       renderDashboard();
+      renderDraftResume();
       renderNotes();
       const reportsStart = $('#reports-start');
       const reportsEnd = $('#reports-end');
