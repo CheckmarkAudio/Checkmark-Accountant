@@ -1248,6 +1248,7 @@
             <button id="export-clients-csv" class="ghost">Export CSV</button>
             <button id="import-clients-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-clients-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="client-search" placeholder="Search clients" style="min-width:220px">
           </div>
           <div class="table-scroll">
             <table>
@@ -1256,11 +1257,15 @@
             </table>
           </div>
           <div class="empty hidden" id="client-empty">No parties yet.</div>
+          <div class="empty hidden" id="client-empty-filter">No matching clients.</div>
         </div>
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Projects</h3>
             <button id="add-project" class="primary">Add</button>
+          </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <input type="search" id="project-search" placeholder="Search projects" style="min-width:220px">
           </div>
           <div class="table-scroll">
             <table>
@@ -1269,6 +1274,7 @@
             </table>
           </div>
           <div class="empty hidden" id="project-empty">No projects yet.</div>
+          <div class="empty hidden" id="project-empty-filter">No matching projects.</div>
         </div>
       </section>
 
@@ -1283,12 +1289,14 @@
             <button id="export-services-csv" class="ghost">Export CSV</button>
             <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-services-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="service-search" placeholder="Search services" style="min-width:220px">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
             <tbody id="service-rows"></tbody>
           </table>
           <div class="empty hidden" id="service-empty">No services yet.</div>
+          <div class="empty hidden" id="service-empty-filter">No matching services.</div>
         </div>
       </section>
 
@@ -3644,8 +3652,18 @@
     // ---------- Clients / Services ----------
     const renderClients = () => {
       const tbody = $('#client-rows'); tbody.innerHTML = '';
-      if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
-      sortPartiesByName(file.parties).forEach(p => {
+      const searchQuery = normalizeSearchValue($('#client-search')?.value).trim();
+      const list = sortPartiesByName(file.parties);
+      const rows = list.filter(p => {
+        if (!searchQuery) return true;
+        return matchesSearch(p.name, searchQuery)
+          || matchesSearch(p.email, searchQuery)
+          || matchesSearch(p.phone, searchQuery)
+          || matchesSearch(p.address, searchQuery);
+      });
+      if (!list.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#client-empty-filter')?.classList.remove('hidden'); else $('#client-empty-filter')?.classList.add('hidden');
+      rows.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.email||'')}</td><td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editClient(p);
@@ -3689,12 +3707,21 @@
     const renderProjects = () => {
       const tbody = $('#project-rows'); if (!tbody) return;
       tbody.innerHTML = '';
-      if (!file.projects.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
-      file.projects.forEach(pr => {
+      const searchQuery = normalizeSearchValue($('#project-search')?.value).trim();
+      const list = file.projects.map(pr => {
         // Handle backward compatibility: convert party_id to party_ids array
         const partyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
         const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
         const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
+        return { pr, clientNames };
+      });
+      const rows = list.filter(({ pr, clientNames }) => {
+        if (!searchQuery) return true;
+        return matchesSearch(pr.name, searchQuery) || matchesSearch(clientNames, searchQuery);
+      });
+      if (!list.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#project-empty-filter')?.classList.remove('hidden'); else $('#project-empty-filter')?.classList.add('hidden');
+      rows.forEach(({ pr, clientNames }) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(pr.name)}</td><td>${escapeHtml(clientNames)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editProject(pr);
@@ -3743,8 +3770,17 @@
 
     const renderServices = () => {
       const tbody = $('#service-rows'); tbody.innerHTML = '';
-      if (!file.services.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
-      file.services.forEach(s => {
+      const searchQuery = normalizeSearchValue($('#service-search')?.value).trim();
+      const list = file.services;
+      const rows = list.filter(s => {
+        if (!searchQuery) return true;
+        return matchesSearch(s.name, searchQuery)
+          || matchesSearch(s.billing_type, searchQuery)
+          || matchesSearch(s.default_description, searchQuery);
+      });
+      if (!list.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#service-empty-filter')?.classList.remove('hidden'); else $('#service-empty-filter')?.classList.add('hidden');
+      rows.forEach(s => {
         const tr = document.createElement('tr');
         const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
         tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
@@ -6336,10 +6372,13 @@
         const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
         const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
         const importClientsFile = $('#import-clients-file'); if (importClientsFile) importClientsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importClientsData); e.target.value=''; } };
+        const clientSearch = $('#client-search'); if (clientSearch) clientSearch.oninput = () => renderClients();
         const exportServicesJsonBtn = $('#export-services-json'); if (exportServicesJsonBtn) exportServicesJsonBtn.onclick = () => exportServicesData('json');
         const exportServicesCsvBtn = $('#export-services-csv'); if (exportServicesCsvBtn) exportServicesCsvBtn.onclick = () => exportServicesData('csv');
         const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
         const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
+        const projectSearch = $('#project-search'); if (projectSearch) projectSearch.oninput = () => renderProjects();
+        const serviceSearch = $('#service-search'); if (serviceSearch) serviceSearch.oninput = () => renderServices();
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
         const openNote = $('#open-note'); if (openNote) openNote.onclick = toggleNote;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
