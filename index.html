@@ -3576,11 +3576,13 @@
           <label>Amount</label><input name="amount" type="number" step="0.01" value="${centsToMoney(t.amount_cents||0)}">
           <label>Time to Amount</label>
           <div class="row" style="gap:8px; align-items:center">
-            <input id="txn-time" type="text" placeholder="hh:mm">
-            <input id="txn-rate" type="number" step="0.01" placeholder="Rate">
+            <div class="row" style="gap:8px; align-items:center; flex:1">
+              <input id="txn-time" type="text" placeholder="hh:mm" style="flex:1">
+              <input id="txn-rate" type="number" step="0.01" placeholder="Rate" style="flex:1">
+            </div>
             <button type="button" id="txn-apply-time" class="ghost">Apply</button>
+            <span class="muted" id="txn-time-note" style="font-size:0.9rem;">Enter time and rate</span>
           </div>
-          <div class="muted" id="txn-time-note" style="font-size:0.9rem;">Enter time (hh:mm) and rate to fill the amount.</div>
           <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===t.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
           <label>Memo</label><input name="memo" value="${escapeHtml(t.memo||'')}">
           <div class="row" style="gap:8px">
