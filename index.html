@@ -6638,28 +6638,6 @@
         activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:invoiceTotal(i), status:i.status });
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
-      const invoiceDraft = JSON.parse(localStorage.getItem(STORAGE.draftInvoice(activeId)) || 'null');
-      if (invoiceDraft) {
-        const draftDate = invoiceDraft.issue_date || today();
-        activity.push({
-          date: draftDate,
-          text: 'Draft Invoice — Resume',
-          amount: invoiceTotal(invoiceDraft),
-          status: 'draft',
-          onClick: () => { setTab('invoices'); editInvoice(invoiceDraft, true); }
-        });
-      }
-      const txnDraft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
-      if (txnDraft) {
-        const draftDate = txnDraft.date || today();
-        activity.push({
-          date: draftDate,
-          text: 'Draft Txn — Resume',
-          amount: Number(txnDraft.amount_cents) || 0,
-          status: 'draft',
-          onClick: () => { setTab('transactions'); editTxn(txnDraft, true); }
-        });
-      }
       activity.sort((a,b)=>a.date>b.date?-1:1);
       dashboardActivityCache = activity;
       renderDashboardActivityList(activity);
