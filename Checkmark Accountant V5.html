@@ -1375,16 +1375,16 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
-          <label>Logo (Light)</label>
-          <input type="file" id="logo-light" accept="image/*">
-          <label>Logo (Dark)</label>
-          <input type="file" id="logo-dark" accept="image/*">
-          <label>Logo Variant</label>
-          <select id="logo-variant">
-            <option value="auto">Auto</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <div class="row" style="gap:12px; align-items:flex-end; margin-bottom:12px">
+            <div style="flex:1; min-width:160px">
+              <label>Logo (Light)</label>
+              <input type="file" id="logo-light" accept="image/*">
+            </div>
+            <div style="flex:1; min-width:160px">
+              <label>Logo (Dark)</label>
+              <input type="file" id="logo-dark" accept="image/*">
+            </div>
+          </div>
           <label>Custom Header Image (Optional)</label>
           <input type="file" id="header-image" accept="image/*">
           <div id="header-image-preview" style="margin-top:10px"></div>
@@ -1897,16 +1897,12 @@
       document.documentElement.classList.toggle('motion-reduced', false);
       const scale = 1;
       document.documentElement.style.setProperty('--motion-scale', scale);
-      const logoVariant = file?.settings?.logoVariant || 'auto';
       const lightLogo = file?.settings?.logoLightDataUrl || DEFAULT_LOGO_LIGHT_URL;
       const darkLogo = file?.settings?.logoDarkDataUrl || DEFAULT_LOGO_DARK_URL;
       const logoEl = $('#logo-img');
       const chip = $('#logo-chip');
       chip.style.background = 'var(--logo-bg)';
-      let useLogo = lightLogo || darkLogo || '';
-      if (logoVariant === 'light') useLogo = lightLogo || darkLogo || '';
-      else if (logoVariant === 'dark') useLogo = darkLogo || lightLogo || '';
-      else useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      const useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       if (!useLogo) {
         logoEl.src = '';
         logoEl.alt = 'CK';
@@ -2887,13 +2883,10 @@
       const invoiceTipCents = invoiceTip(inv);
       const invoiceTotalCents = invoiceTotal(inv);
       const isDark = document.documentElement.classList.contains('dark');
-      const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       let logoUrl = '';
-      if (logoVariant === 'light') logoUrl = lightLogo || darkLogo || '';
-      else if (logoVariant === 'dark') logoUrl = darkLogo || lightLogo || '';
-      else logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
@@ -3018,7 +3011,6 @@
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
       const settings = file.settings || {};
-      const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       // For print, prefer light logo, fallback to dark
@@ -3243,7 +3235,6 @@
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
       const settings = file.settings || {};
-      const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       const logoUrl = lightLogo || darkLogo || '';
@@ -6472,7 +6463,6 @@
           saveFile();
         };
 
-        const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
         const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
@@ -7092,14 +7082,12 @@
       }
       const themeSelect = $('#theme-select');
       const splashVideoToggle = $('#splash-video-toggle');
-      const logoVariant = $('#logo-variant');
       const defaultTaxPercent = $('#default-tax-percent');
       const grtPercent = $('#grt-percent');
       const grtBasis = $('#grt-basis');
       const grtFilingFrequency = $('#grt-filing-frequency');
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
-      if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
       if (grtBasis) grtBasis.value = file.settings.grt_basis || 'invoices';
