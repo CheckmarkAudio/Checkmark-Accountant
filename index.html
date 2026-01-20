@@ -1223,6 +1223,21 @@
             <h3>Invoices</h3>
             <button id="add-invoice" class="primary">New Invoice</button>
           </div>
+          <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0;">
+            <div class="row" style="gap: 8px; flex-wrap: wrap;">
+              <button class="date-preset-btn" data-preset="today" data-for="invoices">Today</button>
+              <button class="date-preset-btn" data-preset="week" data-for="invoices">This Week</button>
+              <button class="date-preset-btn" data-preset="month" data-for="invoices">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter" data-for="invoices">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year" data-for="invoices">This Year</button>
+              <button class="date-preset-btn" data-preset="all" data-for="invoices">All Time</button>
+            </div>
+            <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
+              <input type="date" id="invoices-start" style="flex: 1; min-width: 140px;">
+              <span style="color: var(--muted);">to</span>
+              <input type="date" id="invoices-end" style="flex: 1; min-width: 140px;">
+            </div>
+          </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-invoices-json" class="ghost">Export JSON</button>
             <button id="export-invoices-csv" class="ghost">Export CSV</button>
@@ -1255,6 +1270,21 @@
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Transactions</h3>
             <button id="add-transaction" class="primary">Add</button>
+          </div>
+          <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0;">
+            <div class="row" style="gap: 8px; flex-wrap: wrap;">
+              <button class="date-preset-btn" data-preset="today" data-for="transactions">Today</button>
+              <button class="date-preset-btn" data-preset="week" data-for="transactions">This Week</button>
+              <button class="date-preset-btn" data-preset="month" data-for="transactions">This Month</button>
+              <button class="date-preset-btn" data-preset="quarter" data-for="transactions">This Quarter</button>
+              <button class="date-preset-btn" data-preset="year" data-for="transactions">This Year</button>
+              <button class="date-preset-btn" data-preset="all" data-for="transactions">All Time</button>
+            </div>
+            <div class="row" style="gap: 8px; align-items: center; flex: 1; min-width: 300px;">
+              <input type="date" id="transactions-start" style="flex: 1; min-width: 140px;">
+              <span style="color: var(--muted);">to</span>
+              <input type="date" id="transactions-end" style="flex: 1; min-width: 140px;">
+            </div>
           </div>
           <div class="stack">
             <div class="row" style="flex-wrap:wrap; gap:8px; align-items:center">
@@ -2563,14 +2593,23 @@
       if (!file) return;
       const tbody = $('#invoice-rows'); tbody.innerHTML = '';
       const searchQuery = normalizeSearchValue($('#invoice-search')?.value).trim();
+      const start = $('#invoices-start')?.value || '';
+      const end = $('#invoices-end')?.value || '';
       const rows = file.invoices.filter(inv => {
         if (!searchQuery) return true;
         const party = file.parties.find(p => p.party_id === inv.party_id);
         return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
       });
+      const rangedRows = rows.filter(inv => {
+        const date = inv.issue_date || '';
+        if (!start && !end) return true;
+        if (start && date && date < start) return false;
+        if (end && date && date > end) return false;
+        return true;
+      });
       const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
       const compareNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
-      const sortRows = rows.slice().sort((a, b) => {
+      const sortRows = rangedRows.slice().sort((a, b) => {
         let result = 0;
         if (invoiceSort.key === 'number') result = compareNum(a.number, b.number);
         else if (invoiceSort.key === 'client') {
@@ -2583,7 +2622,7 @@
         return result * invoiceSort.dir;
       });
       if (!file.invoices.length) $('#invoice-empty').classList.remove('hidden'); else $('#invoice-empty').classList.add('hidden');
-      if (file.invoices.length && !rows.length) $('#invoice-empty-filter')?.classList.remove('hidden'); else $('#invoice-empty-filter')?.classList.add('hidden');
+      if (file.invoices.length && !rangedRows.length) $('#invoice-empty-filter')?.classList.remove('hidden'); else $('#invoice-empty-filter')?.classList.add('hidden');
       sortRows.forEach(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const tr = document.createElement('tr');
@@ -3581,6 +3620,8 @@
       const list = [...file.transactions];
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
       const searchQuery = normalizeSearchValue($('#txn-search')?.value).trim();
+      const start = $('#transactions-start')?.value || '';
+      const end = $('#transactions-end')?.value || '';
       const rows = list.filter(t => {
         if (!searchQuery) return true;
         return matchesSearch(t.category, searchQuery)
@@ -3588,9 +3629,16 @@
           || matchesSearch(t.type, searchQuery)
           || matchesSearch(t.date, searchQuery);
       });
+      const rangedRows = rows.filter(t => {
+        const date = t.date || '';
+        if (!start && !end) return true;
+        if (start && date && date < start) return false;
+        if (end && date && date > end) return false;
+        return true;
+      });
       const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
       const compareNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
-      const sortRows = rows.slice().sort((a, b) => {
+      const sortRows = rangedRows.slice().sort((a, b) => {
         let result = 0;
         if (txnSort.key === 'date') result = compareText(a.date, b.date);
         else if (txnSort.key === 'type') result = compareText(a.type, b.type);
@@ -3599,7 +3647,7 @@
         return result * txnSort.dir;
       });
       if (!list.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
-      if (list.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
+      if (list.length && !rangedRows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       sortRows.forEach(t => {
         const isDraft = t.status === 'draft';
         const typeLabel = `${escapeHtml(t.type || 'draft')}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
@@ -4813,8 +4861,20 @@
     const setDatePreset = (preset, section = 'analytics') => {
       const range = dateRangeForPreset(preset);
       if (!range) return;
-      const startInput = section === 'reports' ? $('#reports-start') : $('#analytics-start');
-      const endInput = section === 'reports' ? $('#reports-end') : $('#analytics-end');
+      const startInput = section === 'reports'
+        ? $('#reports-start')
+        : section === 'invoices'
+          ? $('#invoices-start')
+          : section === 'transactions'
+            ? $('#transactions-start')
+            : $('#analytics-start');
+      const endInput = section === 'reports'
+        ? $('#reports-end')
+        : section === 'invoices'
+          ? $('#invoices-end')
+          : section === 'transactions'
+            ? $('#transactions-end')
+            : $('#analytics-end');
       const { start, end } = range;
 
       if (startInput) startInput.value = start;
@@ -6848,6 +6908,24 @@
         const reportsEnd = $('#reports-end'); if (reportsEnd) reportsEnd.onchange = () => { $$('.date-preset-btn[data-for="reports"]').forEach(b => b.classList.remove('active')); };
         const exportReportsPDFBtn = $('#export-reports-pdf'); if (exportReportsPDFBtn) exportReportsPDFBtn.onclick = exportReportsPDF;
         const printReportsBtn = $('#print-reports'); if (printReportsBtn) printReportsBtn.onclick = printReports;
+        // Invoices date preset handlers
+        $$('.date-preset-btn[data-for="invoices"]').forEach(btn => {
+          btn.onclick = () => {
+            setDatePreset(btn.dataset.preset, 'invoices');
+            renderInvoices();
+          };
+        });
+        const invoicesStart = $('#invoices-start'); if (invoicesStart) invoicesStart.onchange = () => { $$('.date-preset-btn[data-for="invoices"]').forEach(b => b.classList.remove('active')); renderInvoices(); };
+        const invoicesEnd = $('#invoices-end'); if (invoicesEnd) invoicesEnd.onchange = () => { $$('.date-preset-btn[data-for="invoices"]').forEach(b => b.classList.remove('active')); renderInvoices(); };
+        // Transactions date preset handlers
+        $$('.date-preset-btn[data-for="transactions"]').forEach(btn => {
+          btn.onclick = () => {
+            setDatePreset(btn.dataset.preset, 'transactions');
+            renderTransactions();
+          };
+        });
+        const transactionsStart = $('#transactions-start'); if (transactionsStart) transactionsStart.onchange = () => { $$('.date-preset-btn[data-for="transactions"]').forEach(b => b.classList.remove('active')); renderTransactions(); };
+        const transactionsEnd = $('#transactions-end'); if (transactionsEnd) transactionsEnd.onchange = () => { $$('.date-preset-btn[data-for="transactions"]').forEach(b => b.classList.remove('active')); renderTransactions(); };
         // Analytics event handlers
         $$('.date-preset-btn[data-for="analytics"]').forEach(btn => {
           btn.onclick = () => {
@@ -7576,6 +7654,16 @@
       const reportsEnd = $('#reports-end');
       if (reportsStart && reportsEnd && !reportsStart.value && !reportsEnd.value) {
         setDatePreset('all', 'reports');
+      }
+      const invoicesStart = $('#invoices-start');
+      const invoicesEnd = $('#invoices-end');
+      if (invoicesStart && invoicesEnd && !invoicesStart.value && !invoicesEnd.value) {
+        setDatePreset('all', 'invoices');
+      }
+      const transactionsStart = $('#transactions-start');
+      const transactionsEnd = $('#transactions-end');
+      if (transactionsStart && transactionsEnd && !transactionsStart.value && !transactionsEnd.value) {
+        setDatePreset('all', 'transactions');
       }
       if (isReportsActive()) {
         refreshReports();
