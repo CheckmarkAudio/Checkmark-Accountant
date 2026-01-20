@@ -305,6 +305,20 @@
       cursor: pointer;
     }
     .logo-chip img { height: 24px; width: 24px; object-fit: contain; }
+    .title-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid var(--border);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+      backdrop-filter: blur(6px);
+      cursor: pointer;
+    }
+    .dark .title-chip {
+      background: rgba(13, 17, 28, 0.75);
+    }
     nav.tabs {
       display: flex;
       gap: 16px;
@@ -694,6 +708,59 @@
       font-size: 0.875rem;
       font-weight: 500;
       line-height: 1.4;
+    }
+    .logo-input-row {
+      flex-wrap: nowrap;
+      gap: 12px;
+    }
+    .logo-input-row > div {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .logo-input-row label {
+      display: block;
+    }
+    .report-pl-chart {
+      margin-top: 16px;
+      height: 300px;
+      position: relative;
+    }
+    .report-pl-chart.report-pl-chart-bottom {
+      margin-top: 44px;
+    }
+    .header-image-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .header-image-preview {
+      flex: 1;
+      min-height: 60px;
+    }
+    .header-image-opacity {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 70px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .header-image-opacity input[type="range"] {
+      writing-mode: bt-lr;
+      appearance: slider-vertical;
+      -webkit-appearance: slider-vertical;
+      width: 24px;
+      height: 80px;
+      padding: 0;
+    }
+    .header-opacity-scale {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.75rem;
     }
     .overlay {
       position: fixed;
@@ -1096,7 +1163,9 @@
       <img id="custom-header-image" class="custom-header-image" alt="" style="display:none">
       <div class="logo-chip" id="logo-chip"><img id="logo-img" alt="Logo"></div>
       <div class="stack" style="gap:4px">
-        <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
+        <div class="title-chip" id="business-name-chip">
+          <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
+        </div>
       </div>
     </header>
     <nav class="tabs">
@@ -1190,10 +1259,6 @@
             <div class="empty hidden" id="txn-empty-filter">No matching transactions.</div>
           </div>
         </div>
-        <div class="card">
-          <h3>Draft</h3>
-          <div id="txn-draft"></div>
-        </div>
       </section>
 
       <section data-section="clients" class="grid cols-2 hidden">
@@ -1207,6 +1272,7 @@
             <button id="export-clients-csv" class="ghost">Export CSV</button>
             <button id="import-clients-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-clients-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="client-search" placeholder="Search clients" style="min-width:220px">
           </div>
           <div class="table-scroll">
             <table>
@@ -1215,11 +1281,19 @@
             </table>
           </div>
           <div class="empty hidden" id="client-empty">No parties yet.</div>
+          <div class="empty hidden" id="client-empty-filter">No matching clients.</div>
         </div>
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Projects</h3>
             <button id="add-project" class="primary">Add</button>
+          </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-projects-json" class="ghost">Export JSON</button>
+            <button id="export-projects-csv" class="ghost">Export CSV</button>
+            <button id="import-projects-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-projects-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="project-search" placeholder="Search projects" style="min-width:220px">
           </div>
           <div class="table-scroll">
             <table>
@@ -1228,6 +1302,7 @@
             </table>
           </div>
           <div class="empty hidden" id="project-empty">No projects yet.</div>
+          <div class="empty hidden" id="project-empty-filter">No matching projects.</div>
         </div>
       </section>
 
@@ -1242,12 +1317,14 @@
             <button id="export-services-csv" class="ghost">Export CSV</button>
             <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-services-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <input type="search" id="service-search" placeholder="Search services" style="min-width:220px">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
             <tbody id="service-rows"></tbody>
           </table>
           <div class="empty hidden" id="service-empty">No services yet.</div>
+          <div class="empty hidden" id="service-empty-filter">No matching services.</div>
         </div>
       </section>
 
@@ -1379,34 +1456,38 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
-          <label>Logo (Light)</label>
-          <input type="file" id="logo-light" accept="image/*">
-          <label>Logo (Dark)</label>
-          <input type="file" id="logo-dark" accept="image/*">
-          <label>Logo Variant</label>
-          <select id="logo-variant">
-            <option value="auto">Auto</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+          <div class="row logo-input-row" style="align-items:flex-end; margin-bottom:12px">
+            <div>
+              <label>Logo (Light)</label>
+              <input type="file" id="logo-light" accept="image/*">
+            </div>
+            <div>
+              <label>Logo (Dark)</label>
+              <input type="file" id="logo-dark" accept="image/*">
+            </div>
+          </div>
           <label>Custom Header Image (Optional)</label>
           <input type="file" id="header-image" accept="image/*">
-          <div id="header-image-preview" style="margin-top:10px"></div>
+          <div class="header-image-preview-row">
+            <div id="header-image-preview" class="header-image-preview"></div>
+            <div class="header-image-opacity">
+              <label>Opacity</label>
+              <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
+              <div class="header-opacity-scale">
+                <span>0%</span>
+                <span id="header-opacity-value">10%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
           <label style="margin-top:16px">Header Image Fit</label>
           <select id="header-image-fit">
+            <option value="off">No Header</option>
             <option value="cover">Cover (Fill)</option>
             <option value="contain">Contain (Fit)</option>
             <option value="fill">Fill (Stretch)</option>
             <option value="none">None (Original)</option>
           </select>
-          <label style="margin-top:16px">Header Image Opacity</label>
-          <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
-          <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.875rem; color:var(--muted)">
-            <span>0%</span>
-            <span id="header-opacity-value">10%</span>
-            <span>100%</span>
-          </div>
-          <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
         <div class="card" style="grid-column:2">
           <h3>Invoicing</h3>
@@ -1901,16 +1982,12 @@
       document.documentElement.classList.toggle('motion-reduced', false);
       const scale = 1;
       document.documentElement.style.setProperty('--motion-scale', scale);
-      const logoVariant = file?.settings?.logoVariant || 'auto';
       const lightLogo = file?.settings?.logoLightDataUrl || DEFAULT_LOGO_LIGHT_URL;
       const darkLogo = file?.settings?.logoDarkDataUrl || DEFAULT_LOGO_DARK_URL;
       const logoEl = $('#logo-img');
       const chip = $('#logo-chip');
       chip.style.background = 'var(--logo-bg)';
-      let useLogo = lightLogo || darkLogo || '';
-      if (logoVariant === 'light') useLogo = lightLogo || darkLogo || '';
-      else if (logoVariant === 'dark') useLogo = darkLogo || lightLogo || '';
-      else useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      const useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       if (!useLogo) {
         logoEl.src = '';
         logoEl.alt = 'CK';
@@ -1922,10 +1999,10 @@
       const headerImage = file?.settings?.headerImageDataUrl;
       const headerImgEl = $('#custom-header-image');
       if (headerImgEl) {
-        if (headerImage) {
+        const fit = file?.settings?.headerImageFit || 'cover';
+        if (headerImage && fit !== 'off') {
           headerImgEl.src = headerImage;
           headerImgEl.style.display = 'block';
-          const fit = file?.settings?.headerImageFit || 'cover';
           const opacity = (file?.settings?.headerImageOpacity || 10) / 100;
           headerImgEl.style.objectFit = fit;
           headerImgEl.style.opacity = opacity;
@@ -2891,13 +2968,10 @@
       const invoiceTipCents = invoiceTip(inv);
       const invoiceTotalCents = invoiceTotal(inv);
       const isDark = document.documentElement.classList.contains('dark');
-      const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       let logoUrl = '';
-      if (logoVariant === 'light') logoUrl = lightLogo || darkLogo || '';
-      else if (logoVariant === 'dark') logoUrl = darkLogo || lightLogo || '';
-      else logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
@@ -3022,7 +3096,6 @@
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
       const settings = file.settings || {};
-      const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       // For print, prefer light logo, fallback to dark
@@ -3247,7 +3320,6 @@
       const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
       const business = file.business;
       const settings = file.settings || {};
-      const logoVariant = settings.logoVariant || 'auto';
       const lightLogo = settings.logoLightDataUrl;
       const darkLogo = settings.logoDarkDataUrl;
       const logoUrl = lightLogo || darkLogo || '';
@@ -3457,37 +3529,38 @@
     // ---------- Transactions ----------
     const renderTransactions = () => {
       if (!file) return;
+      const draft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
+      const list = [...file.transactions];
+      if (draft) list.unshift({ ...draft, __draft: true });
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
       const searchQuery = normalizeSearchValue($('#txn-search')?.value).trim();
-      const rows = file.transactions.filter(t => {
+      const rows = list.filter(t => {
         if (!searchQuery) return true;
         return matchesSearch(t.category, searchQuery)
           || matchesSearch(t.memo, searchQuery)
           || matchesSearch(t.type, searchQuery)
           || matchesSearch(t.date, searchQuery);
       });
-      if (!file.transactions.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
-      if (file.transactions.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
+      if (!list.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       rows.forEach(t => {
+        const isDraft = !!t.__draft;
+        const typeLabel = `${escapeHtml(t.type)}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
-        <td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
-        tr.querySelector('[data-edit]').onclick = () => editTxn(t);
-        tr.querySelector('[data-del]').onclick = () => delTxn(t);
+        tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${typeLabel}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
+        <td class="row actions">${isDraft ? '<button data-resume>Resume</button><button data-discard>Discard</button>' : '<button data-edit>Edit</button><button data-del>Delete</button>'}</td>`;
+        if (isDraft) {
+          tr.querySelector('[data-resume]').onclick = () => editTxn(t, true);
+          tr.querySelector('[data-discard]').onclick = () => {
+            localStorage.removeItem(STORAGE.draftTxn(activeId));
+            renderTransactions();
+          };
+        } else {
+          tr.querySelector('[data-edit]').onclick = () => editTxn(t);
+          tr.querySelector('[data-del]').onclick = () => delTxn(t);
+        }
         tbody.appendChild(tr);
       });
-    };
-
-    const renderTxnDraft = () => {
-      if (!file) return;
-      const draft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
-      const container = $('#txn-draft');
-      if (!container) return;
-      if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
-      container.innerHTML = `<div class="stack"><div><strong>${escapeHtml(draft.type)}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
-      <div>${escapeHtml(draft.memo||'')}</div><button id="resume-txn">Resume</button></div>`;
-      const resumeBtn = $('#resume-txn');
-      if (resumeBtn) resumeBtn.onclick = () => editTxn(draft,true);
     };
 
     const txnForm = (t={}) => {
@@ -3607,8 +3680,18 @@
     // ---------- Clients / Services ----------
     const renderClients = () => {
       const tbody = $('#client-rows'); tbody.innerHTML = '';
-      if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
-      sortPartiesByName(file.parties).forEach(p => {
+      const searchQuery = normalizeSearchValue($('#client-search')?.value).trim();
+      const list = sortPartiesByName(file.parties);
+      const rows = list.filter(p => {
+        if (!searchQuery) return true;
+        return matchesSearch(p.name, searchQuery)
+          || matchesSearch(p.email, searchQuery)
+          || matchesSearch(p.phone, searchQuery)
+          || matchesSearch(p.address, searchQuery);
+      });
+      if (!list.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#client-empty-filter')?.classList.remove('hidden'); else $('#client-empty-filter')?.classList.add('hidden');
+      rows.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.email||'')}</td><td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editClient(p);
@@ -3652,12 +3735,21 @@
     const renderProjects = () => {
       const tbody = $('#project-rows'); if (!tbody) return;
       tbody.innerHTML = '';
-      if (!file.projects.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
-      file.projects.forEach(pr => {
+      const searchQuery = normalizeSearchValue($('#project-search')?.value).trim();
+      const list = file.projects.map(pr => {
         // Handle backward compatibility: convert party_id to party_ids array
         const partyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
         const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
         const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
+        return { pr, clientNames };
+      });
+      const rows = list.filter(({ pr, clientNames }) => {
+        if (!searchQuery) return true;
+        return matchesSearch(pr.name, searchQuery) || matchesSearch(clientNames, searchQuery);
+      });
+      if (!list.length) $('#project-empty').classList.remove('hidden'); else $('#project-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#project-empty-filter')?.classList.remove('hidden'); else $('#project-empty-filter')?.classList.add('hidden');
+      rows.forEach(({ pr, clientNames }) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(pr.name)}</td><td>${escapeHtml(clientNames)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editProject(pr);
@@ -3706,8 +3798,17 @@
 
     const renderServices = () => {
       const tbody = $('#service-rows'); tbody.innerHTML = '';
-      if (!file.services.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
-      file.services.forEach(s => {
+      const searchQuery = normalizeSearchValue($('#service-search')?.value).trim();
+      const list = file.services;
+      const rows = list.filter(s => {
+        if (!searchQuery) return true;
+        return matchesSearch(s.name, searchQuery)
+          || matchesSearch(s.billing_type, searchQuery)
+          || matchesSearch(s.default_description, searchQuery);
+      });
+      if (!list.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
+      if (list.length && !rows.length) $('#service-empty-filter')?.classList.remove('hidden'); else $('#service-empty-filter')?.classList.add('hidden');
+      rows.forEach(s => {
         const tr = document.createElement('tr');
         const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
         tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
@@ -3855,6 +3956,25 @@
       }
       recordAudit({ type:'export', entity:'services', format, count: rows.length });
       showToast(`Exported ${rows.length} service${rows.length===1?'':'s'}`);
+    };
+
+    const exportProjectsData = (format='json') => {
+      if (!file) return;
+      const rows = file.projects.map(p => ({ ...p, party_ids: p.party_ids || (p.party_id ? [p.party_id] : []) }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'projects'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'project_id', getter:r=>r.project_id },
+          { header:'name', getter:r=>r.name },
+          { header:'party_ids', getter:r=>Array.isArray(r.party_ids) ? JSON.stringify(r.party_ids) : '' },
+          { header:'party_id', getter:r=>r.party_id || '' }
+        ]);
+        download(csv, `${filenameBase}-projects.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-projects.json`);
+      }
+      recordAudit({ type:'export', entity:'projects', format, count: rows.length });
+      showToast(`Exported ${rows.length} project${rows.length===1?'':'s'}`);
     };
 
     const exportAuditLog = () => {
@@ -4026,6 +4146,46 @@
       showToast(`Imported ${imported} service${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
     };
 
+    const importProjectsData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['projects', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const projectId = rec.project_id || uuid();
+        const name = rec.name || 'Project';
+        const nameLower = name.toLowerCase();
+        const existing = file.projects.find(p =>
+          p.project_id === projectId || (nameLower && p.name && p.name.toLowerCase() === nameLower)
+        );
+        if (existing) { skipped++; return; }
+        let partyIds = rec.party_ids ?? rec.party_id ?? [];
+        if (typeof partyIds === 'string') {
+          const trimmed = partyIds.trim();
+          if (trimmed.startsWith('[')) {
+            try { partyIds = JSON.parse(trimmed); } catch { partyIds = []; }
+          } else if (trimmed) {
+            partyIds = trimmed.split(',').map(v => v.trim()).filter(Boolean);
+          } else {
+            partyIds = [];
+          }
+        }
+        if (!Array.isArray(partyIds)) partyIds = [partyIds].filter(Boolean);
+        const saved = {
+          project_id: projectId,
+          name,
+          party_ids: partyIds,
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.projects.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'projects', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderProjects();
+      showToast(`Imported ${imported} project${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
     const handleEntityImportFile = (fileObj, handler) => {
       if (!fileObj) return;
       const ext = (fileObj.name || '').toLowerCase().split('.').pop();
@@ -4098,7 +4258,11 @@
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between; padding: 12px 0; margin-top: 8px; font-weight: 600; font-size: 1.1rem"><span>Net</span><strong style="color: var(--accent)">${fmt(income-expense,file.business.base_currency)}</strong></div>
+        <div class="report-pl-chart"><canvas id="reports-pl-chart"></canvas></div>
+        <div class="report-pl-chart report-pl-chart-bottom"><canvas id="reports-monthly-summary-chart"></canvas></div>
       `;
+      renderReportsProfitLossChart();
+      renderReportsMonthlySummaryChart();
     };
 
     const summaryByAccount = (type) => {
@@ -4275,25 +4439,22 @@
     const updateHeaderImagePreview = () => {
       if (!file) return;
       const preview = $('#header-image-preview');
-      const removeBtn = $('#remove-header-image');
       const headerImage = file.settings?.headerImageDataUrl;
       const fitSelect = $('#header-image-fit');
       const opacitySlider = $('#header-image-opacity');
       const opacityValue = $('#header-opacity-value');
       
       if (preview) {
-        if (headerImage) {
-          const fit = file.settings?.headerImageFit || 'cover';
+        const fit = file.settings?.headerImageFit || 'cover';
+        if (headerImage && fit !== 'off') {
           const opacity = file.settings?.headerImageOpacity || 10;
-          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px; object-fit:${fit}">`;
-          if (removeBtn) removeBtn.style.display = 'block';
+          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); object-fit:${fit}">`;
           if (fitSelect) fitSelect.value = fit;
           if (opacitySlider) opacitySlider.value = opacity;
           if (opacityValue) opacityValue.textContent = opacity + '%';
         } else {
           preview.innerHTML = '';
-          if (removeBtn) removeBtn.style.display = 'none';
-          if (fitSelect) fitSelect.value = 'cover';
+          if (fitSelect) fitSelect.value = fit === 'off' ? 'off' : 'cover';
           if (opacitySlider) opacitySlider.value = 10;
           if (opacityValue) opacityValue.textContent = '10%';
         }
@@ -4467,6 +4628,7 @@
     let analyticsCharts = {};
     const isDarkMode = () => document.documentElement.classList.contains('dark');
     let dashboardCharts = {};
+    let reportsCharts = {};
     const getChartColors = () => {
       const isDark = isDarkMode();
       return {
@@ -4752,6 +4914,12 @@
         delete analyticsCharts[chartId];
       }
     };
+    const destroyReportsChart = (chartId) => {
+      if (reportsCharts[chartId]) {
+        reportsCharts[chartId].destroy();
+        delete reportsCharts[chartId];
+      }
+    };
 
     const renderIncomeExpenseChart = () => {
       try {
@@ -4938,6 +5106,211 @@
       } catch (error) {
         console.error('Error rendering profit loss chart:', error);
         const chartEl = document.getElementById('profit-loss-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderReportsProfitLossChart = () => {
+      try {
+        destroyReportsChart('reportsProfitLoss');
+        const chartEl = document.getElementById('reports-pl-chart');
+        if (!chartEl) return;
+        const container = chartEl.parentElement;
+        const { start, end } = getReportsDateRange();
+        const allTime = isAllTimeRange(start, end);
+        let income = 0;
+        let expense = 0;
+        postedLines().forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry) return;
+          if (!entry.entry_date && !allTime) return;
+          if (!allTime && (entry.entry_date < start || entry.entry_date > end)) return;
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income' && !entry?.linked_invoice_id) {
+            income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          }
+          if (acct.type === 'expense') {
+            expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+        file.invoices.forEach(inv => {
+          if (inv.status === 'void') return;
+          if (!inv.issue_date && !allTime) return;
+          if (!allTime && (inv.issue_date < start || inv.issue_date > end)) return;
+          income += invoiceTotal(inv);
+        });
+        const profit = income - expense;
+        const total = income + expense + Math.abs(Math.min(0, profit));
+        if (!total) {
+          container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        reportsCharts['reportsProfitLoss'] = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Income', 'Expenses', profit > 0 ? 'Profit' : 'Loss'],
+            datasets: [{
+              data: [income / 100, expense / 100, Math.abs(profit) / 100],
+              backgroundColor: [colors.income, colors.expense, profit > 0 ? colors.profit : colors.expense],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: colors.text, padding: 12, usePointStyle: true } },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percent = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering reports profit loss chart:', error);
+        const chartEl = document.getElementById('reports-pl-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:28px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderReportsMonthlySummaryChart = () => {
+      try {
+        destroyReportsChart('reportsMonthlySummary');
+        const chartEl = document.getElementById('reports-monthly-summary-chart');
+        if (!chartEl) return;
+        const container = chartEl.parentElement;
+        const { start, end } = getReportsDateRange();
+        const allTime = isAllTimeRange(start, end);
+        const monthlyData = {};
+
+        postedLines().forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry || !entry.entry_date) return;
+          if (!allTime && (entry.entry_date < start || entry.entry_date > end)) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income') {
+            if (entry.linked_invoice_id) return;
+            monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          } else if (acct.type === 'expense') {
+            monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+
+        file.invoices.forEach(inv => {
+          if (inv.status === 'void') return;
+          if (!inv.issue_date) return;
+          if (!allTime && (inv.issue_date < start || inv.issue_date > end)) return;
+          const month = inv.issue_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          monthlyData[month].income += invoiceTotal(inv);
+        });
+
+        Object.keys(monthlyData).forEach(month => {
+          monthlyData[month].profit = monthlyData[month].income - monthlyData[month].expense;
+        });
+
+        const months = Object.keys(monthlyData).sort();
+
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="reports-monthly-summary-chart"></canvas>';
+        }
+
+        if (!months.length) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        reportsCharts['reportsMonthlySummary'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              backgroundColor: colors.income + '80',
+              borderColor: colors.income,
+              borderWidth: 1
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              backgroundColor: colors.expense + '80',
+              borderColor: colors.expense,
+              borderWidth: 1
+            }, {
+              label: 'Profit',
+              data: months.map(m => monthlyData[m].profit / 100),
+              backgroundColor: colors.profit + '80',
+              borderColor: colors.profit,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: colors.text,
+                  usePointStyle: true
+                },
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.dataset.label || '';
+                    const value = fmt(context.parsed.y * 100, file.business.base_currency);
+                    return `${label}: ${value}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: colors.text,
+                  maxRotation: 45,
+                  minRotation: 0
+                },
+                grid: { color: colors.grid }
+              },
+              y: {
+                ticks: {
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                },
+                grid: { color: colors.grid }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering reports monthly summary chart:', error);
+        const chartEl = document.getElementById('reports-monthly-summary-chart');
         if (chartEl && chartEl.parentElement) {
           chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
@@ -6302,10 +6675,17 @@
         const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
         const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
         const importClientsFile = $('#import-clients-file'); if (importClientsFile) importClientsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importClientsData); e.target.value=''; } };
+        const clientSearch = $('#client-search'); if (clientSearch) clientSearch.oninput = () => renderClients();
+        const exportProjectsJsonBtn = $('#export-projects-json'); if (exportProjectsJsonBtn) exportProjectsJsonBtn.onclick = () => exportProjectsData('json');
+        const exportProjectsCsvBtn = $('#export-projects-csv'); if (exportProjectsCsvBtn) exportProjectsCsvBtn.onclick = () => exportProjectsData('csv');
+        const importProjectsBtn = $('#import-projects-btn'); if (importProjectsBtn) importProjectsBtn.onclick = () => { const inp = $('#import-projects-file'); if (inp) inp.click(); };
+        const importProjectsFile = $('#import-projects-file'); if (importProjectsFile) importProjectsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importProjectsData); e.target.value=''; } };
         const exportServicesJsonBtn = $('#export-services-json'); if (exportServicesJsonBtn) exportServicesJsonBtn.onclick = () => exportServicesData('json');
         const exportServicesCsvBtn = $('#export-services-csv'); if (exportServicesCsvBtn) exportServicesCsvBtn.onclick = () => exportServicesData('csv');
         const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
         const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
+        const projectSearch = $('#project-search'); if (projectSearch) projectSearch.oninput = () => renderProjects();
+        const serviceSearch = $('#service-search'); if (serviceSearch) serviceSearch.oninput = () => renderServices();
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
         const openNote = $('#open-note'); if (openNote) openNote.onclick = toggleNote;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
@@ -6469,7 +6849,8 @@
           if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard();
           if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics();
         };
-        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+        const businessNameChip = $('#business-name-chip'); if (businessNameChip) businessNameChip.onclick = () => setTab('settings');
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); const analyticsSection = $$('section[data-section="analytics"]')[0]; if (analyticsSection && !analyticsSection.classList.contains('hidden')) renderAnalytics(); const reportsSection = $$('section[data-section="reports"]')[0]; if (reportsSection && !reportsSection.classList.contains('hidden')) refreshReports(); } };
         const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
           if (!file) return;
           const next = !(file.settings.show_splash_video !== false);
@@ -6478,7 +6859,6 @@
           saveFile();
         };
 
-        const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
         const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
@@ -6488,7 +6868,7 @@
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
-            if (!file.settings.headerImageFit) file.settings.headerImageFit = 'cover';
+            if (!file.settings.headerImageFit || file.settings.headerImageFit === 'off') file.settings.headerImageFit = 'cover';
             if (!file.settings.headerImageOpacity) file.settings.headerImageOpacity = 10;
             saveFile(); 
             applyTheme(); 
@@ -6497,9 +6877,14 @@
         });
         const headerImageFit = $('#header-image-fit'); if (headerImageFit) headerImageFit.onchange = (e) => {
           if(file) {
-            file.settings.headerImageFit = e.target.value;
+            const nextFit = e.target.value;
+            file.settings.headerImageFit = nextFit;
+            if (nextFit === 'off') {
+              file.settings.headerImageDataUrl = null;
+            }
             saveFile();
             applyTheme();
+            updateHeaderImagePreview();
           }
         };
         const headerImageOpacity = $('#header-image-opacity'); if (headerImageOpacity) {
@@ -6513,14 +6898,6 @@
             }
           };
         }
-        const removeHeaderImage = $('#remove-header-image'); if (removeHeaderImage) removeHeaderImage.onclick = () => {
-          if(file) {
-            file.settings.headerImageDataUrl = null;
-            saveFile();
-            applyTheme();
-            updateHeaderImagePreview();
-          }
-        };
         const exportJson = $('#export-json'); if (exportJson) exportJson.onclick = () => {
           if (!file) {
             showToast('No business data to export');
@@ -7086,7 +7463,6 @@
       renderInvoices();
       renderInvoiceDraft();
       renderTransactions();
-      renderTxnDraft();
       renderClients();
       renderProjects();
       renderServices();
@@ -7102,14 +7478,12 @@
       }
       const themeSelect = $('#theme-select');
       const splashVideoToggle = $('#splash-video-toggle');
-      const logoVariant = $('#logo-variant');
       const defaultTaxPercent = $('#default-tax-percent');
       const grtPercent = $('#grt-percent');
       const grtBasis = $('#grt-basis');
       const grtFilingFrequency = $('#grt-filing-frequency');
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
-      if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
       if (grtBasis) grtBasis.value = file.settings.grt_basis || 'invoices';
