@@ -374,15 +374,8 @@
       letter-spacing: -0.02em;
       color: var(--text);
     }
-    section[data-section="dashboard"] .card {
-      display: flex;
-      flex-direction: column;
-    }
     #dashboard-activity {
-      flex: 1;
-      min-height: 0;
       gap: 0;
-      overflow: auto;
     }
     table { width: 100%; border-collapse: separate; border-spacing: 0; }
     .table-scroll {
@@ -6141,7 +6134,6 @@
       const act = activityCard.querySelector('#dashboard-activity');
       if (!act) return;
 
-      activityCard.style.minHeight = `${overviewCard.getBoundingClientRect().height}px`;
       act.innerHTML = '';
       if (!activity.length) return;
 
