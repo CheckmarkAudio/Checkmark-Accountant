@@ -6125,6 +6125,7 @@
     let dashboardActivityCache = [];
     let dashboardActivityResizeBound = false;
     let dashboardActivityObserver = null;
+    let dashboardSectionObserver = null;
     let dashboardActivityRaf = null;
     let dashboardActivityTimeout = null;
 
@@ -6171,6 +6172,12 @@
       const overviewHeight = overviewCard.getBoundingClientRect().height;
       if (overviewHeight > 0) {
         activityCard.style.height = `${overviewHeight}px`;
+        const cardStyles = getComputedStyle(activityCard);
+        const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
+        const availableHeight = Math.max(0, overviewHeight - act.offsetTop - paddingBottom);
+        if (availableHeight > 0) {
+          act.style.height = `${availableHeight}px`;
+        }
       }
 
       act.innerHTML = '';
@@ -6256,6 +6263,10 @@
               dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
               dashboardActivityObserver.observe(overviewCard);
             }
+          }
+          if (window.ResizeObserver) {
+            dashboardSectionObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
+            dashboardSectionObserver.observe(dashboardSection);
           }
         }
         window.addEventListener('resize', () => scheduleDashboardActivityRender());
