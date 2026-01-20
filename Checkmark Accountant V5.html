@@ -6128,14 +6128,10 @@
     let dashboardSectionObserver = null;
     let dashboardActivityRaf = null;
     let dashboardActivityTimeout = null;
-    let dashboardActivityTimeoutLate = null;
-    let dashboardActivityMonitor = null;
-    let dashboardActivityMonitorTicks = 0;
 
     const scheduleDashboardActivityRender = () => {
       if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
       if (dashboardActivityTimeout) clearTimeout(dashboardActivityTimeout);
-      if (dashboardActivityTimeoutLate) clearTimeout(dashboardActivityTimeoutLate);
       const run = () => {
         if (dashboardActivityCache.length) {
           renderDashboardActivityList(dashboardActivityCache);
@@ -6148,36 +6144,7 @@
       dashboardActivityTimeout = setTimeout(() => {
         dashboardActivityTimeout = null;
         run();
-      }, 140);
-      dashboardActivityTimeoutLate = setTimeout(() => {
-        dashboardActivityTimeoutLate = null;
-        run();
-      }, 380);
-    };
-
-    const startDashboardActivityMonitor = () => {
-      if (dashboardActivityMonitor) clearInterval(dashboardActivityMonitor);
-      dashboardActivityMonitorTicks = 0;
-      dashboardActivityMonitor = setInterval(() => {
-        dashboardActivityMonitorTicks += 1;
-        const dashboardSection = $$('section[data-section="dashboard"]')[0];
-        if (!dashboardSection || dashboardSection.classList.contains('hidden')) {
-          clearInterval(dashboardActivityMonitor);
-          dashboardActivityMonitor = null;
-          return;
-        }
-        const cards = dashboardSection.querySelectorAll(':scope > .card');
-        if (cards.length < 2) return;
-        const overviewHeight = cards[0].getBoundingClientRect().height;
-        const activityHeight = cards[1].getBoundingClientRect().height;
-        if (dashboardActivityCache.length && Math.abs(overviewHeight - activityHeight) > 2) {
-          renderDashboardActivityList(dashboardActivityCache);
-        }
-        if (dashboardActivityMonitorTicks >= 12) {
-          clearInterval(dashboardActivityMonitor);
-          dashboardActivityMonitor = null;
-        }
-      }, 120);
+      }, 200);
     };
 
     const buildDashboardActivityRow = (activityItem) => {
@@ -6203,24 +6170,32 @@
       if (!act) return;
 
       const overviewHeight = overviewCard.getBoundingClientRect().height;
-      if (overviewHeight > 0) {
-        activityCard.style.height = `${overviewHeight}px`;
-        const cardStyles = getComputedStyle(activityCard);
-        const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
-        const availableHeight = Math.max(0, overviewHeight - act.offsetTop - paddingBottom);
-        if (availableHeight > 0) {
-          act.style.height = `${availableHeight}px`;
-        }
+      if (overviewHeight <= 0) return;
+      activityCard.style.height = `${overviewHeight}px`;
+      const cardStyles = getComputedStyle(activityCard);
+      const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
+      const availableHeight = Math.max(0, overviewHeight - act.offsetTop - paddingBottom);
+      if (availableHeight > 0) {
+        act.style.height = `${availableHeight}px`;
+      } else {
+        act.style.height = '';
       }
 
       act.innerHTML = '';
       if (!activity.length) return;
 
-      activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
-      const availableHeight = act.clientHeight;
-      if (availableHeight > 0) {
-        while (act.lastElementChild && act.scrollHeight > availableHeight) {
-          act.removeChild(act.lastElementChild);
+      if (availableHeight <= 0) {
+        activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
+        scheduleDashboardActivityRender();
+        return;
+      }
+
+      for (const item of activity) {
+        const row = buildDashboardActivityRow(item);
+        act.appendChild(row);
+        if (act.scrollHeight > availableHeight) {
+          act.removeChild(row);
+          break;
         }
       }
       const lastRow = act.lastElementChild;
@@ -6285,7 +6260,6 @@
       renderDashboardActivityList(activity);
       renderDashboardClientRevenueChart({ start, end });
       scheduleDashboardActivityRender();
-      startDashboardActivityMonitor();
       if (!dashboardActivityResizeBound) {
         dashboardActivityResizeBound = true;
         const dashboardSection = $$('section[data-section="dashboard"]')[0];
@@ -6303,10 +6277,7 @@
             dashboardSectionObserver.observe(dashboardSection);
           }
         }
-        window.addEventListener('resize', () => {
-          scheduleDashboardActivityRender();
-          startDashboardActivityMonitor();
-        });
+        window.addEventListener('resize', () => scheduleDashboardActivityRender());
       }
     };
 
