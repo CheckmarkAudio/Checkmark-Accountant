@@ -6174,7 +6174,9 @@
       activityCard.style.height = `${overviewHeight}px`;
       const cardStyles = getComputedStyle(activityCard);
       const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
-      const availableHeight = Math.max(0, overviewHeight - act.offsetTop - paddingBottom);
+      const cardRect = activityCard.getBoundingClientRect();
+      const actRect = act.getBoundingClientRect();
+      const availableHeight = Math.max(0, cardRect.height - (actRect.top - cardRect.top) - paddingBottom);
       if (availableHeight > 0) {
         act.style.height = `${availableHeight}px`;
       } else {
