@@ -711,6 +711,9 @@
       height: 300px;
       position: relative;
     }
+    .report-pl-chart.report-pl-chart-bottom {
+      margin-top: 32px;
+    }
     .header-image-preview-row {
       display: flex;
       align-items: center;
@@ -4240,7 +4243,7 @@
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between; padding: 12px 0; margin-top: 8px; font-weight: 600; font-size: 1.1rem"><span>Net</span><strong style="color: var(--accent)">${fmt(income-expense,file.business.base_currency)}</strong></div>
         <div class="report-pl-chart"><canvas id="reports-pl-chart"></canvas></div>
-        <div class="report-pl-chart"><canvas id="reports-monthly-summary-chart"></canvas></div>
+        <div class="report-pl-chart report-pl-chart-bottom"><canvas id="reports-monthly-summary-chart"></canvas></div>
       `;
       renderReportsProfitLossChart();
       renderReportsMonthlySummaryChart();
