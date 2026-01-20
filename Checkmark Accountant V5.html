@@ -1265,6 +1265,10 @@
             <button id="add-project" class="primary">Add</button>
           </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <button id="export-projects-json" class="ghost">Export JSON</button>
+            <button id="export-projects-csv" class="ghost">Export CSV</button>
+            <button id="import-projects-btn" class="ghost">Import CSV/JSON</button>
+            <input type="file" id="import-projects-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             <input type="search" id="project-search" placeholder="Search projects" style="min-width:220px">
           </div>
           <div class="table-scroll">
@@ -3930,6 +3934,25 @@
       showToast(`Exported ${rows.length} service${rows.length===1?'':'s'}`);
     };
 
+    const exportProjectsData = (format='json') => {
+      if (!file) return;
+      const rows = file.projects.map(p => ({ ...p, party_ids: p.party_ids || (p.party_id ? [p.party_id] : []) }));
+      const filenameBase = `${file.business.name.replace(/[^a-z0-9]/gi, '_') || 'projects'}-${today()}`;
+      if (format === 'csv') {
+        const csv = toCSV(rows, [
+          { header:'project_id', getter:r=>r.project_id },
+          { header:'name', getter:r=>r.name },
+          { header:'party_ids', getter:r=>Array.isArray(r.party_ids) ? JSON.stringify(r.party_ids) : '' },
+          { header:'party_id', getter:r=>r.party_id || '' }
+        ]);
+        download(csv, `${filenameBase}-projects.csv`, 'text/csv');
+      } else {
+        download(JSON.stringify(rows, null, 2), `${filenameBase}-projects.json`);
+      }
+      recordAudit({ type:'export', entity:'projects', format, count: rows.length });
+      showToast(`Exported ${rows.length} project${rows.length===1?'':'s'}`);
+    };
+
     const exportAuditLog = () => {
       if (!file) return;
       const data = file.change_log || [];
@@ -4097,6 +4120,46 @@
       saveFile();
       renderServices();
       showToast(`Imported ${imported} service${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+    };
+
+    const importProjectsData = (rawRecords, source='json') => {
+      if (!file) return;
+      const records = unwrapRecords(rawRecords, ['projects', 'data', 'rows']);
+      let imported = 0, skipped = 0;
+      records.forEach(rec => {
+        const projectId = rec.project_id || uuid();
+        const name = rec.name || 'Project';
+        const nameLower = name.toLowerCase();
+        const existing = file.projects.find(p =>
+          p.project_id === projectId || (nameLower && p.name && p.name.toLowerCase() === nameLower)
+        );
+        if (existing) { skipped++; return; }
+        let partyIds = rec.party_ids ?? rec.party_id ?? [];
+        if (typeof partyIds === 'string') {
+          const trimmed = partyIds.trim();
+          if (trimmed.startsWith('[')) {
+            try { partyIds = JSON.parse(trimmed); } catch { partyIds = []; }
+          } else if (trimmed) {
+            partyIds = trimmed.split(',').map(v => v.trim()).filter(Boolean);
+          } else {
+            partyIds = [];
+          }
+        }
+        if (!Array.isArray(partyIds)) partyIds = [partyIds].filter(Boolean);
+        const saved = {
+          project_id: projectId,
+          name,
+          party_ids: partyIds,
+          created_at: rec.created_at || nowIso(),
+          updated_at: nowIso()
+        };
+        file.projects.push(saved);
+        imported++;
+      });
+      recordAudit({ type:'import', entity:'projects', format: source, imported, skipped }, { save:false });
+      saveFile();
+      renderProjects();
+      showToast(`Imported ${imported} project${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
     };
 
     const handleEntityImportFile = (fileObj, handler) => {
@@ -6373,6 +6436,10 @@
         const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
         const importClientsFile = $('#import-clients-file'); if (importClientsFile) importClientsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importClientsData); e.target.value=''; } };
         const clientSearch = $('#client-search'); if (clientSearch) clientSearch.oninput = () => renderClients();
+        const exportProjectsJsonBtn = $('#export-projects-json'); if (exportProjectsJsonBtn) exportProjectsJsonBtn.onclick = () => exportProjectsData('json');
+        const exportProjectsCsvBtn = $('#export-projects-csv'); if (exportProjectsCsvBtn) exportProjectsCsvBtn.onclick = () => exportProjectsData('csv');
+        const importProjectsBtn = $('#import-projects-btn'); if (importProjectsBtn) importProjectsBtn.onclick = () => { const inp = $('#import-projects-file'); if (inp) inp.click(); };
+        const importProjectsFile = $('#import-projects-file'); if (importProjectsFile) importProjectsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importProjectsData); e.target.value=''; } };
         const exportServicesJsonBtn = $('#export-services-json'); if (exportServicesJsonBtn) exportServicesJsonBtn.onclick = () => exportServicesData('json');
         const exportServicesCsvBtn = $('#export-services-csv'); if (exportServicesCsvBtn) exportServicesCsvBtn.onclick = () => exportServicesData('csv');
         const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
