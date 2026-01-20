@@ -6165,8 +6165,10 @@
       act.innerHTML = '';
       if (!activity.length) return;
 
+      const sectionWidth = dashboardSection.getBoundingClientRect().width;
+      const isWide = sectionWidth >= 1024;
       const isTallBox = overviewHeight >= 700;
-      const maxItems = isTallBox ? 24 : 14;
+      const maxItems = isTallBox && !isWide ? 24 : 14;
       activity.slice(0, maxItems).forEach(item => act.appendChild(buildDashboardActivityRow(item)));
       const actRect = act.getBoundingClientRect();
       if (actRect.height > 0) {
