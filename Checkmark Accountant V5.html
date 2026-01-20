@@ -6138,6 +6138,7 @@
     let dashboardActivityResizeBound = false;
     let dashboardActivityObserver = null;
     let dashboardActivityRaf = null;
+    let dashboardActivityTimeout = null;
 
     const syncDashboardActivityHeight = () => {
       const dashboardSection = $$('section[data-section="dashboard"]')[0];
@@ -6154,8 +6155,8 @@
 
     const scheduleDashboardActivityRender = () => {
       if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
-      dashboardActivityRaf = requestAnimationFrame(() => {
-        dashboardActivityRaf = null;
+      if (dashboardActivityTimeout) clearTimeout(dashboardActivityTimeout);
+      const run = () => {
         const section = $$('section[data-section="dashboard"]')[0];
         if (!section || section.classList.contains('hidden')) return;
         if (dashboardActivityCache.length) {
@@ -6163,7 +6164,15 @@
         } else {
           syncDashboardActivityHeight();
         }
+      };
+      dashboardActivityRaf = requestAnimationFrame(() => {
+        dashboardActivityRaf = null;
+        run();
       });
+      dashboardActivityTimeout = setTimeout(() => {
+        dashboardActivityTimeout = null;
+        run();
+      }, 150);
     };
 
     const renderDashboardActivityList = (activity) => {
@@ -6259,6 +6268,7 @@
       dashboardActivityCache = activity;
       renderDashboardActivityList(activity);
       renderDashboardClientRevenueChart({ start, end });
+      scheduleDashboardActivityRender();
       if (!dashboardActivityResizeBound) {
         dashboardActivityResizeBound = true;
         const dashboardSection = $$('section[data-section="dashboard"]')[0];
