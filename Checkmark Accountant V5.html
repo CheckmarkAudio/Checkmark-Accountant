@@ -695,6 +695,40 @@
       font-weight: 500;
       line-height: 1.4;
     }
+    .header-image-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .header-image-preview {
+      flex: 1;
+      min-height: 60px;
+    }
+    .header-image-opacity {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 70px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .header-image-opacity input[type="range"] {
+      writing-mode: bt-lr;
+      appearance: slider-vertical;
+      -webkit-appearance: slider-vertical;
+      width: 24px;
+      height: 80px;
+      padding: 0;
+    }
+    .header-opacity-scale {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.75rem;
+    }
     .overlay {
       position: fixed;
       inset: 0;
@@ -1387,7 +1421,18 @@
           </div>
           <label>Custom Header Image (Optional)</label>
           <input type="file" id="header-image" accept="image/*">
-          <div id="header-image-preview" style="margin-top:10px"></div>
+          <div class="header-image-preview-row">
+            <div id="header-image-preview" class="header-image-preview"></div>
+            <div class="header-image-opacity">
+              <label>Opacity</label>
+              <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
+              <div class="header-opacity-scale">
+                <span>0%</span>
+                <span id="header-opacity-value">10%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
           <label style="margin-top:16px">Header Image Fit</label>
           <select id="header-image-fit">
             <option value="off">No Header</option>
@@ -1396,13 +1441,6 @@
             <option value="fill">Fill (Stretch)</option>
             <option value="none">None (Original)</option>
           </select>
-          <label style="margin-top:16px">Header Image Opacity</label>
-          <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
-          <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.875rem; color:var(--muted)">
-            <span>0%</span>
-            <span id="header-opacity-value">10%</span>
-            <span>100%</span>
-          </div>
         </div>
         <div class="card" style="grid-column:2">
           <h3>Invoicing</h3>
@@ -4272,7 +4310,7 @@
         const fit = file.settings?.headerImageFit || 'cover';
         if (headerImage && fit !== 'off') {
           const opacity = file.settings?.headerImageOpacity || 10;
-          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px; object-fit:${fit}">`;
+          preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); object-fit:${fit}">`;
           if (fitSelect) fitSelect.value = fit;
           if (opacitySlider) opacitySlider.value = opacity;
           if (opacityValue) opacityValue.textContent = opacity + '%';
