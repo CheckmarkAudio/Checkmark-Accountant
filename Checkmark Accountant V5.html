@@ -695,6 +695,17 @@
       font-weight: 500;
       line-height: 1.4;
     }
+    .logo-input-row {
+      flex-wrap: nowrap;
+      gap: 12px;
+    }
+    .logo-input-row > div {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .logo-input-row label {
+      display: block;
+    }
     .header-image-preview-row {
       display: flex;
       align-items: center;
@@ -1409,12 +1420,12 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
-          <div class="row" style="gap:12px; align-items:flex-end; margin-bottom:12px">
-            <div style="flex:1; min-width:160px">
+          <div class="row logo-input-row" style="align-items:flex-end; margin-bottom:12px">
+            <div>
               <label>Logo (Light)</label>
               <input type="file" id="logo-light" accept="image/*">
             </div>
-            <div style="flex:1; min-width:160px">
+            <div>
               <label>Logo (Dark)</label>
               <input type="file" id="logo-dark" accept="image/*">
             </div>
