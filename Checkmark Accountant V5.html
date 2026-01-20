@@ -6196,11 +6196,15 @@
       const cardStyles = getComputedStyle(activityCard);
       const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
       const cardHeight = activityCard.getBoundingClientRect().height;
-      const availableHeight = Math.max(0, cardHeight - act.offsetTop - paddingBottom);
+      const primaryHeight = Math.max(0, cardHeight - act.offsetTop - paddingBottom);
+      const fallbackHeight = Math.max(0, act.getBoundingClientRect().height);
+      const availableHeight = primaryHeight || fallbackHeight;
 
       activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
-      while (act.lastElementChild && act.scrollHeight > availableHeight) {
-        act.removeChild(act.lastElementChild);
+      if (availableHeight > 0) {
+        while (act.lastElementChild && act.scrollHeight > availableHeight) {
+          act.removeChild(act.lastElementChild);
+        }
       }
       const lastRow = act.lastElementChild;
       if (lastRow) lastRow.style.borderBottom = 'none';
