@@ -6125,13 +6125,7 @@
     };
 
     const renderDashboardActivityList = (activity) => {
-      const dashboardSection = $$('section[data-section="dashboard"]')[0];
-      if (!dashboardSection) return;
-      const cards = dashboardSection.querySelectorAll('.card');
-      if (cards.length < 2) return;
-      const overviewCard = cards[0];
-      const activityCard = cards[1];
-      const act = activityCard.querySelector('#dashboard-activity');
+      const act = $('#dashboard-activity');
       if (!act) return;
 
       act.innerHTML = '';
