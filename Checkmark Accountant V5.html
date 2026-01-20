@@ -7102,6 +7102,14 @@
       renderServices();
       renderDashboard();
       renderNotes();
+      const reportsStart = $('#reports-start');
+      const reportsEnd = $('#reports-end');
+      if (reportsStart && reportsEnd && !reportsStart.value && !reportsEnd.value) {
+        setDatePreset('all', 'reports');
+      }
+      if (isReportsActive()) {
+        refreshReports();
+      }
       const themeSelect = $('#theme-select');
       const splashVideoToggle = $('#splash-video-toggle');
       const logoVariant = $('#logo-variant');
