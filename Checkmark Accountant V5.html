@@ -382,6 +382,7 @@
       flex: 1;
       min-height: 0;
       gap: 0;
+      overflow: auto;
     }
     table { width: 100%; border-collapse: separate; border-spacing: 0; }
     .table-scroll {
@@ -2197,17 +2198,8 @@
       }
       if (tab === 'reports' && file) {
         setTimeout(() => {
-          const startInput = $('#reports-start');
-          const endInput = $('#reports-end');
-          if (startInput && !startInput.value) {
-            setDatePreset('all', 'reports');
-            refreshReports();
-          } else if (startInput && endInput) {
-            refreshReports();
-          } else {
-            setDatePreset('all', 'reports');
-            refreshReports();
-          }
+          setDatePreset('all', 'reports');
+          refreshReports();
         }, 100);
       }
       if (tab === 'settings') {
@@ -6127,9 +6119,6 @@
     };
 
     // ---------- Dashboard ----------
-    let dashboardActivityCache = [];
-    let dashboardActivityResizeBound = false;
-
     const buildDashboardActivityRow = (activityItem) => {
       const row = document.createElement('div');
       row.className = 'row';
@@ -6156,32 +6145,9 @@
       act.innerHTML = '';
       if (!activity.length) return;
 
-      const availableHeight = activityCard.getBoundingClientRect().bottom - act.getBoundingClientRect().top;
-      const sampleRow = buildDashboardActivityRow(activity[0]);
-      act.appendChild(sampleRow);
-      const sampleStyles = getComputedStyle(sampleRow);
-      const actStyles = getComputedStyle(act);
-      const rowMargin = parseFloat(sampleStyles.marginBottom || 0) || 0;
-      const gap = parseFloat(actStyles.rowGap || actStyles.gap || 0) || 0;
-      const rowHeight = sampleRow.getBoundingClientRect().height + rowMargin + gap;
-      act.innerHTML = '';
-
-      const maxItems = rowHeight > 0 && availableHeight > 0
-        ? Math.max(1, Math.floor(availableHeight / rowHeight))
-        : Math.min(activity.length, 11);
-      activity.slice(0, maxItems).forEach(item => act.appendChild(buildDashboardActivityRow(item)));
+      activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
       const lastRow = act.lastElementChild;
       if (lastRow) lastRow.style.borderBottom = 'none';
-    };
-
-    const ensureDashboardActivityResize = () => {
-      if (dashboardActivityResizeBound) return;
-      dashboardActivityResizeBound = true;
-      window.addEventListener('resize', () => {
-        const dashboardSection = $$('section[data-section="dashboard"]')[0];
-        if (!dashboardSection || dashboardSection.classList.contains('hidden')) return;
-        if (dashboardActivityCache.length) renderDashboardActivityList(dashboardActivityCache);
-      });
     };
 
     const renderDashboard = () => {
@@ -6238,9 +6204,7 @@
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
-      dashboardActivityCache = activity;
       renderDashboardActivityList(activity);
-      ensureDashboardActivityResize();
       renderDashboardClientRevenueChart({ start, end });
     };
 
