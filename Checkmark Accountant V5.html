@@ -6166,7 +6166,8 @@
       if (!activity.length) return;
 
       const sectionWidth = dashboardSection.getBoundingClientRect().width;
-      const maxItems = sectionWidth <= 1024 ? 24 : 14;
+      const isNarrow = sectionWidth <= 1024 || window.innerHeight <= 700;
+      const maxItems = isNarrow ? 24 : 14;
       activity.slice(0, maxItems).forEach(item => act.appendChild(buildDashboardActivityRow(item)));
       const actRect = act.getBoundingClientRect();
       if (actRect.height > 0) {
