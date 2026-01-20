@@ -6128,10 +6128,12 @@
     let dashboardSectionObserver = null;
     let dashboardActivityRaf = null;
     let dashboardActivityTimeout = null;
+    let dashboardActivityTimeoutLate = null;
 
     const scheduleDashboardActivityRender = () => {
       if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
       if (dashboardActivityTimeout) clearTimeout(dashboardActivityTimeout);
+      if (dashboardActivityTimeoutLate) clearTimeout(dashboardActivityTimeoutLate);
       const run = () => {
         if (dashboardActivityCache.length) {
           renderDashboardActivityList(dashboardActivityCache);
@@ -6144,7 +6146,11 @@
       dashboardActivityTimeout = setTimeout(() => {
         dashboardActivityTimeout = null;
         run();
-      }, 120);
+      }, 140);
+      dashboardActivityTimeoutLate = setTimeout(() => {
+        dashboardActivityTimeoutLate = null;
+        run();
+      }, 380);
     };
 
     const buildDashboardActivityRow = (activityItem) => {
