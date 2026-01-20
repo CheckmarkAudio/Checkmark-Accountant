@@ -6137,6 +6137,7 @@
     let dashboardActivityCache = [];
     let dashboardActivityResizeBound = false;
     let dashboardActivityObserver = null;
+    let dashboardActivityRaf = null;
 
     const syncDashboardActivityHeight = () => {
       const dashboardSection = $$('section[data-section="dashboard"]')[0];
@@ -6149,6 +6150,20 @@
       if (overviewHeight > 0) {
         activityCard.style.height = `${overviewHeight}px`;
       }
+    };
+
+    const scheduleDashboardActivityRender = () => {
+      if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
+      dashboardActivityRaf = requestAnimationFrame(() => {
+        dashboardActivityRaf = null;
+        const section = $$('section[data-section="dashboard"]')[0];
+        if (!section || section.classList.contains('hidden')) return;
+        if (dashboardActivityCache.length) {
+          renderDashboardActivityList(dashboardActivityCache);
+        } else {
+          syncDashboardActivityHeight();
+        }
+      });
     };
 
     const renderDashboardActivityList = (activity) => {
@@ -6252,26 +6267,12 @@
           if (cards.length >= 2) {
             const overviewCard = cards[0];
             if (window.ResizeObserver) {
-              dashboardActivityObserver = new ResizeObserver(() => {
-                if (dashboardActivityCache.length) {
-                  renderDashboardActivityList(dashboardActivityCache);
-                } else {
-                  syncDashboardActivityHeight();
-                }
-              });
+              dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
               dashboardActivityObserver.observe(overviewCard);
             }
           }
         }
-        window.addEventListener('resize', () => {
-          const section = $$('section[data-section="dashboard"]')[0];
-          if (!section || section.classList.contains('hidden')) return;
-          if (dashboardActivityCache.length) {
-            renderDashboardActivityList(dashboardActivityCache);
-          } else {
-            syncDashboardActivityHeight();
-          }
-        });
+        window.addEventListener('resize', () => scheduleDashboardActivityRender());
       }
     };
 
