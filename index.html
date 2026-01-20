@@ -2632,8 +2632,9 @@
           <input name="tip_amount" id="tip-amount" type="number" step="0.01" min="0" value="${centsToMoney(tipCents)}">
           <div class="row" style="justify-content:space-between"><div>Tip</div><div id="inv-tip">${fmt(tipCents,file.business.base_currency)}</div></div>
           <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
-          <div class="row">
+          <div class="row" style="gap:8px">
             <button class="primary" type="submit">Save</button>
+            <button type="button" id="save-invoice-draft">Save Draft</button>
             <button type="button" id="cancel-invoice">Cancel</button>
           </div>
         </form>`;
@@ -2748,8 +2749,9 @@
           projectSelect.value = currentProjectId;
         }
       });
-      const persistDraft = () => {
-        const draftLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+      const saveInvoiceDraft = () => {
+        const lines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
+          invoice_line_id: div.dataset.line || uuid(),
           service_name: div.querySelector('.line-name').value,
           quantity: Number(div.querySelector('.line-qty').value)||0,
           rate_cents: moneyToCents(div.querySelector('.line-rate').value),
@@ -2757,28 +2759,40 @@
           billing_type: div.dataset.billing || 'flat',
           time_minutes: (div.dataset.billing||'flat')==='hourly'
             ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
-            : null
+            : null,
+          income_account_code: file.settings.default_income_account_code,
+          invoice_id: invoice.invoice_id,
+          project_id: form.querySelector('[name="project_id"]').value || null,
+          created_at: nowIso(),
+          updated_at: nowIso()
         }));
-        const draftSubtotal = draftLines.reduce((s,l)=>s+l.line_total_cents,0);
-        const draftTaxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
-        const draftTaxCents = Math.round(draftSubtotal * (draftTaxPercent/100));
-        const draftTipCents = moneyToCents(form.querySelector('[name="tip_amount"]')?.value || 0);
-        const draftObj = {
-          ...invoice,
+        const subtotal = lines.reduce((s,l)=>s+l.line_total_cents,0);
+        const taxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
+        const taxCents = Math.round(subtotal * (taxPercent/100));
+        const tipCents = moneyToCents(form.querySelector('[name="tip_amount"]')?.value || 0);
+        const total = subtotal + taxCents + tipCents;
+        const saved = {
+          invoice_id: invoice.invoice_id,
           party_id: form.querySelector('[name="party_id"]').value,
           project_id: form.querySelector('[name="project_id"]').value || null,
-          issue_date: form.querySelector('[name="issue_date"]').value,
-          subtotal_cents: draftSubtotal,
-          tax_percent: draftTaxPercent,
-          tax_cents: draftTaxCents,
-          tip_cents: draftTipCents,
-          total_cents: draftSubtotal + draftTaxCents + draftTipCents,
-          lines: draftLines,
-          party_name: file.parties.find(p=>p.party_id===form.querySelector('[name="party_id"]').value)?.name
+          number: inv.number || getNextInvoiceNumber(),
+          issue_date: form.querySelector('[name="issue_date"]').value || today(),
+          status: 'draft',
+          subtotal_cents: subtotal,
+          tax_percent: taxPercent,
+          tax_cents: taxCents,
+          tip_cents: tipCents,
+          total_cents: total,
+          created_at: invoice.created_at || nowIso(),
+          updated_at: nowIso()
         };
-        localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify(draftObj));
+        if (!file.invoices.find(i=>i.invoice_id===saved.invoice_id)) file.invoices.push(saved);
+        else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
+        file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
+        saveFile();
+        renderInvoices();
+        closePanel();
       };
-      form.addEventListener('input', persistDraft);
       form.onsubmit = (e) => {
         e.preventDefault();
         const data = new FormData(form);
@@ -2809,7 +2823,7 @@
           project_id: data.get('project_id') || null,
           number: inv.number || getNextInvoiceNumber(),
           issue_date: data.get('issue_date') || today(),
-          status: invoice.status || 'draft',
+          status: invoice.status === 'paid' || invoice.status === 'void' ? invoice.status : 'open',
           subtotal_cents: subtotal,
           tax_percent: taxPercent,
           tax_cents: taxCents,
@@ -2826,31 +2840,13 @@
         renderInvoices();
         closePanel();
       };
+      const saveDraftBtn = $('#save-invoice-draft');
+      if (saveDraftBtn) {
+        const canDraft = !file.invoices.find(i=>i.invoice_id===invoice.invoice_id) || invoice.status === 'draft';
+        saveDraftBtn.style.display = canDraft ? 'inline-flex' : 'none';
+        saveDraftBtn.onclick = saveInvoiceDraft;
+      }
       $('#cancel-invoice').onclick = () => {
-        const cancelLines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
-          service_name: div.querySelector('.line-name').value,
-          quantity: Number(div.querySelector('.line-qty').value)||0,
-          rate_cents: moneyToCents(div.querySelector('.line-rate').value),
-          line_total_cents: moneyToCents((Number(div.querySelector('.line-qty').value)||0)*(Number(div.querySelector('.line-rate').value)||0)),
-          billing_type: div.dataset.billing || 'flat',
-          time_minutes: (div.dataset.billing||'flat')==='hourly'
-            ? (parseTimeToMinutes(div.querySelector('.line-time')?.value) ?? Math.round((Number(div.querySelector('.line-qty').value)||0)*60))
-            : null
-        }));
-        const cancelSubtotal = cancelLines.reduce((s,l)=>s+l.line_total_cents,0);
-        const cancelTaxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
-        const cancelTaxCents = Math.round(cancelSubtotal * (cancelTaxPercent/100));
-        const cancelTipCents = moneyToCents(form.querySelector('[name="tip_amount"]')?.value || 0);
-        localStorage.setItem(STORAGE.draftInvoice(activeId), JSON.stringify({
-          ...invoice,
-          project_id: form.querySelector('[name="project_id"]').value || null,
-          subtotal_cents: cancelSubtotal,
-          tax_percent: cancelTaxPercent,
-          tax_cents: cancelTaxCents,
-          tip_cents: cancelTipCents,
-          total_cents: cancelSubtotal + cancelTaxCents + cancelTipCents,
-          lines: cancelLines
-        }));
         closePanel();
       };
       container.addEventListener('click', (e) => {
@@ -3538,9 +3534,7 @@
     // ---------- Transactions ----------
     const renderTransactions = () => {
       if (!file) return;
-      const draft = JSON.parse(localStorage.getItem(STORAGE.draftTxn(activeId)) || 'null');
       const list = [...file.transactions];
-      if (draft) list.unshift({ ...draft, __draft: true });
       const tbody = $('#txn-rows'); tbody.innerHTML = '';
       const searchQuery = normalizeSearchValue($('#txn-search')?.value).trim();
       const rows = list.filter(t => {
@@ -3553,21 +3547,13 @@
       if (!list.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
       if (list.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       rows.forEach(t => {
-        const isDraft = !!t.__draft;
-        const typeLabel = `${escapeHtml(t.type)}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
+        const isDraft = t.status === 'draft';
+        const typeLabel = `${escapeHtml(t.type || 'draft')}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${typeLabel}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
-        <td class="row actions">${isDraft ? '<button data-resume>Resume</button><button data-discard>Discard</button>' : '<button data-edit>Edit</button><button data-del>Delete</button>'}</td>`;
-        if (isDraft) {
-          tr.querySelector('[data-resume]').onclick = () => editTxn(t, true);
-          tr.querySelector('[data-discard]').onclick = () => {
-            localStorage.removeItem(STORAGE.draftTxn(activeId));
-            renderTransactions();
-          };
-        } else {
-          tr.querySelector('[data-edit]').onclick = () => editTxn(t);
-          tr.querySelector('[data-del]').onclick = () => delTxn(t);
-        }
+        <td class="row actions">${isDraft ? '<button data-edit>Resume</button><button data-del>Delete</button>' : '<button data-edit>Edit</button><button data-del>Delete</button>'}</td>`;
+        tr.querySelector('[data-edit]').onclick = () => editTxn(t, isDraft);
+        tr.querySelector('[data-del]').onclick = () => delTxn(t);
         tbody.appendChild(tr);
       });
     };
@@ -3592,6 +3578,7 @@
           <label>Memo</label><input name="memo" value="${escapeHtml(t.memo||'')}">
           <div class="row" style="gap:8px">
             <button type="submit" class="primary">Save</button>
+            <button type="button" id="save-txn-draft">Save Draft</button>
             <button type="button" id="cancel-txn">Cancel</button>
           </div>
         </form>
@@ -3625,20 +3612,26 @@
         const catInput = form.querySelector('[name="category"]');
         if (catInput) catInput.value = btn.dataset.cat;
       });
-      const persistDraft = () => {
+      const saveTxnDraft = () => {
         const data = new FormData(form);
-        const draft = {
+        const saved = {
           transaction_id: txn.transaction_id || uuid(),
           date: data.get('date') || today(),
-          type: data.get('type'),
+          type: data.get('type') || 'expense',
           category: data.get('category'),
           amount_cents: moneyToCents(data.get('amount')),
           project_id: data.get('project_id') || null,
-          memo: data.get('memo') || ''
+          memo: data.get('memo') || '',
+          status: 'draft',
+          created_at: txn.created_at || nowIso(),
+          updated_at: nowIso()
         };
-        localStorage.setItem(STORAGE.draftTxn(activeId), JSON.stringify(draft));
+        if (!file.transactions.find(x=>x.transaction_id===saved.transaction_id)) file.transactions.push(saved);
+        else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
+        saveFile();
+        renderTransactions();
+        closePanel();
       };
-      form.addEventListener('input', persistDraft);
       form.onsubmit = (e) => {
         e.preventDefault();
         const data = new FormData(form);
@@ -3650,6 +3643,7 @@
           amount_cents: moneyToCents(data.get('amount')),
           project_id: data.get('project_id') || null,
           memo: data.get('memo') || '',
+          status: null,
           created_at: txn.created_at || nowIso(),
           updated_at: nowIso()
         };
@@ -3657,12 +3651,17 @@
         if (!file.transactions.find(x=>x.transaction_id===saved.transaction_id)) file.transactions.push(saved);
         else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
         postTransaction(saved);
-        localStorage.removeItem(STORAGE.draftTxn(activeId));
         saveFile(); renderTransactions(); renderDashboard();
         closePanel();
       };
+      const saveDraftBtn = $('#save-txn-draft');
+      if (saveDraftBtn) {
+        const existing = file.transactions.find(x=>x.transaction_id===txn.transaction_id);
+        const canDraft = !existing || existing.status === 'draft';
+        saveDraftBtn.style.display = canDraft ? 'inline-flex' : 'none';
+        saveDraftBtn.onclick = saveTxnDraft;
+      }
       $('#cancel-txn').onclick = () => {
-        localStorage.setItem(STORAGE.draftTxn(activeId), JSON.stringify(txn));
         closePanel();
       };
     };
