@@ -6129,6 +6129,8 @@
     let dashboardActivityRaf = null;
     let dashboardActivityTimeout = null;
     let dashboardActivityTimeoutLate = null;
+    let dashboardActivityMonitor = null;
+    let dashboardActivityMonitorTicks = 0;
 
     const scheduleDashboardActivityRender = () => {
       if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
@@ -6151,6 +6153,31 @@
         dashboardActivityTimeoutLate = null;
         run();
       }, 380);
+    };
+
+    const startDashboardActivityMonitor = () => {
+      if (dashboardActivityMonitor) clearInterval(dashboardActivityMonitor);
+      dashboardActivityMonitorTicks = 0;
+      dashboardActivityMonitor = setInterval(() => {
+        dashboardActivityMonitorTicks += 1;
+        const dashboardSection = $$('section[data-section="dashboard"]')[0];
+        if (!dashboardSection || dashboardSection.classList.contains('hidden')) {
+          clearInterval(dashboardActivityMonitor);
+          dashboardActivityMonitor = null;
+          return;
+        }
+        const cards = dashboardSection.querySelectorAll(':scope > .card');
+        if (cards.length < 2) return;
+        const overviewHeight = cards[0].getBoundingClientRect().height;
+        const activityHeight = cards[1].getBoundingClientRect().height;
+        if (dashboardActivityCache.length && Math.abs(overviewHeight - activityHeight) > 2) {
+          renderDashboardActivityList(dashboardActivityCache);
+        }
+        if (dashboardActivityMonitorTicks >= 12) {
+          clearInterval(dashboardActivityMonitor);
+          dashboardActivityMonitor = null;
+        }
+      }, 120);
     };
 
     const buildDashboardActivityRow = (activityItem) => {
@@ -6258,6 +6285,7 @@
       renderDashboardActivityList(activity);
       renderDashboardClientRevenueChart({ start, end });
       scheduleDashboardActivityRender();
+      startDashboardActivityMonitor();
       if (!dashboardActivityResizeBound) {
         dashboardActivityResizeBound = true;
         const dashboardSection = $$('section[data-section="dashboard"]')[0];
@@ -6275,7 +6303,10 @@
             dashboardSectionObserver.observe(dashboardSection);
           }
         }
-        window.addEventListener('resize', () => scheduleDashboardActivityRender());
+        window.addEventListener('resize', () => {
+          scheduleDashboardActivityRender();
+          startDashboardActivityMonitor();
+        });
       }
     };
 
