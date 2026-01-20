@@ -54,6 +54,7 @@
       --spacing-lg: 24px;
       --spacing-xl: 32px;
       --spacing-2xl: 48px;
+      --topbar-height: 76px;
     }
     html.dark {
       --bg: #0d1017;
@@ -127,6 +128,50 @@
     }
     button.date-preset-btn.active:hover {
       background: var(--accent);
+    }
+    .type-toggle-group {
+      display: flex;
+      gap: 8px;
+    }
+    .type-toggle-group .type-toggle {
+      flex: 1;
+    }
+    .type-toggle-group .type-toggle.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    @media (max-width: 1100px) {
+      header.topbar {
+        flex-wrap: wrap;
+        row-gap: 12px;
+      }
+      nav.tabs {
+        flex-wrap: wrap;
+        row-gap: 10px;
+      }
+      nav.tabs .top-actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+    @media (max-width: 1024px) {
+      .grid {
+        gap: 20px;
+      }
+      .grid.cols-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 900px) {
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+      #invoice-rows td {
+        white-space: normal;
+      }
     }
     @media (max-width: 768px) {
       .grid.cols-2 { grid-template-columns: 1fr; }
@@ -257,6 +302,7 @@
       min-width: 48px;
       min-height: 40px;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+      cursor: pointer;
     }
     .logo-chip img { height: 24px; width: 24px; object-fit: contain; }
     nav.tabs {
@@ -266,7 +312,7 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: sticky;
-      top: 76px;
+      top: var(--topbar-height, 76px);
       z-index: 10;
     }
     nav.tabs button {
@@ -284,6 +330,23 @@
       color: var(--text);
       border-color: var(--border);
     }
+    nav.tabs .top-actions {
+      margin-left: auto;
+      gap: 12px;
+    }
+    nav.tabs .top-actions button {
+      background: var(--surface-soft);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .dark nav.tabs .top-actions button {
+      color: #fff;
+    }
+    nav.tabs .top-actions button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: transparent;
+    }
     main { padding: 28px; }
     section[data-section] {
       margin-bottom: 40px;
@@ -293,6 +356,8 @@
     }
     .grid { display: grid; gap: 28px; }
     .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .grid.cols-4 > .card { grid-column: auto !important; }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -309,7 +374,37 @@
       letter-spacing: -0.02em;
       color: var(--text);
     }
+    section[data-section="dashboard"] > .card {
+      display: flex;
+      flex-direction: column;
+    }
+    #dashboard-activity {
+      flex: 1;
+      min-height: 0;
+      gap: 0;
+      overflow: hidden;
+    }
+    #dashboard-activity {
+      gap: 0;
+    }
     table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-scroll {
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    section[data-section="clients"] table {
+      table-layout: fixed;
+    }
+    section[data-section="clients"] th,
+    section[data-section="clients"] td {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    section[data-section="clients"] td.actions {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
     tr { margin-bottom: 2px; }
     th, td {
       padding: 16px 18px;
@@ -361,9 +456,49 @@
     tr td { transition: background 150ms ease; }
     tr:last-child td { border-bottom: none; }
     .hidden { display: none !important; }
+    .splash-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 14, 22, 0.7);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 24px;
+      opacity: 1;
+      transition: opacity 220ms ease;
+    }
+    .splash-overlay.fade-out {
+      opacity: 0;
+    }
+    .splash-card {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 0;
+      max-width: 640px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      align-items: center;
+    }
+    .splash-video {
+      width: 100%;
+      max-height: 360px;
+      border-radius: 12px;
+      background: #000;
+    }
     .pill { padding: 8px 14px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
     .stack { display: flex; flex-direction: column; gap: 16px; }
     .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .actions {
+      flex-wrap: nowrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
     .space { margin-top: 20px; }
     .side-panel {
       position: fixed;
@@ -567,7 +702,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 40;
+      z-index: 80;
       backdrop-filter: blur(2px);
     }
     .overlay.show { display: flex; }
@@ -596,8 +731,10 @@
     }
     .calculator-window {
       position: fixed;
-      width: 320px;
-      height: 400px;
+      width: min(320px, 92vw);
+      height: min(400px, 80vh);
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -668,22 +805,47 @@
       background: var(--surface-soft);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      min-height: 80px;
-      max-height: 100px;
+      padding: 12px 12px 10px;
+      margin-bottom: 12px;
+      min-height: 64px;
+      max-height: 84px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
       align-items: flex-end;
       text-align: right;
+      position: relative;
+      padding-right: 54px;
+    }
+    .calculator-display-toolbar {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .calculator-copy-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      line-height: 1;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .calculator-copy-btn:hover {
+      background: var(--border);
+      color: var(--text);
     }
     .calculator-display-secondary {
       font-size: 0.875rem;
       color: var(--muted);
-      min-height: 20px;
-      margin-bottom: 8px;
+      min-height: 16px;
+      margin-bottom: 6px;
       word-break: break-all;
     }
     .calculator-display-primary {
@@ -787,6 +949,130 @@
     .calculator-minimized button:active {
       transform: translateY(0);
     }
+    .note-window {
+      position: fixed;
+      width: min(420px, 92vw);
+      height: min(460px, 80vh);
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      z-index: 56;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .note-window.hidden {
+      display: none;
+    }
+    .note-header {
+      background: var(--surface-soft);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .note-header span {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .note-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .note-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .note-toolbar {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      align-items: center;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .note-toolbar select,
+    .note-toolbar input {
+      min-height: 36px;
+    }
+    #note-menu {
+      min-width: 180px;
+    }
+    #note-content {
+      order: 0;
+      flex: 1 1 auto;
+      width: 100%;
+      resize: none;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      min-height: 42px;
+      overflow: auto;
+    }
+    #note-content[contenteditable="true"]:empty::before {
+      content: attr(data-placeholder);
+      color: var(--muted);
+    }
+    .note-resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      background: linear-gradient(-45deg, transparent 30%, var(--border) 30%, var(--border) 35%, transparent 35%, transparent 65%, var(--border) 65%, var(--border) 70%, transparent 70%);
+    }
+    .note-resize-handle:hover {
+      background: linear-gradient(-45deg, transparent 30%, var(--accent) 30%, var(--accent) 35%, transparent 35%, transparent 65%, var(--accent) 65%, var(--accent) 70%, transparent 70%);
+    }
+    .note-minimized {
+      position: fixed;
+      bottom: 20px;
+      right: 120px;
+      z-index: 65;
+    }
+    .note-minimized.hidden {
+      display: none;
+    }
+    .note-minimized button {
+      padding: 12px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(58,127,245,0.3);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+    .note-minimized button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(58,127,245,0.4);
+    }
+    .note-minimized button:active {
+      transform: translateY(0);
+    }
+    .note-unsaved {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     @media (prefers-reduced-motion: reduce) {
       :root { --motion-scale: 0; }
       * { transition: none !important; animation: none !important; }
@@ -798,21 +1084,19 @@
   </style>
 </head>
 <body>
+  <div id="splash-overlay" class="splash-overlay hidden" role="dialog" aria-label="Brand intro">
+    <div class="splash-card">
+      <video id="splash-video" class="splash-video" playsinline preload="auto">
+        <source src="https://video.wixstatic.com/video/afbb39_32010cb1c1e1423184fe68fec0b8c47c/1080p/mp4/file.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
   <div class="app">
     <header class="topbar">
       <img id="custom-header-image" class="custom-header-image" alt="" style="display:none">
       <div class="logo-chip" id="logo-chip"><img id="logo-img" alt="Logo"></div>
       <div class="stack" style="gap:4px">
         <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
-        <div class="row" style="gap:8px">
-          <select id="business-selector"></select>
-        </div>
-      </div>
-      <div class="row" style="margin-left:auto; gap:16px">
-        <button id="quick-add-invoice" class="primary">Quick Invoice</button>
-        <button id="quick-add-transaction">Quick Txn</button>
-        <button id="open-calculator" class="ghost">Calculator</button>
-        <button id="open-settings" class="ghost">Settings</button>
       </div>
     </header>
     <nav class="tabs">
@@ -823,13 +1107,36 @@
       <button data-tab="services">Services</button>
       <button data-tab="analytics">Analytics</button>
       <button data-tab="reports">Reports</button>
-      <button data-tab="settings">Settings</button>
+      <div class="row top-actions" style="margin-left:auto; gap:16px">
+        <button id="quick-add-invoice" class="primary">Quick Invoice</button>
+        <button id="quick-add-transaction">Quick Txn</button>
+        <button id="open-calculator">Calculator</button>
+        <button id="open-note">Note</button>
+        <button id="open-settings">Settings</button>
+      </div>
     </nav>
     <main>
       <section data-section="dashboard" class="grid cols-2">
         <div class="card">
           <h3>Overview</h3>
+          <div class="row" style="flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <button class="date-preset-btn" data-preset="today" data-for="dashboard">Today</button>
+            <button class="date-preset-btn" data-preset="week" data-for="dashboard">This Week</button>
+            <button class="date-preset-btn" data-preset="month" data-for="dashboard">This Month</button>
+            <button class="date-preset-btn" data-preset="quarter" data-for="dashboard">This Quarter</button>
+            <button class="date-preset-btn" data-preset="year" data-for="dashboard">This Year</button>
+            <button class="date-preset-btn" data-preset="all" data-for="dashboard">All Time</button>
+          </div>
+          <div id="dashboard-range" class="muted" style="margin-bottom: 12px;"></div>
           <div class="grid cols-2" id="dashboard-kpis"></div>
+          <div class="stack" style="margin-top: 20px; gap: 16px;">
+            <div>
+              <h4 style="margin: 0 0 8px 0;">Client Revenue</h4>
+              <div id="dashboard-client-revenue-container" style="position: relative; height: 240px;">
+                <canvas id="dashboard-client-revenue-chart"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="card">
           <h3>Recent Activity</h3>
@@ -901,10 +1208,12 @@
             <button id="import-clients-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-clients-file" class="hidden" accept=".json,application/json,.csv,text/csv">
           </div>
-          <table>
-            <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
-            <tbody id="client-rows"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
+              <tbody id="client-rows"></tbody>
+            </table>
+          </div>
           <div class="empty hidden" id="client-empty">No parties yet.</div>
         </div>
         <div class="card">
@@ -912,10 +1221,12 @@
             <h3>Projects</h3>
             <button id="add-project" class="primary">Add</button>
           </div>
-          <table>
-            <thead><tr><th>Name</th><th>Client</th><th></th></tr></thead>
-            <tbody id="project-rows"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>Client</th><th></th></tr></thead>
+              <tbody id="project-rows"></tbody>
+            </table>
+          </div>
           <div class="empty hidden" id="project-empty">No projects yet.</div>
         </div>
       </section>
@@ -1044,7 +1355,14 @@
               <button id="run-project-summary">Project Profitability</button>
               <div id="report-project"></div>
               <button id="run-tax-summary">Tax Summary</button>
+              <button id="calc-grt" class="ghost">Calculate GRT</button>
+              <div class="row" style="gap:8px; align-items:center">
+                <button id="calc-grt-year" class="ghost">GRT Whole Year</button>
+                <select id="grt-year" style="max-width:140px"></select>
+              </div>
+              <div id="grt-range" class="muted" style="margin-bottom:6px"></div>
               <div id="report-tax"></div>
+              <div id="grt-meta" class="muted" style="margin-bottom:12px"></div>
             </div>
           </div>
         </div>
@@ -1053,7 +1371,9 @@
       <section data-section="settings" class="grid cols-4 hidden">
         <div class="card" style="grid-column:1">
           <h3>Appearance</h3>
-          <label>Theme</label>
+          <label>Intro Video on Startup</label>
+          <button id="splash-video-toggle" class="ghost" style="width:100%">On</button>
+          <label style="margin-top:16px">Theme</label>
           <select id="theme-select">
             <option value="system">System</option>
             <option value="light">Light</option>
@@ -1093,6 +1413,22 @@
           <label>Default Tax % (optional)</label>
           <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
           <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
+          <label style="margin-top:16px">GRT % (optional)</label>
+          <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
+          <label style="margin-top:16px">GRT Basis</label>
+          <select id="grt-basis">
+            <option value="invoices">Invoices issued</option>
+            <option value="payments">Payments received</option>
+            <option value="both">Both</option>
+          </select>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Invoices use totals (including tax/tip). Both can double-count if invoices were paid.</p>
+          <label style="margin-top:16px">GRT Filing Frequency</label>
+          <select id="grt-filing-frequency">
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="semiannual">Semi-annual</option>
+          </select>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Used by the GRT calculator in Reports.</p>
         </div>
         <div class="card" style="grid-column:3">
           <h3>Data</h3>
@@ -1117,7 +1453,10 @@
         </div>
         <div class="card" style="grid-column:4">
           <h3>Business</h3>
+          <label>Selected Business</label>
+          <select id="business-selector"></select>
           <div id="business-info" class="stack"></div>
+          <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
           <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
             <button id="new-business" class="primary" style="width:100%">+ New Business</button>
           </div>
@@ -1154,6 +1493,9 @@
     </div>
     <div class="calculator-body" id="calculator-body">
       <div class="calculator-display">
+        <div class="calculator-display-toolbar">
+          <button class="calculator-copy-btn" id="calculator-copy" title="Copy number">Copy</button>
+        </div>
         <div class="calculator-display-secondary" id="calculator-secondary"></div>
         <div class="calculator-display-primary" id="calculator-primary">0</div>
       </div>
@@ -1182,14 +1524,41 @@
     <div class="calculator-resize-handle" id="calculator-resize"></div>
   </div>
 
+  <div class="note-window hidden" id="note-window">
+    <div class="note-header" id="note-header">
+      <span>Notes</span>
+      <div class="note-controls">
+        <button class="calculator-btn-minimize" id="note-minimize" title="Minimize">−</button>
+        <button class="calculator-btn-close" id="note-close" title="Close">×</button>
+      </div>
+    </div>
+    <div class="note-body">
+      <div id="note-content" class="note-editor" contenteditable="true" data-placeholder="Write a quick note..."></div>
+      <div class="note-toolbar">
+        <select id="note-menu"></select>
+        <button id="note-new" class="ghost">New</button>
+        <button id="note-save" class="primary">Save</button>
+        <button id="note-delete" class="ghost">Delete</button>
+        <button id="note-copy" class="ghost">Copy</button>
+      </div>
+    </div>
+    <div class="note-resize-handle" id="note-resize"></div>
+  </div>
+
   <div class="calculator-minimized hidden" id="calculator-minimized">
     <button id="calculator-restore" title="Restore Calculator">Calc</button>
+  </div>
+
+  <div class="note-minimized hidden" id="note-minimized">
+    <button id="note-restore" title="Restore Notes">Note</button>
   </div>
 
   <script>
     // ---------- Utilities ----------
     // #region agent log
+    const DEBUG = false;
     const logDebug = (location, message, data, hypothesisId) => {
+      if (!DEBUG) return;
       const logEntry = {location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
       console.log('[DEBUG]', logEntry);
       try {
@@ -1215,12 +1584,24 @@
       const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
       return v.toString(16);
     });
+    const syncStickyOffsets = () => {
+      const topbar = document.querySelector('header.topbar');
+      if (!topbar) return;
+      document.documentElement.style.setProperty('--topbar-height', `${topbar.offsetHeight}px`);
+    };
     const moneyToCents = (val) => Math.round((Number(val) || 0) * 100);
     const centsToMoney = (c) => (c || 0) / 100;
     const trimTrailingZeros = (val) => {
       if (val === undefined || val === null) return '';
       return String(val).replace(/(\.\d*?[1-9])0+$|\.0*$/,'$1');
     };
+    const escapeHtml = (val) => String(val ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[ch]);
     const normalizeTimeInput = (val) => {
       const digits = String(val||'').replace(/\D/g,'');
       if (!digits) return '';
@@ -1392,6 +1773,7 @@
     const defaultSettings = () => ({
       accounting_basis: 'cash',
       theme: 'system',
+      show_splash_video: true,
       logoVariant: 'auto',
       logoLightDataUrl: DEFAULT_LOGO_LIGHT_URL,
       logoDarkDataUrl: DEFAULT_LOGO_DARK_URL,
@@ -1403,7 +1785,10 @@
       default_uncategorized_expense_code: '6900',
       mileage_model: 'tax_only',
       depreciation_model: 'report_only',
-      default_tax_percent: 0
+      default_tax_percent: 0,
+      grt_percent: 0,
+      grt_basis: 'invoices',
+      grt_filing_frequency: 'monthly'
     });
 
     const newBusinessFile = (name='My Business') => ({
@@ -1432,6 +1817,7 @@
       ledger_entries: [],
       ledger_lines: [],
       attachments: [],
+      notes: [],
       change_log: []
     });
 
@@ -1496,7 +1882,11 @@
       if (!file.settings) file.settings = defaultSettings();
       if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = DEFAULT_LOGO_LIGHT_URL;
       if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = DEFAULT_LOGO_DARK_URL;
+      if (!file.notes) file.notes = [];
       if (file.settings.default_tax_percent === undefined || file.settings.default_tax_percent === null) file.settings.default_tax_percent = 0;
+      if (file.settings.grt_percent === undefined || file.settings.grt_percent === null) file.settings.grt_percent = 0;
+      if (!file.settings.grt_basis) file.settings.grt_basis = 'invoices';
+      if (!file.settings.grt_filing_frequency) file.settings.grt_filing_frequency = 'monthly';
       migrateProjectPartyIds(file);
     };
 
@@ -1795,22 +2185,50 @@
       }
       if (tab === 'analytics' && file) {
         setTimeout(() => {
-          // Initialize date inputs if not already set
-          const startInput = $('#analytics-start');
-          const endInput = $('#analytics-end');
-          if (startInput && !startInput.value) {
-            setDatePreset('month', 'analytics');
-          } else if (startInput && endInput) {
-            // If dates are set, just render
-            renderAnalytics();
-          } else {
-            setDatePreset('month', 'analytics');
-            renderAnalytics();
-          }
+          setDatePreset('all', 'analytics');
+          renderAnalytics();
+        }, 100);
+      }
+      if (tab === 'reports' && file) {
+        setTimeout(() => {
+          setDatePreset('all', 'reports');
+          refreshReports();
         }, 100);
       }
       if (tab === 'settings') {
         runIntegrity();
+      }
+    };
+
+    const showSplashVideo = () => {
+      const overlay = $('#splash-overlay');
+      const video = $('#splash-video');
+      if (!overlay || !video) return;
+      const close = () => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+          overlay.classList.remove('fade-out');
+          video.pause();
+          video.currentTime = 0;
+        }, 220);
+      };
+      overlay.classList.remove('hidden');
+      overlay.classList.remove('fade-out');
+      overlay.onclick = (e) => { if (e.target === overlay) close(); };
+      video.onclick = (e) => {
+        e.stopPropagation();
+        if (video.paused) video.play();
+        video.muted = !video.muted;
+      };
+      video.onended = close;
+      video.muted = false;
+      const playAttempt = video.play();
+      if (playAttempt && typeof playAttempt.catch === 'function') {
+        playAttempt.catch(() => {
+          video.muted = true;
+          video.play();
+        });
       }
     };
 
@@ -2046,8 +2464,8 @@
       rows.forEach(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${inv.number||'—'}</td><td>${party?.name||'—'}</td><td>${inv.issue_date||''}</td>
-        <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${inv.status||'draft'}</td>
+        tr.innerHTML = `<td>${escapeHtml(inv.number||'—')}</td><td>${escapeHtml(party?.name||'—')}</td><td>${escapeHtml(inv.issue_date||'')}</td>
+        <td><span class="status-dot ${inv.status==='paid'?'status-posted':inv.status==='void'?'status-void':'status-draft'}"></span> ${escapeHtml(inv.status||'draft')}</td>
         <td>${fmt(invoiceTotal(inv),file.business.base_currency)}</td>
         <td class="row">
           <button data-action="view">View</button>
@@ -2073,8 +2491,8 @@
       if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
       container.innerHTML = `
         <div class="stack">
-          <div><strong>Client:</strong> ${draft.party_name||'—'}</div>
-          <div><strong>Date:</strong> ${draft.issue_date||today()}</div>
+          <div><strong>Client:</strong> ${escapeHtml(draft.party_name||'—')}</div>
+          <div><strong>Date:</strong> ${escapeHtml(draft.issue_date||today())}</div>
           <div><strong>Total:</strong> ${fmt(invoiceTotal(draft),file.business.base_currency)}</div>
           <button id="resume-draft">Resume</button>
         </div>`;
@@ -2088,7 +2506,7 @@
 
     const invoiceForm = (inv={}) => {
       const partyOptions = sortPartiesByName(file.parties)
-        .map(p=>`<option value="${p.party_id}" ${p.party_id===inv.party_id?'selected':''}>${p.name}</option>`)
+        .map(p=>`<option value="${escapeHtml(p.party_id)}" ${p.party_id===inv.party_id?'selected':''}>${escapeHtml(p.name)}</option>`)
         .join('');
       const serviceRecent = file.services.slice(-3).reverse();
       const lines = inv.lines || [];
@@ -2113,10 +2531,10 @@
           <label>Date</label>
           <input name="issue_date" type="date" value="${inv.issue_date||today()}">
           <label>Project</label>
-          <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${p.project_id}" ${p.project_id===inv.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
+          <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===inv.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
           <div class="row" style="gap:8px; flex-wrap:wrap">
             <span class="muted">Recent services:</span>
-            ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${s.service_id}">${s.name}</button>`).join('')}
+            ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${escapeHtml(s.service_id)}">${escapeHtml(s.name)}</button>`).join('')}
             <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
           </div>
           <div id="line-container" class="stack">${lineItems || ''}</div>
@@ -2143,17 +2561,17 @@
       const timeNote = billing === 'hourly'
         ? (Number(qtyVal) ? `= ${trimTrailingZeros((Number(qtyVal)||0).toFixed(2))} hrs` : 'Enter hh:mm to convert')
         : '';
-      return `<div class="card" data-line="${line.invoice_line_id||uuid()}" data-billing="${billing}" style="padding:20px; box-shadow:none; margin-bottom:12px">
+      return `<div class="card" data-line="${escapeHtml(line.invoice_line_id||uuid())}" data-billing="${billing}" style="padding:20px; box-shadow:none; margin-bottom:12px">
         <div class="row" style="gap:8px; align-items:center">
-          <input class="line-name" placeholder="Service / Description" value="${line.service_name||''}">
-          <input class="line-qty" type="number" step="0.01" value="${qtyVal}" style="width:90px" title="${billing==='hourly'?'Hours':'Quantity'}">
+          <input class="line-name" placeholder="Service / Description" value="${escapeHtml(line.service_name||'')}">
+          <input class="line-qty" type="number" step="0.01" value="${escapeHtml(qtyVal)}" style="width:90px" title="${billing==='hourly'?'Hours':'Quantity'}">
           <input class="line-rate" type="number" step="0.01" value="${centsToMoney(line.rate_cents||0)}" style="width:110px">
           <button type="button" data-remove>Delete</button>
         </div>
         ${billing==='hourly'?`<div class="row" style="gap:8px; align-items:center; margin-top:8px">
           <label style="margin:0; font-size:0.9rem; color: var(--muted); min-width:110px;">Time (HH:MM)</label>
-          <input class="line-time" placeholder="1:30" value="${timeVal||''}" style="width:120px">
-          <span class="muted" data-time-note style="font-size:0.9rem;">${timeNote}</span>
+          <input class="line-time" placeholder="1:30" value="${escapeHtml(timeVal||'')}" style="width:120px">
+          <span class="muted" data-time-note style="font-size:0.9rem;">${escapeHtml(timeNote)}</span>
         </div>`:''}
       </div>`;
     };
@@ -2238,7 +2656,7 @@
           const partyIds = p.party_ids || (p.party_id ? [p.party_id] : []);
           return partyIds.includes(selectedPartyId);
         }) : [];
-        projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${p.project_id}">${p.name}</option>`).join('');
+        projectSelect.innerHTML = '<option value="">None</option>' + filteredProjects.map(p=>`<option value="${escapeHtml(p.project_id)}">${escapeHtml(p.name)}</option>`).join('');
         // Try to preserve the current project if it's still valid
         if (currentProjectId && filteredProjects.find(p=>p.project_id===currentProjectId)) {
           projectSelect.value = currentProjectId;
@@ -3052,8 +3470,8 @@
       if (file.transactions.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
       rows.forEach(t => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${t.date}</td><td>${t.type}</td><td>${t.category||'—'}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
-        <td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
+        <td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editTxn(t);
         tr.querySelector('[data-del]').onclick = () => delTxn(t);
         tbody.appendChild(tr);
@@ -3066,27 +3484,30 @@
       const container = $('#txn-draft');
       if (!container) return;
       if (!draft) { container.innerHTML = '<div class="empty">No draft saved.</div>'; return; }
-      container.innerHTML = `<div class="stack"><div><strong>${draft.type}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
-      <div>${draft.memo||''}</div><button id="resume-txn">Resume</button></div>`;
+      container.innerHTML = `<div class="stack"><div><strong>${escapeHtml(draft.type)}</strong> ${fmt(draft.amount_cents,file.business.base_currency)}</div>
+      <div>${escapeHtml(draft.memo||'')}</div><button id="resume-txn">Resume</button></div>`;
       const resumeBtn = $('#resume-txn');
       if (resumeBtn) resumeBtn.onclick = () => editTxn(draft,true);
     };
 
     const txnForm = (t={}) => {
       const recentCats = recentSelections('category');
+      const typeValue = t.type || 'income';
       return `
         <form id="txn-form" class="stack">
           <label>Date</label><input name="date" type="date" value="${t.date||today()}">
-          <label>Type</label><select name="type">
-            ${['income','expense','transfer'].map(v=>`<option value="${v}" ${t.type===v?'selected':''}>${v}</option>`).join('')}
-          </select>
+          <label>Type</label>
+          <div class="type-toggle-group">
+            <input type="hidden" name="type" value="${typeValue}">
+            ${['income','expense','transfer'].map(v=>`<button type="button" class="type-toggle ${typeValue===v?'active':''}" data-type="${v}">${v}</button>`).join('')}
+          </div>
           <label>Category</label>
-          <input name="category" value="${t.category||''}" list="cat-list">
-          <datalist id="cat-list">${file.accounts.map(a=>`<option value="${a.code} - ${a.name}">`).join('')}</datalist>
-          <div class="row" style="gap:8px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${c}">${c}</button>`).join('')}</div>
+          <input name="category" value="${escapeHtml(t.category||'')}" list="cat-list">
+          <datalist id="cat-list">${file.accounts.map(a=>`<option value="${escapeHtml(a.code)} - ${escapeHtml(a.name)}">`).join('')}</datalist>
+          <div class="row" style="gap:8px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>
           <label>Amount</label><input name="amount" type="number" step="0.01" value="${centsToMoney(t.amount_cents||0)}">
-          <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${p.project_id}" ${p.project_id===t.project_id?'selected':''}>${p.name}</option>`).join('')}</select>
-          <label>Memo</label><input name="memo" value="${t.memo||''}">
+          <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===t.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
+          <label>Memo</label><input name="memo" value="${escapeHtml(t.memo||'')}">
           <div class="row" style="gap:8px">
             <button type="submit" class="primary">Save</button>
             <button type="button" id="cancel-txn">Cancel</button>
@@ -3111,6 +3532,13 @@
       const txn = isDraft ? t : { ...t };
       openPanel('Transaction', txnForm(txn));
       const form = $('#txn-form');
+      const typeButtons = form.querySelectorAll('.type-toggle');
+      const typeInput = form.querySelector('[name="type"]');
+      typeButtons.forEach(btn => btn.onclick = () => {
+        typeButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (typeInput) typeInput.value = btn.dataset.type;
+      });
       form.querySelectorAll('[data-cat]').forEach(btn => btn.onclick = () => {
         const catInput = form.querySelector('[name="category"]');
         if (catInput) catInput.value = btn.dataset.cat;
@@ -3182,7 +3610,7 @@
       if (!file.parties.length) $('#client-empty').classList.remove('hidden'); else $('#client-empty').classList.add('hidden');
       sortPartiesByName(file.parties).forEach(p => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${p.name}</td><td>${p.email||''}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.email||'')}</td><td class="row actions"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editClient(p);
         tr.querySelector('[data-del]').onclick = () => {
           file.parties = file.parties.filter(x=>x.party_id!==p.party_id); saveFile(); renderClients();
@@ -3195,10 +3623,10 @@
       if (!file) return;
       openPanel('Client', `
         <form id="client-form" class="stack">
-          <label>Name</label><input name="name" value="${p.name||''}">
-          <label>Email</label><input name="email" value="${p.email||''}">
-          <label>Phone</label><input name="phone" value="${p.phone||''}">
-          <label>Address</label><textarea name="address">${p.address||''}</textarea>
+          <label>Name</label><input name="name" value="${escapeHtml(p.name||'')}">
+          <label>Email</label><input name="email" value="${escapeHtml(p.email||'')}">
+          <label>Phone</label><input name="phone" value="${escapeHtml(p.phone||'')}">
+          <label>Address</label><textarea name="address">${escapeHtml(p.address||'')}</textarea>
           <div class="row"><button type="submit" class="primary">Save</button><button type="button" id="cancel-client">Cancel</button></div>
         </form>
       `);
@@ -3231,7 +3659,7 @@
         const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
         const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${pr.name}</td><td>${clientNames}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(pr.name)}</td><td>${escapeHtml(clientNames)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editProject(pr);
         tr.querySelector('[data-del]').onclick = () => { file.projects = file.projects.filter(x=>x.project_id!==pr.project_id); saveFile(); renderProjects(); };
         tbody.appendChild(tr);
@@ -3244,11 +3672,11 @@
       const currentPartyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
       const partyCheckboxes = sortPartiesByName(file.parties).map(p=>{
         const checked = currentPartyIds.includes(p.party_id) ? 'checked' : '';
-        return `<label style="display:flex; align-items:center; gap:8px; margin:8px 0; cursor:pointer;"><input type="checkbox" name="party_ids" value="${p.party_id}" ${checked} style="width:auto;">${p.name}</label>`;
+        return `<label style="display:flex; align-items:center; gap:8px; margin:8px 0; cursor:pointer;"><input type="checkbox" name="party_ids" value="${escapeHtml(p.party_id)}" ${checked} style="width:auto;">${escapeHtml(p.name)}</label>`;
       }).join('');
       openPanel('Project', `
         <form id="project-form" class="stack">
-          <label>Name</label><input name="name" value="${pr.name||''}">
+          <label>Name</label><input name="name" value="${escapeHtml(pr.name||'')}">
           <label>Clients</label>
           <div style="border:1px solid var(--border); border-radius:12px; padding:16px; background:var(--surface-soft); max-height:300px; overflow-y:auto;">
             ${partyCheckboxes || '<div class="muted">No clients available. Add clients first.</div>'}
@@ -3282,7 +3710,7 @@
       file.services.forEach(s => {
         const tr = document.createElement('tr');
         const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
-        tr.innerHTML = `<td>${s.name}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${billing}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-edit]').onclick = () => editService(s);
         tr.querySelector('[data-del]').onclick = () => {
           file.services = file.services.filter(x=>x.service_id!==s.service_id); saveFile(); renderServices();
@@ -3295,7 +3723,7 @@
       if (!file) return;
       openPanel('Service', `
         <form id="service-form" class="stack">
-          <label>Name</label><input name="name" value="${s.name||''}">
+          <label>Name</label><input name="name" value="${escapeHtml(s.name||'')}">
           <label>Default rate</label><input name="rate" type="number" step="0.01" value="${centsToMoney(s.default_rate_cents||0)}">
           <label>Billing</label>
           <select name="billing_type">
@@ -3303,7 +3731,7 @@
             <option value="hourly" ${s.billing_type==='hourly'?'selected':''}>Time-based (hourly)</option>
           </select>
           <div class="muted" style="font-size:0.9rem;">Hourly adds an hh:mm field on invoices so you can enter time (e.g. 1:30) without creating another service.</div>
-          <label>Description</label><textarea name="desc">${s.default_description||''}</textarea>
+          <label>Description</label><textarea name="desc">${escapeHtml(s.default_description||'')}</textarea>
           <div class="row"><button class="primary" type="submit">Save</button><button type="button" id="cancel-service">Cancel</button></div>
         </form>
       `);
@@ -3638,22 +4066,32 @@
 
     const runPL = () => {
       const { start, end } = getReportsDateRange();
+      const allTime = isAllTimeRange(start, end);
       const lines = postedLines().filter(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
-        return entry && entry.entry_date >= start && entry.entry_date <= end;
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
       let income=0, expense=0;
       lines.forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         const acct = file.accounts.find(a=>a.code===l.account_code);
         if (!acct) return;
-        if (acct.type==='income') income += (l.credit_cents||0)-(l.debit_cents||0);
+        if (acct.type==='income' && !entry?.linked_invoice_id) {
+          income += (l.credit_cents||0)-(l.debit_cents||0);
+        }
         if (acct.type==='expense') expense += (l.debit_cents||0)-(l.credit_cents||0);
       });
       
-      // Also include invoice income for the date range
-      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      // Include invoice income for the date range
+      const invoices = file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
       invoices.forEach(inv => {
-        income += invoiceSubtotal(inv);
+        income += invoiceTotal(inv);
       });
       
       $('#pl-output').innerHTML = `
@@ -3684,11 +4122,16 @@
       const { start, end } = getReportsDateRange();
       const result = {};
       // Use invoices directly (by issue date) instead of just payments
-      const invoices = file.invoices.filter(inv => inv.issue_date >= start && inv.issue_date <= end);
+      const allTime = isAllTimeRange(start, end);
+      const invoices = file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
       invoices.forEach(inv => {
         const party = file.parties.find(p=>p.party_id===inv.party_id);
         const name = party?.name || 'Unknown';
-        result[name] = (result[name]||0) + invoiceSubtotal(inv);
+        result[name] = (result[name]||0) + invoiceTotal(inv);
       });
       return result;
     };
@@ -3709,9 +4152,51 @@
       return map;
     };
 
+    const grtGrossReceipts = (start, end) => {
+      let total = 0;
+      postedLines().forEach(l=>{
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry || entry.entry_date < start || entry.entry_date > end) return;
+        const acct = file.accounts.find(a=>a.code===l.account_code);
+        if (!acct || acct.type !== 'income') return;
+        total += (l.credit_cents||0)-(l.debit_cents||0);
+      });
+      return total;
+    };
+
+    const grtInvoiceBase = (start, end) => {
+      let total = 0;
+      const allTime = isAllTimeRange(start, end);
+      file.invoices
+        .filter(inv => {
+          if (!inv.issue_date) return allTime;
+          return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+        })
+        .forEach(inv => { total += invoiceTotal(inv); });
+      return total;
+    };
+
+    const grtBaseForRange = (start, end) => {
+      const basis = file?.settings?.grt_basis || 'payments';
+      if (basis === 'invoices') return grtInvoiceBase(start, end);
+      if (basis === 'both') return grtInvoiceBase(start, end) + grtGrossReceipts(start, end);
+      return grtGrossReceipts(start, end);
+    };
+
+    const grtDueDate = (endDate) => {
+      if (!endDate || endDate === '2999-12-31') return '';
+      const [y, m] = endDate.split('-').map(Number);
+      if (!y || !m) return '';
+      const dueMonth = m === 12 ? 0 : m;
+      const dueYear = m === 12 ? y + 1 : y;
+      return new Date(dueYear, dueMonth, 25).toISOString().split('T')[0];
+    };
+
     const taxSummary = () => {
       const { start, end } = getReportsDateRange();
       const map = {};
+      const grtPercent = Math.max(0, Number(file?.settings?.grt_percent)||0);
+      const grossReceipts = grtBaseForRange(start, end);
       postedLines().forEach(l=>{
         const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
         if (!entry || entry.entry_date < start || entry.entry_date > end) return;
@@ -3720,15 +4205,43 @@
           map['Taxes Payable'] = (map['Taxes Payable']||0) + delta;
         }
       });
+      if (grtPercent > 0) {
+        map['Gross Receipts'] = grossReceipts;
+        map['Estimated GRT'] = Math.round(grossReceipts * (grtPercent / 100));
+      }
       return map;
     };
 
+    const renderTaxSummary = () => {
+      const target = $('#report-tax');
+      if (!target) return;
+      renderSummary(taxSummary(), target);
+      const rangeEl = $('#grt-range');
+      if (rangeEl) {
+        const { start, end } = getReportsDateRange();
+        rangeEl.textContent = `Range: ${start} to ${end}`;
+      }
+      const meta = $('#grt-meta');
+      if (!meta) return;
+      const grtPercent = Math.max(0, Number(file?.settings?.grt_percent)||0);
+      if (!grtPercent) {
+        meta.textContent = 'Set GRT % in Settings to estimate tax.';
+        return;
+      }
+      const { end } = getReportsDateRange();
+      const due = grtDueDate(end);
+      meta.textContent = due
+        ? `Estimated due date: ${due} (next business day if weekend/holiday).`
+        : 'Set a date range to see the estimated due date.';
+    };
+
     const refreshReports = () => {
+      populateGRTYearSelect();
       runPL();
       renderSummary(summaryByAccount('expense'), $('#report-expense'));
       renderSummary(clientRevenue(), $('#report-client'));
       renderSummary(projectProfit(), $('#report-project'));
-      renderSummary(taxSummary(), $('#report-tax'));
+      renderTaxSummary();
     };
 
     // ---------- Settings ----------
@@ -3953,6 +4466,7 @@
     // ---------- Analytics ----------
     let analyticsCharts = {};
     const isDarkMode = () => document.documentElement.classList.contains('dark');
+    let dashboardCharts = {};
     const getChartColors = () => {
       const isDark = isDarkMode();
       return {
@@ -3965,53 +4479,212 @@
       };
     };
 
-    const getDateRange = () => {
-      const start = $('#analytics-start').value || '1900-01-01';
-      const end = $('#analytics-end').value || '2999-12-31';
-      return { start, end };
-    };
-
-    const setDatePreset = (preset, section = 'analytics') => {
-      const today = new Date();
-      const startInput = section === 'reports' ? $('#reports-start') : $('#analytics-start');
-      const endInput = section === 'reports' ? $('#reports-end') : $('#analytics-end');
+    const DASHBOARD_RANGE_KEY = 'ck5_dashboard_range';
+    const isAllTimeRange = (start, end) => start === '1900-01-01' && end === '2999-12-31';
+    const dateRangeForPreset = (preset, now = new Date()) => {
       let start, end;
-
       switch(preset) {
         case 'today':
-          start = end = today.toISOString().split('T')[0];
+          start = end = now.toISOString().split('T')[0];
           break;
-        case 'week':
-          const weekStart = new Date(today);
-          weekStart.setDate(today.getDate() - today.getDay());
+        case 'week': {
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay());
           start = weekStart.toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
           break;
+        }
         case 'month':
-          start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
+          start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
           break;
-        case 'quarter':
-          const quarter = Math.floor(today.getMonth() / 3);
-          start = new Date(today.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
+        case 'quarter': {
+          const quarter = Math.floor(now.getMonth() / 3);
+          start = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
           break;
+        }
         case 'year':
-          start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
-          end = today.toISOString().split('T')[0];
+          start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+          end = now.toISOString().split('T')[0];
           break;
         case 'all':
           start = '1900-01-01';
           end = '2999-12-31';
           break;
         default:
-          return;
+          return null;
       }
+      return { start, end };
+    };
+    const getDateRange = () => {
+      const start = $('#analytics-start').value || '1900-01-01';
+      const end = $('#analytics-end').value || '2999-12-31';
+      return { start, end };
+    };
+    const getDashboardRangeFilter = (range = getDashboardRange()) => {
+      const { start, end } = range;
+      return { start, end, allTime: isAllTimeRange(start, end) };
+    };
+    const getDashboardFilteredLines = (range) => {
+      const { start, end, allTime } = getDashboardRangeFilter(range);
+      const posted = postedLines();
+      return posted.filter(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
+      });
+    };
+    const getDashboardFilteredInvoices = (range) => {
+      const { start, end, allTime } = getDashboardRangeFilter(range);
+      return file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
+    };
+
+    const setDatePreset = (preset, section = 'analytics') => {
+      const range = dateRangeForPreset(preset);
+      if (!range) return;
+      const startInput = section === 'reports' ? $('#reports-start') : $('#analytics-start');
+      const endInput = section === 'reports' ? $('#reports-end') : $('#analytics-end');
+      const { start, end } = range;
 
       if (startInput) startInput.value = start;
       if (endInput) endInput.value = end;
       $$(`.date-preset-btn[data-for="${section}"]`).forEach(btn => btn.classList.remove('active'));
       $(`.date-preset-btn[data-preset="${preset}"][data-for="${section}"]`)?.classList.add('active');
+    };
+
+    const loadDashboardRange = () => {
+      try {
+        return JSON.parse(localStorage.getItem(DASHBOARD_RANGE_KEY) || 'null');
+      } catch {
+        return null;
+      }
+    };
+    const saveDashboardRange = (range, preset) => {
+      localStorage.setItem(DASHBOARD_RANGE_KEY, JSON.stringify({ range, preset }));
+    };
+    const ensureDashboardRange = () => {
+      const stored = loadDashboardRange();
+      if (stored?.range?.start && stored?.range?.end) return stored;
+      const range = dateRangeForPreset('month');
+      const preset = 'month';
+      saveDashboardRange(range, preset);
+      return { range, preset };
+    };
+    const getDashboardRange = () => ensureDashboardRange().range;
+    const getDashboardPreset = () => ensureDashboardRange().preset;
+    const updateDashboardRangeLabel = (range) => {
+      const label = $('#dashboard-range');
+      if (label) label.textContent = `Range: ${range.start} to ${range.end}`;
+    };
+    const setDashboardPreset = (preset) => {
+      const range = dateRangeForPreset(preset);
+      if (!range) return;
+      saveDashboardRange(range, preset);
+      $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === preset));
+      updateDashboardRangeLabel(range);
+    };
+
+    const setReportsRange = (start, end) => {
+      const startInput = $('#reports-start');
+      const endInput = $('#reports-end');
+      if (startInput) startInput.value = start;
+      if (endInput) endInput.value = end;
+      $$('.date-preset-btn[data-for="reports"]').forEach(btn => btn.classList.remove('active'));
+    };
+
+    const lastFullFilingPeriod = (frequency) => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      let start;
+      let end;
+      if (frequency === 'quarterly') {
+        const currentQuarter = Math.floor(month / 3);
+        const prevQuarter = currentQuarter === 0 ? 3 : currentQuarter - 1;
+        const prevYear = currentQuarter === 0 ? year - 1 : year;
+        start = new Date(prevYear, prevQuarter * 3, 1);
+        end = new Date(prevYear, prevQuarter * 3 + 3, 0);
+      } else if (frequency === 'semiannual') {
+        if (month < 6) {
+          start = new Date(year - 1, 6, 1);
+          end = new Date(year - 1, 12, 0);
+        } else {
+          start = new Date(year, 0, 1);
+          end = new Date(year, 6, 0);
+        }
+      } else {
+        start = new Date(year, month - 1, 1);
+        end = new Date(year, month, 0);
+      }
+      return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+      };
+    };
+
+    const currentFilingPeriod = (frequency) => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      let start;
+      let end;
+      if (frequency === 'quarterly') {
+        const currentQuarter = Math.floor(month / 3);
+        start = new Date(year, currentQuarter * 3, 1);
+        end = new Date(year, currentQuarter * 3 + 3, 0);
+      } else if (frequency === 'semiannual') {
+        if (month < 6) {
+          start = new Date(year, 0, 1);
+          end = new Date(year, 6, 0);
+        } else {
+          start = new Date(year, 6, 1);
+          end = new Date(year, 12, 0);
+        }
+      } else {
+        start = new Date(year, month, 1);
+        end = new Date(year, month + 1, 0);
+      }
+      return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+      };
+    };
+
+    const yearRange = (year) => {
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31);
+      return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+      };
+    };
+
+    const getGRTYearOptions = () => {
+      const years = new Set();
+      const currentYear = new Date().getFullYear();
+      years.add(currentYear);
+      file.invoices.forEach(inv => {
+        if (inv.issue_date) years.add(Number(inv.issue_date.slice(0, 4)));
+      });
+      file.ledger_entries.forEach(entry => {
+        if (entry.entry_date) years.add(Number(entry.entry_date.slice(0, 4)));
+      });
+      return Array.from(years).filter(Boolean).sort((a,b)=>b-a);
+    };
+
+    const populateGRTYearSelect = () => {
+      const select = $('#grt-year');
+      if (!select) return;
+      const options = getGRTYearOptions();
+      const current = String(new Date().getFullYear());
+      select.innerHTML = options.map(y => `<option value="${y}">${y}</option>`).join('');
+      if (!select.value) select.value = current;
     };
 
     const getReportsDateRange = () => {
@@ -4020,41 +4693,47 @@
       return { start, end };
     };
 
+    const isReportsActive = () => {
+      const reportsSection = $$('section[data-section="reports"]')[0];
+      return reportsSection && !reportsSection.classList.contains('hidden');
+    };
+
     const getFilteredLines = () => {
       const { start, end } = getDateRange();
+      const allTime = isAllTimeRange(start, end);
       const posted = postedLines();
       return posted.filter(l => {
         const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-        return entry && entry.entry_date >= start && entry.entry_date <= end;
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
       });
     };
 
     const getFilteredInvoices = () => {
       const { start, end } = getDateRange();
+      const allTime = isAllTimeRange(start, end);
       return file.invoices.filter(inv => {
-        return inv.issue_date >= start && inv.issue_date <= end;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       });
     };
 
+    const isAccrualBasis = () => (file?.settings?.accounting_basis || 'cash') === 'accrual';
     const getInvoiceIncome = () => {
-      const invoices = getFilteredInvoices();
+      const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
       const monthlyData = {};
       invoices.forEach(inv => {
-        // Check if invoice has a ledger entry (meaning it's been paid)
-        const hasLedgerEntry = file.ledger_entries.some(e => 
-          e.linked_invoice_id === inv.invoice_id && e.status === 'posted'
-        );
-        // Only count unpaid invoices (or all invoices if you want to see all)
-        // For now, let's show all invoices to see total invoiced amount
+        if (!inv.issue_date) return;
         const month = inv.issue_date.substring(0, 7);
         if (!monthlyData[month]) monthlyData[month] = 0;
-        monthlyData[month] += invoiceSubtotal(inv);
+        monthlyData[month] += invoiceTotal(inv);
       });
       return monthlyData;
     };
 
     const getInvoiceIncomeByCategory = () => {
-      const invoices = getFilteredInvoices();
+      const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
       const categoryMap = {};
       invoices.forEach(inv => {
         const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
@@ -4080,24 +4759,24 @@
         const lines = getFilteredLines();
         const monthlyData = {};
         
-        // Add income from ledger entries
+        // Add income/expense from ledger entries
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-          if (!entry) return;
+          if (!entry || !entry.entry_date) return;
           const month = entry.entry_date.substring(0, 7);
           if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
           
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
           
-          if (acct.type === 'income') {
+          if (acct.type === 'income' && !entry.linked_invoice_id) {
             monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
           } else if (acct.type === 'expense') {
             monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
           }
         });
 
-        // Add income from invoices (even if not paid yet)
+        // Add income from invoices
         const invoiceIncome = getInvoiceIncome();
         Object.keys(invoiceIncome).forEach(month => {
           if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
@@ -4189,9 +4868,12 @@
         let income = 0, expense = 0;
         
         lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
-          if (acct.type === 'income') income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          if (acct.type === 'income' && !entry?.linked_invoice_id) {
+            income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          }
           if (acct.type === 'expense') expense += (l.debit_cents || 0) - (l.credit_cents || 0);
         });
 
@@ -4362,8 +5044,10 @@
         
         // Add income from ledger entries
         lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct || acct.type !== 'income') return;
+          if (entry?.linked_invoice_id) return;
           const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
           if (amount > 0) {
             categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
@@ -4456,17 +5140,16 @@
     const renderClientRevenueChart = () => {
       try {
         destroyChart('clientRevenue');
-        const { start, end } = getDateRange();
         const clientMap = {};
         
         // Add revenue from invoices (based on invoice date, not payment date)
-        const invoices = getFilteredInvoices();
+        const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
         invoices.forEach(inv => {
           const party = file.parties.find(p => p.party_id === inv.party_id);
           const name = party?.name || 'Unknown';
-          const invSubtotal = invoiceSubtotal(inv);
-          if (invSubtotal > 0) {
-            clientMap[name] = (clientMap[name] || 0) + invSubtotal;
+          const invTotal = invoiceTotal(inv);
+          if (invTotal > 0) {
+            clientMap[name] = (clientMap[name] || 0) + invTotal;
           }
         });
 
@@ -4546,7 +5229,7 @@
         
         lines.forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-          if (!entry) return;
+          if (!entry || !entry.entry_date) return;
           const month = entry.entry_date.substring(0, 7);
           if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
           
@@ -4554,6 +5237,7 @@
           if (!acct) return;
           
           if (acct.type === 'income') {
+            if (entry.linked_invoice_id) return;
             const amt = (l.credit_cents || 0) - (l.debit_cents || 0);
             monthlyData[month].income += amt;
           } else if (acct.type === 'expense') {
@@ -4663,6 +5347,173 @@
         const chartEl = document.getElementById('monthly-summary-chart');
         if (chartEl && chartEl.parentElement) {
           chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const destroyDashboardChart = (chartId) => {
+      if (dashboardCharts[chartId]) {
+        dashboardCharts[chartId].destroy();
+        delete dashboardCharts[chartId];
+      }
+    };
+
+    const renderDashboardIncomeExpenseChart = (range) => {
+      try {
+        destroyDashboardChart('incomeExpense');
+        const lines = getDashboardFilteredLines(range);
+        const invoices = getDashboardFilteredInvoices(range);
+        const monthlyData = {};
+
+        lines.forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry || !entry.entry_date) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income' && !entry.linked_invoice_id) {
+            monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          } else if (acct.type === 'expense') {
+            monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+
+        invoices.forEach(inv => {
+          if (!inv.issue_date) return;
+          const month = inv.issue_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+          monthlyData[month].income += invoiceTotal(inv);
+        });
+
+        const months = Object.keys(monthlyData).sort();
+        const container = document.getElementById('dashboard-income-expense-container');
+        if (!container) return;
+        if (!container.querySelector('canvas')) {
+          container.innerHTML = '<canvas id="dashboard-income-expense-chart"></canvas>';
+        }
+        const chartEl = document.getElementById('dashboard-income-expense-chart');
+        if (!chartEl) return;
+        if (!months.length) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        dashboardCharts['incomeExpense'] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              borderColor: colors.income,
+              backgroundColor: colors.income + '20',
+              tension: 0.35,
+              fill: true
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              borderColor: colors.expense,
+              backgroundColor: colors.expense + '20',
+              tension: 0.35,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: { labels: { color: colors.text }, position: 'top' },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${fmt(context.parsed.y * 100, file.business.base_currency)}`
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: colors.text, maxRotation: 45, minRotation: 0 }, grid: { color: colors.grid } },
+              y: { ticks: { color: colors.text, callback: (value) => fmt(value * 100, file.business.base_currency) }, grid: { color: colors.grid } }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering dashboard income expense chart:', error);
+        const container = document.getElementById('dashboard-income-expense-container');
+        if (container) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderDashboardClientRevenueChart = (range) => {
+      try {
+        destroyDashboardChart('clientRevenue');
+        const invoices = getDashboardFilteredInvoices(range);
+        const clientMap = {};
+        invoices.forEach(inv => {
+          const party = file.parties.find(p => p.party_id === inv.party_id);
+          const name = party?.name || 'Unknown';
+          const invTotal = invoiceTotal(inv);
+          if (invTotal > 0) {
+            clientMap[name] = (clientMap[name] || 0) + invTotal;
+          }
+        });
+
+        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const container = document.getElementById('dashboard-client-revenue-container');
+        if (!container) return;
+        if (!container.querySelector('canvas')) {
+          container.innerHTML = '<canvas id="dashboard-client-revenue-chart"></canvas>';
+        }
+        const chartEl = document.getElementById('dashboard-client-revenue-chart');
+        if (!chartEl) return;
+        if (!entries.length) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No client revenue data available</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        const pieColors = [
+          '#3a7ff5', '#5aa3ff', '#7ab5ff', '#9ac7ff', '#bad9ff',
+          '#daebff', '#f0f7ff', '#ffd9ff'
+        ];
+        dashboardCharts['clientRevenue'] = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
+            datasets: [{
+              data: entries.map(([, amount]) => amount / 100),
+              backgroundColor: pieColors.slice(0, entries.length),
+              borderWidth: 2,
+              borderColor: isDarkMode() ? '#111624' : '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: colors.text, padding: 12, usePointStyle: true, font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = entries.reduce((sum, [, amt]) => sum + amt, 0);
+                    const percent = total > 0 ? ((context.parsed * 100 / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering dashboard client revenue chart:', error);
+        const container = document.getElementById('dashboard-client-revenue-container');
+        if (container) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
       }
     };
@@ -4805,6 +5656,52 @@
       return tmp.toDataURL('image/png');
     };
 
+    const applyPrintChartTheme = (chart) => {
+      if (!chart?.options) return null;
+      const original = {
+        legendColor: chart.options.plugins?.legend?.labels?.color,
+        titleColor: chart.options.plugins?.title?.color,
+        scales: {}
+      };
+      const textColor = '#111';
+      if (chart.options.plugins?.legend?.labels) {
+        chart.options.plugins.legend.labels.color = textColor;
+      }
+      if (chart.options.plugins?.title) {
+        chart.options.plugins.title.color = textColor;
+      }
+      if (chart.options.scales) {
+        Object.entries(chart.options.scales).forEach(([key, scale]) => {
+          original.scales[key] = {
+            ticksColor: scale.ticks?.color,
+            titleColor: scale.title?.color,
+            gridColor: scale.grid?.color
+          };
+          if (scale.ticks) scale.ticks.color = textColor;
+          if (scale.title) scale.title.color = textColor;
+          if (scale.grid) scale.grid.color = 'rgba(0,0,0,0.1)';
+        });
+      }
+      chart.update('none');
+      return () => {
+        if (chart.options.plugins?.legend?.labels) {
+          chart.options.plugins.legend.labels.color = original.legendColor;
+        }
+        if (chart.options.plugins?.title) {
+          chart.options.plugins.title.color = original.titleColor;
+        }
+        if (chart.options.scales) {
+          Object.entries(chart.options.scales).forEach(([key, scale]) => {
+            const prev = original.scales[key] || {};
+            if (scale.ticks) scale.ticks.color = prev.ticksColor;
+            if (scale.title) scale.title.color = prev.titleColor;
+            if (scale.grid) scale.grid.color = prev.gridColor;
+          });
+        }
+        chart.update('none');
+      };
+    };
+
     const chartBlock = (canvasId) => {
       const container = document.createElement('div');
       container.style.border = '1px solid #e5e7eb';
@@ -4813,15 +5710,14 @@
       container.style.background = '#ffffff';
       container.style.minHeight = '60px';
       const canvas = document.getElementById(canvasId);
-      // Nudge chart legend color darker before capture
+      // Nudge chart text to black before capture
+      let restoreTheme = null;
       if (window.Chart && Chart.getChart) {
         const ch = Chart.getChart(canvasId);
-        if (ch?.options?.plugins?.legend?.labels) {
-          ch.options.plugins.legend.labels.color = '#111';
-          ch.update('none');
-        }
+        restoreTheme = applyPrintChartTheme(ch);
       }
       const imgSrc = getCanvasImage(canvas);
+      if (restoreTheme) restoreTheme();
       if (imgSrc) {
         const img = document.createElement('img');
         img.src = imgSrc;
@@ -5216,14 +6112,116 @@
     };
 
     // ---------- Dashboard ----------
+    let dashboardActivityCache = [];
+    let dashboardActivityResizeBound = false;
+    let dashboardActivityObserver = null;
+    let dashboardSectionObserver = null;
+    let dashboardActivityRaf = null;
+    let dashboardActivityTimeout = null;
+
+    const scheduleDashboardActivityRender = () => {
+      if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
+      if (dashboardActivityTimeout) clearTimeout(dashboardActivityTimeout);
+      const run = () => {
+        if (dashboardActivityCache.length) {
+          renderDashboardActivityList(dashboardActivityCache);
+        }
+      };
+      dashboardActivityRaf = requestAnimationFrame(() => {
+        dashboardActivityRaf = null;
+        run();
+      });
+      dashboardActivityTimeout = setTimeout(() => {
+        dashboardActivityTimeout = null;
+        run();
+      }, 200);
+    };
+
+    const buildDashboardActivityRow = (activityItem) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.style.justifyContent = 'space-between';
+      row.style.paddingBottom = '12px';
+      row.style.marginBottom = '8px';
+      row.style.borderBottom = '1px solid var(--border)';
+      const statusDot = activityItem.status ? `<span class="status-dot ${activityItem.status==='paid'?'status-posted':'status-void'}"></span>` : '';
+      row.innerHTML = `<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${activityItem.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(activityItem.amount,file.business.base_currency)}</span>`;
+      return row;
+    };
+
+    const renderDashboardActivityList = (activity) => {
+      const dashboardSection = $$('section[data-section="dashboard"]')[0];
+      if (!dashboardSection) return;
+      const cards = dashboardSection.querySelectorAll(':scope > .card');
+      if (cards.length < 2) return;
+      const overviewCard = cards[0];
+      const activityCard = cards[1];
+      const act = activityCard.querySelector('#dashboard-activity');
+      if (!act) return;
+
+      const overviewHeight = overviewCard.getBoundingClientRect().height;
+      if (overviewHeight <= 0) return;
+      activityCard.style.height = `${overviewHeight}px`;
+      const cardStyles = getComputedStyle(activityCard);
+      const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
+      const cardRect = activityCard.getBoundingClientRect();
+      const actRect = act.getBoundingClientRect();
+      const availableHeight = Math.max(0, cardRect.height - (actRect.top - cardRect.top) - paddingBottom);
+      if (availableHeight > 0) {
+        act.style.height = `${availableHeight}px`;
+      } else {
+        act.style.height = '';
+      }
+
+      act.innerHTML = '';
+      if (!activity.length) return;
+
+      if (availableHeight <= 0) {
+        activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
+        scheduleDashboardActivityRender();
+        return;
+      }
+
+      for (const item of activity) {
+        const row = buildDashboardActivityRow(item);
+        act.appendChild(row);
+        if (act.scrollHeight > availableHeight) {
+          act.removeChild(row);
+          break;
+        }
+      }
+      const lastRow = act.lastElementChild;
+      if (lastRow) lastRow.style.borderBottom = 'none';
+    };
+
     const renderDashboard = () => {
       if (!file) return;
       const kpi = $('#dashboard-kpis'); kpi.innerHTML = '';
-      const posted = postedLines();
-      const income = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
+      const { start, end } = getDashboardRange();
+      const allTime = isAllTimeRange(start, end);
+      $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === getDashboardPreset()));
+      updateDashboardRangeLabel({ start, end });
+      const posted = postedLines().filter(l => {
+        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
+      });
+      const incomeFromLedger = posted
+        .filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='income')
+        .filter(l=>{
+          const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
+          return !entry?.linked_invoice_id;
+        })
         .reduce((s,l)=>s+(l.credit_cents||0)-(l.debit_cents||0),0);
       const expense = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='expense')
         .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
+      const invoiceIncome = file.invoices.filter(inv => {
+        if (inv.status === 'void') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      }).reduce((s, inv)=>s+invoiceTotal(inv),0);
+      const income = incomeFromLedger + invoiceIncome;
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:renderDashboard',message:'renderDashboard:totals',data:{income,expense,postedCount:posted.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
@@ -5242,7 +6240,6 @@
         div.innerHTML = `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;line-height:1.4">${c.label}</div><div style="font-size:1.85rem;font-weight:700;line-height:1.3;color:var(--text)">${c.value}</div>`;
         kpi.appendChild(div);
       });
-      const act = $('#dashboard-activity'); act.innerHTML = '';
       const activity = [];
       file.invoices.forEach(i=>{
         const party = file.parties.find(p=>p.party_id===i.party_id);
@@ -5251,17 +6248,29 @@
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
-      activity.slice(0,8).forEach(a=>{
-        const row = document.createElement('div');
-        row.className='row';
-        row.style.justifyContent='space-between';
-        row.style.paddingBottom='12px';
-        row.style.marginBottom='8px';
-        row.style.borderBottom='1px solid var(--border)';
-        const statusDot = a.status ? `<span class="status-dot ${a.status==='paid'?'status-posted':'status-void'}"></span>` : '';
-        row.innerHTML=`<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${a.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(a.amount,file.business.base_currency)}</span>`;
-        act.appendChild(row);
-      });
+      dashboardActivityCache = activity;
+      renderDashboardActivityList(activity);
+      renderDashboardClientRevenueChart({ start, end });
+      scheduleDashboardActivityRender();
+      if (!dashboardActivityResizeBound) {
+        dashboardActivityResizeBound = true;
+        const dashboardSection = $$('section[data-section="dashboard"]')[0];
+        if (dashboardSection) {
+          const cards = dashboardSection.querySelectorAll(':scope > .card');
+          if (cards.length >= 2) {
+            const overviewCard = cards[0];
+            if (window.ResizeObserver) {
+              dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
+              dashboardActivityObserver.observe(overviewCard);
+            }
+          }
+          if (window.ResizeObserver) {
+            dashboardSectionObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
+            dashboardSectionObserver.observe(dashboardSection);
+          }
+        }
+        window.addEventListener('resize', () => scheduleDashboardActivityRender());
+      }
     };
 
     // ---------- Event wiring ----------
@@ -5298,6 +6307,7 @@
         const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
         const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
+        const openNote = $('#open-note'); if (openNote) openNote.onclick = toggleNote;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
         const addService = $('#add-service'); if (addService) addService.onclick = () => editService({});
@@ -5306,12 +6316,35 @@
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
         const runProjectSummary = $('#run-project-summary'); if (runProjectSummary) runProjectSummary.onclick = () => renderSummary(projectProfit(), $('#report-project'));
-        const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderSummary(taxSummary(), $('#report-tax'));
+        const runTaxSummary = $('#run-tax-summary'); if (runTaxSummary) runTaxSummary.onclick = () => renderTaxSummary();
+        const calcGRT = $('#calc-grt'); if (calcGRT) calcGRT.onclick = () => {
+          const frequency = file?.settings?.grt_filing_frequency || 'monthly';
+          let range = lastFullFilingPeriod(frequency);
+          const lastBase = grtBaseForRange(range.start, range.end);
+          if (!lastBase) {
+            range = currentFilingPeriod(frequency);
+          }
+          setReportsRange(range.start, range.end);
+          refreshReports();
+        };
+        const calcGRTYear = $('#calc-grt-year'); if (calcGRTYear) calcGRTYear.onclick = () => {
+          const year = Number($('#grt-year')?.value) || new Date().getFullYear();
+          const range = yearRange(year);
+          setReportsRange(range.start, range.end);
+          refreshReports();
+        };
         // Reports date preset handlers
         $$('.date-preset-btn[data-for="reports"]').forEach(btn => {
           btn.onclick = () => {
             setDatePreset(btn.dataset.preset, 'reports');
             refreshReports();
+          };
+        });
+        // Dashboard date preset handlers
+        $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => {
+          btn.onclick = () => {
+            setDashboardPreset(btn.dataset.preset);
+            renderDashboard();
           };
         });
         const refreshReportsBtn = $('#refresh-reports'); if (refreshReportsBtn) refreshReportsBtn.onclick = refreshReports;
@@ -5370,12 +6403,88 @@
             }
           };
         }
-        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+        const normalizeCurrencyCode = (value) => String(value || '').trim().toUpperCase();
+        const isValidCurrency = (code) => {
+          if (!code || code.length !== 3) return false;
+          try {
+            new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(0);
+            return true;
+          } catch (e) {
+            return false;
+          }
+        };
+        const editBusinessInfo = $('#edit-business-info'); if (editBusinessInfo) editBusinessInfo.onclick = () => {
+          if (!file?.business) return;
+          showModal(`
+            <div class="stack">
+              <h3>Edit Business Info</h3>
+              <label>Business Name</label>
+              <input type="text" id="edit-business-name" placeholder="Business Name" value="${file.business.name || ''}">
+              <label style="margin-top:16px">Default Currency (ISO)</label>
+              <input type="text" id="edit-business-currency" placeholder="USD" maxlength="3" style="text-transform:uppercase" value="${file.business.base_currency || 'USD'}">
+              <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Use a 3-letter ISO 4217 code (e.g., USD, EUR).</p>
+              <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
+                <button data-cancel>Cancel</button>
+                <button data-confirm class="primary">Save</button>
+              </div>
+            </div>
+          `, () => {
+            const nameInput = $('#edit-business-name');
+            const currencyInput = $('#edit-business-currency');
+            const nextName = nameInput?.value?.trim() || '';
+            const nextCode = normalizeCurrencyCode(currencyInput?.value);
+            if (!nextName) {
+              showToast('Business name cannot be empty');
+              return;
+            }
+            if (!nextCode) {
+              showToast('Currency code is required');
+              return;
+            }
+            if (!isValidCurrency(nextCode)) {
+              showToast('Invalid currency code');
+              return;
+            }
+            file.business.name = nextName;
+            file.business.base_currency = nextCode;
+            file.business.updated_at = nowIso();
+            const listEntry = businessList.find(b => b.id === activeId);
+            if (listEntry) listEntry.name = nextName;
+            saveList();
+            saveFile();
+            renderBusinessSelector();
+            renderAll();
+          });
+        };
+        const logoChip = $('#logo-chip'); if (logoChip) logoChip.onclick = () => {
+          if (!file) return;
+          const currentTheme = file.settings.theme || 'system';
+          const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+          file.settings.theme = nextTheme;
+          saveFile();
+          applyTheme();
+          const themeSelect = $('#theme-select');
+          if (themeSelect) themeSelect.value = nextTheme;
+          const dashboardSection = $$('section[data-section="dashboard"]')[0];
+          if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard();
+          if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics();
+        };
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+        const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
+          if (!file) return;
+          const next = !(file.settings.show_splash_video !== false);
+          file.settings.show_splash_video = next;
+          splashVideoToggle.textContent = next ? 'On' : 'Off';
+          saveFile();
+        };
 
         const logoVariant = $('#logo-variant'); if (logoVariant) logoVariant.onchange = (e)=>{ if(file) { file.settings.logoVariant = e.target.value; saveFile(); applyTheme(); } };
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl=url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl=url; saveFile(); applyTheme(); } });
         const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
+        const grtPercent = $('#grt-percent'); if (grtPercent) grtPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.grt_percent = val; saveFile(); if (isReportsActive()) refreshReports(); } };
+        const grtBasis = $('#grt-basis'); if (grtBasis) grtBasis.onchange = (e)=>{ if(file) { file.settings.grt_basis = e.target.value; saveFile(); if (isReportsActive()) refreshReports(); } };
+        const grtFilingFrequency = $('#grt-filing-frequency'); if (grtFilingFrequency) grtFilingFrequency.onchange = (e)=>{ if(file) { file.settings.grt_filing_frequency = e.target.value; saveFile(); if (isReportsActive()) refreshReports(); } };
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
@@ -5561,18 +6670,26 @@
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
         const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
         
-        // Close side-panel when clicking outside of it (but not on calculator or interactive elements)
+        // Close side-panel when clicking outside of it (but not on calculator/notes or interactive elements)
         document.addEventListener('click', (e) => {
           const target = e.target;
           const sidePanel = $('#side-panel');
           const calculatorWindow = $('#calculator-window');
           const calculatorMinimized = $('#calculator-minimized');
+          const noteWindow = $('#note-window');
+          const noteMinimized = $('#note-minimized');
           
           // Always exclude calculator window and minimized calculator from closing logic
           if (calculatorWindow && !calculatorWindow.classList.contains('hidden') && calculatorWindow.contains(target)) {
             return;
           }
           if (calculatorMinimized && !calculatorMinimized.classList.contains('hidden') && calculatorMinimized.contains(target)) {
+            return;
+          }
+          if (noteWindow && !noteWindow.classList.contains('hidden') && noteWindow.contains(target)) {
+            return;
+          }
+          if (noteMinimized && !noteMinimized.classList.contains('hidden') && noteMinimized.contains(target)) {
             return;
           }
           
@@ -5687,6 +6804,274 @@
       }
     };
 
+    // ---------- Notes ----------
+    let noteState = {
+      open: false,
+      minimized: false,
+      x: 140,
+      y: 120,
+      width: 420,
+      height: 460,
+      currentId: null
+    };
+    let noteDirty = false;
+    let noteAutoSaveTimer = null;
+
+    const loadNoteState = () => {
+      const saved = localStorage.getItem('ck5_note_state');
+      if (saved) {
+        try {
+          noteState = { ...noteState, ...JSON.parse(saved) };
+        } catch (e) {}
+      }
+    };
+
+    const saveNoteState = () => {
+      localStorage.setItem('ck5_note_state', JSON.stringify(noteState));
+    };
+
+    const getNotes = () => file?.notes || [];
+
+    const getNoteById = (id) => getNotes().find(n => n.id === id);
+
+    const noteNeedsName = (note) => !note || !note.title || note.title === 'Untitled note';
+
+    const updateNoteActions = () => {
+      const hasNote = !!noteState.currentId;
+      const saveBtn = $('#note-save');
+      const deleteBtn = $('#note-delete');
+      const copyBtn = $('#note-copy');
+      const note = getNoteById(noteState.currentId);
+      const needsName = noteNeedsName(note);
+      if (saveBtn) saveBtn.disabled = !noteDirty && !needsName;
+      if (deleteBtn) deleteBtn.disabled = !hasNote;
+      if (copyBtn) copyBtn.disabled = !hasNote;
+    };
+
+    const setNoteDirty = (dirty) => {
+      noteDirty = dirty;
+      const saveBtn = $('#note-save');
+      const note = getNoteById(noteState.currentId);
+      const needsName = noteNeedsName(note);
+      if (saveBtn) saveBtn.disabled = !dirty && !needsName;
+      updateNoteActions();
+    };
+
+    const normalizeNoteTitle = (val) => (val || '').trim() || 'Untitled note';
+
+    const loadNoteIntoEditor = (note) => {
+      const contentInput = $('#note-content');
+      if (contentInput) {
+        const raw = note?.content || '';
+        const isHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+        contentInput.innerHTML = isHtml ? raw : raw.replace(/\n/g, '<br>');
+      }
+      setNoteDirty(false);
+    };
+
+    const renderNoteMenu = ({ preserveEditor = false } = {}) => {
+      const menu = $('#note-menu');
+      if (!menu) return;
+      const notes = getNotes()
+        .slice()
+        .sort((a, b) => ((b.updated_at || b.created_at || '') > (a.updated_at || a.created_at || '')) ? 1 : -1);
+      menu.innerHTML = '';
+      if (!notes.length) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No notes yet';
+        menu.appendChild(opt);
+        menu.disabled = true;
+        noteState.currentId = null;
+        loadNoteIntoEditor({ title: '', content: '' });
+        updateNoteActions();
+        return;
+      }
+      menu.disabled = false;
+      notes.forEach(note => {
+        const opt = document.createElement('option');
+        opt.value = note.id;
+        opt.textContent = note.title || 'Untitled note';
+        menu.appendChild(opt);
+      });
+      const hasCurrent = noteState.currentId && notes.find(n => n.id === noteState.currentId);
+      if (!hasCurrent) {
+        noteState.currentId = notes[0].id;
+      }
+      menu.value = noteState.currentId;
+      const selected = getNoteById(noteState.currentId);
+      if (selected && (!preserveEditor || !hasCurrent)) loadNoteIntoEditor(selected);
+      updateNoteActions();
+    };
+
+    const createNote = ({ silent = false } = {}) => {
+      if (!file) return null;
+      if (!file.notes) file.notes = [];
+      const now = nowIso();
+      const note = {
+        id: uuid(),
+        title: 'Untitled note',
+        content: '',
+        created_at: now,
+        updated_at: now
+      };
+      file.notes.unshift(note);
+      noteState.currentId = note.id;
+      saveFile();
+      renderNoteMenu();
+      if (!silent) showToast('Note created');
+      return note;
+    };
+
+    const createNoteFromEditor = ({ title, silent = false } = {}) => {
+      if (!file) return null;
+      if (!file.notes) file.notes = [];
+      const contentInput = $('#note-content');
+      const now = nowIso();
+      const note = {
+        id: uuid(),
+        title: normalizeNoteTitle(title || ''),
+        content: contentInput?.innerHTML || '',
+        created_at: now,
+        updated_at: now
+      };
+      file.notes.unshift(note);
+      noteState.currentId = note.id;
+      saveFile();
+      renderNoteMenu({ preserveEditor: true });
+      if (!silent) showToast('Note created');
+      return note;
+    };
+
+    const saveCurrentNote = ({ silent = false, titleOverride } = {}) => {
+      if (!file) return;
+      const contentInput = $('#note-content');
+      if (!contentInput) return;
+      const title = normalizeNoteTitle(titleOverride);
+      const content = contentInput.innerHTML || '';
+      let note = noteState.currentId ? getNoteById(noteState.currentId) : null;
+      if (!note) {
+        note = createNoteFromEditor({ title, silent: true });
+      }
+      if (!note) return;
+      if (titleOverride) note.title = title;
+      note.content = content;
+      note.updated_at = nowIso();
+      saveFile();
+      setNoteDirty(false);
+      renderNoteMenu({ preserveEditor: true });
+      if (!silent) showToast('Note saved');
+    };
+
+    const scheduleNoteAutosave = () => {
+      if (!file) return;
+      if (!noteState.currentId) {
+        createNoteFromEditor({ title: 'Untitled note', silent: true });
+      }
+      setNoteDirty(true);
+      clearTimeout(noteAutoSaveTimer);
+      noteAutoSaveTimer = setTimeout(() => saveCurrentNote({ silent: true }), 700);
+    };
+
+    const noteContentToText = (html) => {
+      const container = document.createElement('div');
+      container.innerHTML = html || '';
+      return container.innerText || '';
+    };
+
+    const promptNoteTitle = (defaultTitle, onConfirm) => {
+      showModal(`
+        <div class="stack">
+          <h3>Name this note</h3>
+          <input type="text" id="note-title-input" placeholder="Note name" value="${defaultTitle || ''}">
+          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary">Save Note</button>
+          </div>
+        </div>
+      `, () => {
+        const input = $('#note-title-input');
+        const title = normalizeNoteTitle(input?.value || '');
+        onConfirm(title);
+      });
+      setTimeout(() => {
+        const input = $('#note-title-input');
+        if (input) {
+          input.focus();
+          input.select();
+          input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+              const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
+              if (confirmBtn) confirmBtn.click();
+            }
+          };
+        }
+      }, 50);
+    };
+
+    const handleNoteSaveClick = () => {
+      const note = getNoteById(noteState.currentId);
+      if (noteNeedsName(note)) {
+        promptNoteTitle('', (title) => saveCurrentNote({ titleOverride: title }));
+        return;
+      }
+      saveCurrentNote();
+    };
+
+    const deleteCurrentNote = () => {
+      const note = getNoteById(noteState.currentId);
+      if (!note) return;
+      showModal(`
+        <div class="stack">
+          <h3>Delete Note</h3>
+          <p>This will permanently delete "${note.title || 'Untitled note'}".</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Cancel</button>
+            <button data-confirm class="primary" style="background:var(--danger)">Delete Note</button>
+          </div>
+        </div>
+      `, () => {
+        file.notes = file.notes.filter(n => n.id !== note.id);
+        noteState.currentId = file.notes[0]?.id || null;
+        saveFile();
+        renderNoteMenu();
+        showToast('Note deleted');
+      });
+    };
+
+    const copyCurrentNote = async () => {
+      const note = getNoteById(noteState.currentId);
+      if (!note) return;
+      const body = noteContentToText(note.content || '');
+      const text = `${note.title ? note.title + '\n\n' : ''}${body}`.trim();
+      if (!text) {
+        showToast('Nothing to copy');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied note');
+      } catch (e) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showToast('Copied note');
+      }
+    };
+
+
+    const renderNotes = () => {
+      if (!file) return;
+      if (!file.notes) file.notes = [];
+      renderNoteMenu();
+    };
+
     // ---------- Render all ----------
     const renderAll = () => {
       // #region agent log
@@ -5706,16 +7091,34 @@
       renderProjects();
       renderServices();
       renderDashboard();
+      renderNotes();
+      const reportsStart = $('#reports-start');
+      const reportsEnd = $('#reports-end');
+      if (reportsStart && reportsEnd && !reportsStart.value && !reportsEnd.value) {
+        setDatePreset('all', 'reports');
+      }
+      if (isReportsActive()) {
+        refreshReports();
+      }
       const themeSelect = $('#theme-select');
+      const splashVideoToggle = $('#splash-video-toggle');
       const logoVariant = $('#logo-variant');
       const defaultTaxPercent = $('#default-tax-percent');
+      const grtPercent = $('#grt-percent');
+      const grtBasis = $('#grt-basis');
+      const grtFilingFrequency = $('#grt-filing-frequency');
       if (themeSelect) themeSelect.value = file.settings.theme;
+      if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
       if (logoVariant) logoVariant.value = file.settings.logoVariant;
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
+      if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
+      if (grtBasis) grtBasis.value = file.settings.grt_basis || 'invoices';
+      if (grtFilingFrequency) grtFilingFrequency.value = file.settings.grt_filing_frequency || 'monthly';
       updateHeaderImagePreview();
       renderBusinessInfo();
       renderMigrationBlock();
       runIntegrity();
+      populateGRTYearSelect();
       // #region agent log
       logDebug('renderAll:complete','renderAll completed',{},'F');
       // #endregion
@@ -5757,6 +7160,26 @@
       const secondary = $('#calculator-secondary');
       if (primary) primary.textContent = calculator.display;
       if (secondary) secondary.textContent = calculator.secondary;
+    };
+
+    const copyCalculatorValue = async () => {
+      const text = String(calculator.display ?? '').trim();
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied number');
+      } catch (e) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showToast('Copied number');
+      }
     };
 
     const inputNumber = (num) => {
@@ -5858,6 +7281,13 @@
 
     const initCalculator = () => {
       updateCalculatorDisplay();
+      const copyBtn = $('#calculator-copy');
+      if (copyBtn) {
+        copyBtn.onclick = (e) => {
+          e.stopPropagation();
+          copyCalculatorValue();
+        };
+      }
       const buttons = $$('.calc-btn');
       buttons.forEach(btn => {
         btn.onclick = (e) => {
@@ -6116,17 +7546,251 @@
       }
     };
 
+    // ---------- Notes Window ----------
+    let isNoteDragging = false;
+    let noteDragOffset = { x: 0, y: 0 };
+    let isNoteResizing = false;
+    let noteResizeStart = { x: 0, y: 0, width: 0, height: 0 };
+
+    const startNoteDrag = (e) => {
+      if (e.target.closest('.note-controls')) return;
+      isNoteDragging = true;
+      const rect = $('#note-window').getBoundingClientRect();
+      noteDragOffset.x = e.clientX - rect.left;
+      noteDragOffset.y = e.clientY - rect.top;
+      e.preventDefault();
+    };
+
+    const onNoteDrag = (e) => {
+      if (!isNoteDragging) return;
+      const x = e.clientX - noteDragOffset.x;
+      const y = e.clientY - noteDragOffset.y;
+      const maxX = window.innerWidth - noteState.width;
+      const maxY = window.innerHeight - noteState.height;
+      noteState.x = Math.max(0, Math.min(x, maxX));
+      noteState.y = Math.max(0, Math.min(y, maxY));
+      updateNotePosition();
+    };
+
+    const endNoteDrag = () => {
+      if (isNoteDragging) {
+        isNoteDragging = false;
+        saveNoteState();
+      }
+    };
+
+    const startNoteResize = (e) => {
+      isNoteResizing = true;
+      const rect = $('#note-window').getBoundingClientRect();
+      noteResizeStart.x = e.clientX;
+      noteResizeStart.y = e.clientY;
+      noteResizeStart.width = rect.width;
+      noteResizeStart.height = rect.height;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const onNoteResize = (e) => {
+      if (!isNoteResizing) return;
+      const deltaX = e.clientX - noteResizeStart.x;
+      const deltaY = e.clientY - noteResizeStart.y;
+      const minWidth = 280;
+      const minHeight = 120;
+      noteState.width = Math.max(minWidth, noteResizeStart.width + deltaX);
+      noteState.height = Math.max(minHeight, noteResizeStart.height + deltaY);
+      updateNoteSize();
+    };
+
+    const endNoteResize = () => {
+      if (isNoteResizing) {
+        isNoteResizing = false;
+        saveNoteState();
+      }
+    };
+
+    const updateNotePosition = () => {
+      const window = $('#note-window');
+      if (window) {
+        window.style.left = noteState.x + 'px';
+        window.style.top = noteState.y + 'px';
+      }
+    };
+
+    const updateNoteSize = () => {
+      const window = $('#note-window');
+      if (window) {
+        window.style.width = noteState.width + 'px';
+        window.style.height = noteState.height + 'px';
+      }
+    };
+
+    const openNote = () => {
+      noteState.open = true;
+      noteState.minimized = false;
+      $('#note-window').classList.remove('hidden');
+      $('#note-minimized').classList.add('hidden');
+      updateNotePosition();
+      updateNoteSize();
+      renderNoteMenu();
+      saveNoteState();
+    };
+
+    const closeNote = () => {
+      noteState.open = false;
+      noteState.minimized = false;
+      $('#note-window').classList.add('hidden');
+      $('#note-minimized').classList.add('hidden');
+      saveNoteState();
+    };
+
+    const minimizeNote = () => {
+      noteState.minimized = true;
+      noteState.open = true;
+      $('#note-window').classList.add('hidden');
+      const minimized = $('#note-minimized');
+      if (minimized) {
+        minimized.classList.remove('hidden');
+        minimized.onclick = function(e) {
+          e.stopPropagation();
+          restoreNote();
+        };
+        const restoreBtn = minimized.querySelector('#note-restore');
+        if (restoreBtn) {
+          restoreBtn.onclick = function(e) {
+            e.stopPropagation();
+            restoreNote();
+          };
+        }
+      }
+      saveNoteState();
+    };
+
+    const restoreNote = () => {
+      noteState.minimized = false;
+      noteState.open = true;
+      const noteWindow = $('#note-window');
+      const minimized = $('#note-minimized');
+      if (noteWindow) noteWindow.classList.remove('hidden');
+      if (minimized) minimized.classList.add('hidden');
+      updateNotePosition();
+      updateNoteSize();
+      renderNoteMenu();
+      saveNoteState();
+    };
+
+    const toggleNote = () => {
+      if (noteState.minimized) {
+        restoreNote();
+      } else if (noteState.open) {
+        closeNote();
+      } else {
+        openNote();
+      }
+    };
+
+    const initNoteWindow = () => {
+      loadNoteState();
+      updateNotePosition();
+      updateNoteSize();
+      renderNoteMenu();
+
+      const header = $('#note-header');
+      const resizeHandle = $('#note-resize');
+      const minimizeBtn = $('#note-minimize');
+      const closeBtn = $('#note-close');
+      const restoreBtn = $('#note-restore');
+      const menu = $('#note-menu');
+      const newBtn = $('#note-new');
+      const saveBtn = $('#note-save');
+      const deleteBtn = $('#note-delete');
+      const copyBtn = $('#note-copy');
+      const contentInput = $('#note-content');
+
+      if (header) {
+        header.addEventListener('mousedown', startNoteDrag);
+      }
+      if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', startNoteResize);
+      }
+      if (minimizeBtn) {
+        minimizeBtn.onclick = (e) => {
+          e.stopPropagation();
+          minimizeNote();
+        };
+      }
+      if (closeBtn) {
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          closeNote();
+        };
+      }
+      if (restoreBtn) {
+        restoreBtn.onclick = function(e) {
+          e.stopPropagation();
+          restoreNote();
+        };
+      }
+      if (menu) {
+        menu.onchange = (e) => {
+          if (noteDirty) saveCurrentNote({ silent: true });
+          noteState.currentId = e.target.value || null;
+          const selected = getNoteById(noteState.currentId);
+          if (selected) loadNoteIntoEditor(selected);
+          updateNoteActions();
+        };
+      }
+      if (newBtn) newBtn.onclick = () => {
+        if (noteDirty) saveCurrentNote({ silent: true });
+        createNote();
+      };
+      if (saveBtn) saveBtn.onclick = () => handleNoteSaveClick();
+      if (deleteBtn) deleteBtn.onclick = () => deleteCurrentNote();
+      if (copyBtn) copyBtn.onclick = () => copyCurrentNote();
+      if (contentInput) contentInput.oninput = scheduleNoteAutosave;
+
+      document.addEventListener('mousemove', (e) => {
+        onNoteDrag(e);
+        onNoteResize(e);
+      });
+      document.addEventListener('mouseup', () => {
+        endNoteDrag();
+        endNoteResize();
+      });
+
+      const noteMinimized = $('#note-minimized');
+      if (noteMinimized) {
+        noteMinimized.style.cursor = 'pointer';
+        noteMinimized.onclick = function(e) {
+          e.stopPropagation();
+          restoreNote();
+        };
+        noteMinimized.addEventListener('click', function(e) {
+          e.stopPropagation();
+          restoreNote();
+        });
+      }
+
+      if (noteState.open && !noteState.minimized) {
+        openNote();
+      } else if (noteState.minimized) {
+        minimizeNote();
+      }
+    };
+
     // ---------- Init ----------
     const initApp = () => {
       // #region agent log
       logDebug('initApp:entry','initApp called - app initialization started',{},'A');
       // #endregion
       try {
+        syncStickyOffsets();
+        window.addEventListener('resize', syncStickyOffsets);
         bindUI();
         // #region agent log
         logDebug('initApp:after-bindUI','bindUI completed',{},'A');
         // #endregion
         initCalculatorWindow();
+        initNoteWindow();
         loadList();
         // #region agent log
         logDebug('initApp:after-loadList','loadList completed',{businessListLength:businessList.length,activeId},'A');
@@ -6136,6 +7800,9 @@
           setTab('settings');
         } else {
           loadActive(); // This will prompt to create a business if none exists
+        }
+        if (file?.settings?.show_splash_video !== false) {
+          showSplashVideo();
         }
         // #region agent log
         logDebug('initApp:complete','initApp completed successfully',{},'A');
