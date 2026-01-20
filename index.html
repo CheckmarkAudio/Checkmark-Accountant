@@ -3582,7 +3582,7 @@
             </div>
             <div class="row" style="gap:8px; align-items:center">
               <button type="button" id="txn-apply-time" class="ghost">Apply</button>
-              <span class="muted" id="txn-time-note" style="font-size:0.9rem;">Enter time and rate</span>
+              <span class="muted" id="txn-time-note" style="font-size:0.9rem;">Enter time and rate to get amount</span>
             </div>
           </div>
           <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===t.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
