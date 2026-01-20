@@ -796,6 +796,10 @@
       background: var(--border);
       border-color: var(--accent);
     }
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+    }
     .calculator-window {
       position: fixed;
       width: min(320px, 92vw);
@@ -1228,7 +1232,16 @@
           </div>
           <div class="stack">
             <table>
-              <thead><tr><th>#</th><th>Client</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
+              <thead>
+                <tr>
+                  <th id="sort-inv-number" class="sortable">#</th>
+                  <th id="sort-inv-client" class="sortable">Client</th>
+                  <th id="sort-inv-date" class="sortable">Date</th>
+                  <th id="sort-inv-status" class="sortable">Status</th>
+                  <th id="sort-inv-total" class="sortable">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
               <tbody id="invoice-rows"></tbody>
             </table>
             <div class="empty hidden" id="invoice-empty">No invoices yet. Create your first invoice.</div>
@@ -1252,7 +1265,15 @@
               <input type="search" id="txn-search" placeholder="Search by name or date" style="min-width:220px">
             </div>
             <table>
-              <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th></th></tr></thead>
+              <thead>
+                <tr>
+                  <th id="sort-txn-date" class="sortable">Date</th>
+                  <th id="sort-txn-type" class="sortable">Type</th>
+                  <th id="sort-txn-category" class="sortable">Category</th>
+                  <th id="sort-txn-amount" class="sortable">Amount</th>
+                  <th></th>
+                </tr>
+              </thead>
               <tbody id="txn-rows"></tbody>
             </table>
             <div class="empty hidden" id="txn-empty">No transactions yet.</div>
@@ -1906,6 +1927,8 @@
     let activeId = null;
     let file = null;
     let undoStack = [];
+    let invoiceSort = { key: 'number', dir: 1 };
+    let txnSort = { key: 'date', dir: -1 };
     let deleteBusinessBtn = null;
 
     const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
@@ -2545,9 +2568,23 @@
         const party = file.parties.find(p => p.party_id === inv.party_id);
         return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
       });
+      const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+      const compareNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
+      const sortRows = rows.slice().sort((a, b) => {
+        let result = 0;
+        if (invoiceSort.key === 'number') result = compareNum(a.number, b.number);
+        else if (invoiceSort.key === 'client') {
+          const nameA = file.parties.find(p=>p.party_id===a.party_id)?.name || '';
+          const nameB = file.parties.find(p=>p.party_id===b.party_id)?.name || '';
+          result = compareText(nameA, nameB);
+        } else if (invoiceSort.key === 'date') result = compareText(a.issue_date, b.issue_date);
+        else if (invoiceSort.key === 'status') result = compareText(a.status, b.status);
+        else if (invoiceSort.key === 'total') result = compareNum(invoiceTotal(a), invoiceTotal(b));
+        return result * invoiceSort.dir;
+      });
       if (!file.invoices.length) $('#invoice-empty').classList.remove('hidden'); else $('#invoice-empty').classList.add('hidden');
       if (file.invoices.length && !rows.length) $('#invoice-empty-filter')?.classList.remove('hidden'); else $('#invoice-empty-filter')?.classList.add('hidden');
-      rows.forEach(inv => {
+      sortRows.forEach(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(inv.number||'—')}</td><td>${escapeHtml(party?.name||'—')}</td><td>${escapeHtml(inv.issue_date||'')}</td>
@@ -3551,9 +3588,19 @@
           || matchesSearch(t.type, searchQuery)
           || matchesSearch(t.date, searchQuery);
       });
+      const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+      const compareNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
+      const sortRows = rows.slice().sort((a, b) => {
+        let result = 0;
+        if (txnSort.key === 'date') result = compareText(a.date, b.date);
+        else if (txnSort.key === 'type') result = compareText(a.type, b.type);
+        else if (txnSort.key === 'category') result = compareText(a.category, b.category);
+        else if (txnSort.key === 'amount') result = compareNum(a.amount_cents, b.amount_cents);
+        return result * txnSort.dir;
+      });
       if (!list.length) $('#txn-empty').classList.remove('hidden'); else $('#txn-empty').classList.add('hidden');
       if (list.length && !rows.length) $('#txn-empty-filter')?.classList.remove('hidden'); else $('#txn-empty-filter')?.classList.add('hidden');
-      rows.forEach(t => {
+      sortRows.forEach(t => {
         const isDraft = t.status === 'draft';
         const typeLabel = `${escapeHtml(t.type || 'draft')}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
         const tr = document.createElement('tr');
@@ -6727,6 +6774,19 @@
         const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
         const importTxnFile = $('#import-txn-file'); if (importTxnFile) importTxnFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importTransactionsData); e.target.value=''; } };
         const txnSearch = $('#txn-search'); if (txnSearch) txnSearch.oninput = () => renderTransactions();
+        const setSort = (state, key) => {
+          if (state.key === key) state.dir *= -1;
+          else { state.key = key; state.dir = 1; }
+        };
+        const invNumber = $('#sort-inv-number'); if (invNumber) invNumber.onclick = () => { setSort(invoiceSort, 'number'); renderInvoices(); };
+        const invClient = $('#sort-inv-client'); if (invClient) invClient.onclick = () => { setSort(invoiceSort, 'client'); renderInvoices(); };
+        const invDate = $('#sort-inv-date'); if (invDate) invDate.onclick = () => { setSort(invoiceSort, 'date'); renderInvoices(); };
+        const invStatus = $('#sort-inv-status'); if (invStatus) invStatus.onclick = () => { setSort(invoiceSort, 'status'); renderInvoices(); };
+        const invTotal = $('#sort-inv-total'); if (invTotal) invTotal.onclick = () => { setSort(invoiceSort, 'total'); renderInvoices(); };
+        const txnDate = $('#sort-txn-date'); if (txnDate) txnDate.onclick = () => { setSort(txnSort, 'date'); renderTransactions(); };
+        const txnType = $('#sort-txn-type'); if (txnType) txnType.onclick = () => { setSort(txnSort, 'type'); renderTransactions(); };
+        const txnCategory = $('#sort-txn-category'); if (txnCategory) txnCategory.onclick = () => { setSort(txnSort, 'category'); renderTransactions(); };
+        const txnAmount = $('#sort-txn-amount'); if (txnAmount) txnAmount.onclick = () => { setSort(txnSort, 'amount'); renderTransactions(); };
         const exportClientsJsonBtn = $('#export-clients-json'); if (exportClientsJsonBtn) exportClientsJsonBtn.onclick = () => exportClientsData('json');
         const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
         const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
