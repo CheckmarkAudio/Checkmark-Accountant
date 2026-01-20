@@ -2176,13 +2176,27 @@
           const startInput = $('#analytics-start');
           const endInput = $('#analytics-end');
           if (startInput && !startInput.value) {
-            setDatePreset('month', 'analytics');
+            setDatePreset('all', 'analytics');
           } else if (startInput && endInput) {
             // If dates are set, just render
             renderAnalytics();
           } else {
-            setDatePreset('month', 'analytics');
+            setDatePreset('all', 'analytics');
             renderAnalytics();
+          }
+        }, 100);
+      }
+      if (tab === 'reports' && file) {
+        setTimeout(() => {
+          const startInput = $('#reports-start');
+          const endInput = $('#reports-end');
+          if (startInput && !startInput.value) {
+            setDatePreset('all', 'reports');
+          } else if (startInput && endInput) {
+            refreshReports();
+          } else {
+            setDatePreset('all', 'reports');
+            refreshReports();
           }
         }, 100);
       }
