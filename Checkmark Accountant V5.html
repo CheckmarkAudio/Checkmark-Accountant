@@ -6165,7 +6165,7 @@
       act.innerHTML = '';
       if (!activity.length) return;
 
-      activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
+      activity.slice(0, 14).forEach(item => act.appendChild(buildDashboardActivityRow(item)));
       const actRect = act.getBoundingClientRect();
       if (actRect.height > 0) {
         const listBottom = actRect.bottom;
