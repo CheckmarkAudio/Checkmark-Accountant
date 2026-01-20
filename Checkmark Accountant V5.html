@@ -6193,7 +6193,10 @@
       act.innerHTML = '';
       if (!activity.length) return;
 
-      const availableHeight = act.getBoundingClientRect().height;
+      const cardStyles = getComputedStyle(activityCard);
+      const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
+      const cardHeight = activityCard.getBoundingClientRect().height;
+      const availableHeight = Math.max(0, cardHeight - act.offsetTop - paddingBottom);
       const sampleRow = buildDashboardActivityRow(activity[0]);
       act.appendChild(sampleRow);
       const rowStyles = getComputedStyle(sampleRow);
