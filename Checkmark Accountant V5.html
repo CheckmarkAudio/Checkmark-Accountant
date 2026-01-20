@@ -6135,6 +6135,7 @@
     };
 
     let dashboardActivityResizeBound = false;
+    let dashboardActivityObserver = null;
 
     const syncDashboardActivityHeight = () => {
       const dashboardSection = $$('section[data-section="dashboard"]')[0];
@@ -6145,7 +6146,7 @@
       const activityCard = cards[1];
       const overviewHeight = overviewCard.getBoundingClientRect().height;
       if (overviewHeight > 0) {
-        activityCard.style.maxHeight = `${overviewHeight}px`;
+        activityCard.style.height = `${overviewHeight}px`;
       }
     };
 
@@ -6216,16 +6217,27 @@
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
       renderDashboardActivityList(activity);
+      renderDashboardClientRevenueChart({ start, end });
       syncDashboardActivityHeight();
       if (!dashboardActivityResizeBound) {
         dashboardActivityResizeBound = true;
+        const dashboardSection = $$('section[data-section="dashboard"]')[0];
+        if (dashboardSection) {
+          const cards = dashboardSection.querySelectorAll(':scope > .card');
+          if (cards.length >= 2) {
+            const overviewCard = cards[0];
+            if (window.ResizeObserver) {
+              dashboardActivityObserver = new ResizeObserver(() => syncDashboardActivityHeight());
+              dashboardActivityObserver.observe(overviewCard);
+            }
+          }
+        }
         window.addEventListener('resize', () => {
-          const dashboardSection = $$('section[data-section="dashboard"]')[0];
-          if (!dashboardSection || dashboardSection.classList.contains('hidden')) return;
+          const section = $$('section[data-section="dashboard"]')[0];
+          if (!section || section.classList.contains('hidden')) return;
           syncDashboardActivityHeight();
         });
       }
-      renderDashboardClientRevenueChart({ start, end });
     };
 
     // ---------- Event wiring ----------
