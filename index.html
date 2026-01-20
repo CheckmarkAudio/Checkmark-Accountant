@@ -2594,7 +2594,10 @@
       const partyOptions = sortPartiesByName(file.parties)
         .map(p=>`<option value="${escapeHtml(p.party_id)}" ${p.party_id===inv.party_id?'selected':''}>${escapeHtml(p.name)}</option>`)
         .join('');
-      const serviceRecent = file.services.slice(-3).reverse();
+      const recentServiceIds = recentSelections('service');
+      const serviceRecent = recentServiceIds.length
+        ? recentServiceIds.map(id => file.services.find(s => s.service_id === id)).filter(Boolean)
+        : file.services.slice(-3).reverse();
       const lines = inv.lines || [];
       const lineItems = lines.map(l => lineRow(l)).join('');
       const taxPercentDefault = inv.tax_percent ?? file.settings.default_tax_percent ?? 0;
@@ -2665,9 +2668,11 @@
 
     const editInvoice = (inv, isDraft=false) => {
       if (!file) return;
+      const lastPartyId = recentSelections('party')[0];
+      const partyDefault = inv.party_id || lastPartyId || (file.parties[0]?.party_id || null);
       const invoice = isDraft ? inv : {
         invoice_id: inv.invoice_id || uuid(),
-        party_id: inv.party_id || (file.parties[0]?.party_id || null),
+        party_id: partyDefault,
         project_id: inv.project_id || null,
         issue_date: inv.issue_date || today(),
         status: inv.status || 'draft',
@@ -2789,6 +2794,7 @@
         if (!file.invoices.find(i=>i.invoice_id===saved.invoice_id)) file.invoices.push(saved);
         else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
         file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
+        pushRecent('party', saved.party_id);
         saveFile();
         renderInvoices();
         closePanel();
@@ -2835,7 +2841,7 @@
         if (!file.invoices.find(i=>i.invoice_id===saved.invoice_id)) file.invoices.push(saved);
         else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
         file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
-        localStorage.removeItem(STORAGE.draftInvoice(activeId));
+        pushRecent('party', saved.party_id);
         saveFile();
         renderInvoices();
         closePanel();
@@ -2889,6 +2895,7 @@
 
     const addLineFromService = (container, svc) => {
       if (container.querySelector('.empty')) container.innerHTML='';
+      pushRecent('service', svc.service_id);
       const billing = svc.billing_type || 'flat';
       const timeMinutes = billing==='hourly' ? 60 : null;
       const quantity = billing==='hourly' ? (timeMinutes/60) : 1;
@@ -3560,6 +3567,7 @@
 
     const txnForm = (t={}) => {
       const recentCats = recentSelections('category');
+      const defaultCategory = t.category || recentCats[0] || '';
       const typeValue = t.type || 'expense';
       return `
         <form id="txn-form" class="stack">
@@ -3570,7 +3578,7 @@
             ${['income','expense','transfer'].map(v=>`<button type="button" class="type-toggle ${typeValue===v?'active':''}" data-type="${v}">${v}</button>`).join('')}
           </div>
           <label>Category</label>
-          <input name="category" value="${escapeHtml(t.category||'')}" list="cat-list">
+          <input name="category" value="${escapeHtml(defaultCategory)}" list="cat-list">
           <datalist id="cat-list">${file.accounts.map(a=>`<option value="${escapeHtml(a.code)} - ${escapeHtml(a.name)}">`).join('')}</datalist>
           <div class="row" style="gap:8px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>
           <label>Amount</label><input name="amount" type="number" step="0.01" value="${centsToMoney(t.amount_cents||0)}">
