@@ -7658,12 +7658,12 @@
       const invoicesStart = $('#invoices-start');
       const invoicesEnd = $('#invoices-end');
       if (invoicesStart && invoicesEnd && !invoicesStart.value && !invoicesEnd.value) {
-        setDatePreset('all', 'invoices');
+        setDatePreset('month', 'invoices');
       }
       const transactionsStart = $('#transactions-start');
       const transactionsEnd = $('#transactions-end');
       if (transactionsStart && transactionsEnd && !transactionsStart.value && !transactionsEnd.value) {
-        setDatePreset('all', 'transactions');
+        setDatePreset('month', 'transactions');
       }
       if (isReportsActive()) {
         refreshReports();
