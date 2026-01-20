@@ -4240,8 +4240,10 @@
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between; padding: 12px 0; margin-top: 8px; font-weight: 600; font-size: 1.1rem"><span>Net</span><strong style="color: var(--accent)">${fmt(income-expense,file.business.base_currency)}</strong></div>
         <div class="report-pl-chart"><canvas id="reports-pl-chart"></canvas></div>
+        <div class="report-pl-chart"><canvas id="reports-monthly-summary-chart"></canvas></div>
       `;
       renderReportsProfitLossChart();
+      renderReportsMonthlySummaryChart();
     };
 
     const summaryByAccount = (type) => {
@@ -5163,6 +5165,135 @@
         const chartEl = document.getElementById('reports-pl-chart');
         if (chartEl && chartEl.parentElement) {
           chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:28px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderReportsMonthlySummaryChart = () => {
+      try {
+        destroyReportsChart('reportsMonthlySummary');
+        const chartEl = document.getElementById('reports-monthly-summary-chart');
+        if (!chartEl) return;
+        const container = chartEl.parentElement;
+        const { start, end } = getReportsDateRange();
+        const allTime = isAllTimeRange(start, end);
+        const monthlyData = {};
+
+        postedLines().forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry || !entry.entry_date) return;
+          if (!allTime && (entry.entry_date < start || entry.entry_date > end)) return;
+          const month = entry.entry_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          if (acct.type === 'income') {
+            if (entry.linked_invoice_id) return;
+            monthlyData[month].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          } else if (acct.type === 'expense') {
+            monthlyData[month].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+
+        file.invoices.forEach(inv => {
+          if (inv.status === 'void') return;
+          if (!inv.issue_date) return;
+          if (!allTime && (inv.issue_date < start || inv.issue_date > end)) return;
+          const month = inv.issue_date.substring(0, 7);
+          if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0, profit: 0 };
+          monthlyData[month].income += invoiceTotal(inv);
+        });
+
+        Object.keys(monthlyData).forEach(month => {
+          monthlyData[month].profit = monthlyData[month].income - monthlyData[month].expense;
+        });
+
+        const months = Object.keys(monthlyData).sort();
+
+        if (!chartEl.parentElement.querySelector('canvas')) {
+          chartEl.parentElement.innerHTML = '<canvas id="reports-monthly-summary-chart"></canvas>';
+        }
+
+        if (!months.length) {
+          container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        reportsCharts['reportsMonthlySummary'] = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [{
+              label: 'Income',
+              data: months.map(m => monthlyData[m].income / 100),
+              backgroundColor: colors.income + '80',
+              borderColor: colors.income,
+              borderWidth: 1
+            }, {
+              label: 'Expenses',
+              data: months.map(m => monthlyData[m].expense / 100),
+              backgroundColor: colors.expense + '80',
+              borderColor: colors.expense,
+              borderWidth: 1
+            }, {
+              label: 'Profit',
+              data: months.map(m => monthlyData[m].profit / 100),
+              backgroundColor: colors.profit + '80',
+              borderColor: colors.profit,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: {
+                labels: {
+                  color: colors.text,
+                  usePointStyle: true
+                },
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.dataset.label || '';
+                    const value = fmt(context.parsed.y * 100, file.business.base_currency);
+                    return `${label}: ${value}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: colors.text,
+                  maxRotation: 45,
+                  minRotation: 0
+                },
+                grid: { color: colors.grid }
+              },
+              y: {
+                ticks: {
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                },
+                grid: { color: colors.grid }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering reports monthly summary chart:', error);
+        const chartEl = document.getElementById('reports-monthly-summary-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
         }
       }
     };
