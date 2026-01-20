@@ -706,6 +706,11 @@
     .logo-input-row label {
       display: block;
     }
+    .report-pl-chart {
+      margin-top: 16px;
+      height: 180px;
+      position: relative;
+    }
     .header-image-preview-row {
       display: flex;
       align-items: center;
@@ -4234,7 +4239,9 @@
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Income</span><strong>${fmt(income,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between; padding: 12px 0; border-bottom: 1px solid var(--border)"><span>Expenses</span><strong>${fmt(expense,file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between; padding: 12px 0; margin-top: 8px; font-weight: 600; font-size: 1.1rem"><span>Net</span><strong style="color: var(--accent)">${fmt(income-expense,file.business.base_currency)}</strong></div>
+        <div class="report-pl-chart"><canvas id="reports-pl-chart"></canvas></div>
       `;
+      renderReportsProfitLossChart();
     };
 
     const summaryByAccount = (type) => {
@@ -4600,6 +4607,7 @@
     let analyticsCharts = {};
     const isDarkMode = () => document.documentElement.classList.contains('dark');
     let dashboardCharts = {};
+    let reportsCharts = {};
     const getChartColors = () => {
       const isDark = isDarkMode();
       return {
@@ -4885,6 +4893,12 @@
         delete analyticsCharts[chartId];
       }
     };
+    const destroyReportsChart = (chartId) => {
+      if (reportsCharts[chartId]) {
+        reportsCharts[chartId].destroy();
+        delete reportsCharts[chartId];
+      }
+    };
 
     const renderIncomeExpenseChart = () => {
       try {
@@ -5073,6 +5087,122 @@
         const chartEl = document.getElementById('profit-loss-chart');
         if (chartEl && chartEl.parentElement) {
           chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger)">Error loading chart</div>';
+        }
+      }
+    };
+
+    const renderReportsProfitLossChart = () => {
+      try {
+        destroyReportsChart('reportsProfitLoss');
+        const chartEl = document.getElementById('reports-pl-chart');
+        if (!chartEl) return;
+        const container = chartEl.parentElement;
+        const { start, end } = getReportsDateRange();
+        let rangeStart = start;
+        let rangeEnd = end;
+        if (isAllTimeRange(start, end)) {
+          const dates = [];
+          file.ledger_entries.forEach(e => { if (e.entry_date) dates.push(e.entry_date); });
+          file.invoices.forEach(inv => { if (inv.issue_date && inv.status !== 'void') dates.push(inv.issue_date); });
+          dates.sort();
+          if (!dates.length) {
+            container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
+            return;
+          }
+          rangeStart = dates[0];
+          rangeEnd = dates[dates.length - 1];
+        }
+        const startDate = new Date(rangeStart + 'T00:00:00');
+        const endDate = new Date(rangeEnd + 'T00:00:00');
+        const monthLabels = [];
+        const buckets = {};
+        const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const endCursor = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+        while (cursor <= endCursor) {
+          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+          monthLabels.push(key);
+          buckets[key] = { income: 0, expense: 0 };
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+        if (!monthLabels.length) {
+          container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        postedLines().forEach(l => {
+          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+          if (!entry?.entry_date) return;
+          if (entry.entry_date < rangeStart || entry.entry_date > rangeEnd) return;
+          const acct = file.accounts.find(a => a.code === l.account_code);
+          if (!acct) return;
+          const key = entry.entry_date.slice(0, 7);
+          if (!buckets[key]) return;
+          if (acct.type === 'income' && !entry?.linked_invoice_id) {
+            buckets[key].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+          }
+          if (acct.type === 'expense') {
+            buckets[key].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+          }
+        });
+        file.invoices.forEach(inv => {
+          if (inv.status === 'void') return;
+          if (!inv.issue_date) return;
+          if (inv.issue_date < rangeStart || inv.issue_date > rangeEnd) return;
+          const key = inv.issue_date.slice(0, 7);
+          if (!buckets[key]) return;
+          buckets[key].income += invoiceTotal(inv);
+        });
+        const incomeSeries = monthLabels.map(k => (buckets[k].income || 0) / 100);
+        const expenseSeries = monthLabels.map(k => (buckets[k].expense || 0) / 100);
+        const netSeries = monthLabels.map(k => ((buckets[k].income || 0) - (buckets[k].expense || 0)) / 100);
+        const total = incomeSeries.reduce((s, v) => s + Math.abs(v), 0) + expenseSeries.reduce((s, v) => s + Math.abs(v), 0);
+        if (!total) {
+          container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
+          return;
+        }
+        const colors = getChartColors();
+        const ctx = chartEl.getContext('2d');
+        reportsCharts['reportsProfitLoss'] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: monthLabels,
+            datasets: [
+              { label: 'Income', data: incomeSeries, borderColor: colors.income, backgroundColor: colors.income, tension: 0.3, fill: false, pointRadius: 2 },
+              { label: 'Expenses', data: expenseSeries, borderColor: colors.expense, backgroundColor: colors.expense, tension: 0.3, fill: false, pointRadius: 2 },
+              { label: 'Net', data: netSeries, borderColor: colors.profit, backgroundColor: colors.profit, tension: 0.3, fill: false, pointRadius: 2 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: colors.text, padding: 12, usePointStyle: true } },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.dataset.label || '';
+                    const value = fmt(context.parsed.y * 100, file.business.base_currency);
+                    return `${label}: ${value}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: colors.text, maxRotation: 45, minRotation: 0 }, grid: { color: colors.grid } },
+              y: {
+                ticks: {
+                  color: colors.text,
+                  callback: (value) => fmt(value * 100, file.business.base_currency)
+                },
+                grid: { color: colors.grid }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering reports profit loss chart:', error);
+        const chartEl = document.getElementById('reports-pl-chart');
+        if (chartEl && chartEl.parentElement) {
+          chartEl.parentElement.innerHTML = '<div style="text-align:center;padding:28px;color:var(--danger)">Error loading chart</div>';
         }
       }
     };
@@ -6609,7 +6739,7 @@
           if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard();
           if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics();
         };
-        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); if ($$('section[data-section="analytics"]')[0] && !$$('section[data-section="analytics"]')[0].classList.contains('hidden')) renderAnalytics(); } };
+        const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); const analyticsSection = $$('section[data-section="analytics"]')[0]; if (analyticsSection && !analyticsSection.classList.contains('hidden')) renderAnalytics(); const reportsSection = $$('section[data-section="reports"]')[0]; if (reportsSection && !reportsSection.classList.contains('hidden')) refreshReports(); } };
         const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
           if (!file) return;
           const next = !(file.settings.show_splash_video !== false);
