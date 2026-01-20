@@ -5098,63 +5098,31 @@
         if (!chartEl) return;
         const container = chartEl.parentElement;
         const { start, end } = getReportsDateRange();
-        let rangeStart = start;
-        let rangeEnd = end;
-        if (isAllTimeRange(start, end)) {
-          const dates = [];
-          file.ledger_entries.forEach(e => { if (e.entry_date) dates.push(e.entry_date); });
-          file.invoices.forEach(inv => { if (inv.issue_date && inv.status !== 'void') dates.push(inv.issue_date); });
-          dates.sort();
-          if (!dates.length) {
-            container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
-            return;
-          }
-          rangeStart = dates[0];
-          rangeEnd = dates[dates.length - 1];
-        }
-        const startDate = new Date(rangeStart + 'T00:00:00');
-        const endDate = new Date(rangeEnd + 'T00:00:00');
-        const monthLabels = [];
-        const buckets = {};
-        const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-        const endCursor = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-        while (cursor <= endCursor) {
-          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
-          monthLabels.push(key);
-          buckets[key] = { income: 0, expense: 0 };
-          cursor.setMonth(cursor.getMonth() + 1);
-        }
-        if (!monthLabels.length) {
-          container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
-          return;
-        }
+        const allTime = isAllTimeRange(start, end);
+        let income = 0;
+        let expense = 0;
         postedLines().forEach(l => {
           const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-          if (!entry?.entry_date) return;
-          if (entry.entry_date < rangeStart || entry.entry_date > rangeEnd) return;
+          if (!entry) return;
+          if (!entry.entry_date && !allTime) return;
+          if (!allTime && (entry.entry_date < start || entry.entry_date > end)) return;
           const acct = file.accounts.find(a => a.code === l.account_code);
           if (!acct) return;
-          const key = entry.entry_date.slice(0, 7);
-          if (!buckets[key]) return;
           if (acct.type === 'income' && !entry?.linked_invoice_id) {
-            buckets[key].income += (l.credit_cents || 0) - (l.debit_cents || 0);
+            income += (l.credit_cents || 0) - (l.debit_cents || 0);
           }
           if (acct.type === 'expense') {
-            buckets[key].expense += (l.debit_cents || 0) - (l.credit_cents || 0);
+            expense += (l.debit_cents || 0) - (l.credit_cents || 0);
           }
         });
         file.invoices.forEach(inv => {
           if (inv.status === 'void') return;
-          if (!inv.issue_date) return;
-          if (inv.issue_date < rangeStart || inv.issue_date > rangeEnd) return;
-          const key = inv.issue_date.slice(0, 7);
-          if (!buckets[key]) return;
-          buckets[key].income += invoiceTotal(inv);
+          if (!inv.issue_date && !allTime) return;
+          if (!allTime && (inv.issue_date < start || inv.issue_date > end)) return;
+          income += invoiceTotal(inv);
         });
-        const incomeSeries = monthLabels.map(k => (buckets[k].income || 0) / 100);
-        const expenseSeries = monthLabels.map(k => (buckets[k].expense || 0) / 100);
-        const netSeries = monthLabels.map(k => ((buckets[k].income || 0) - (buckets[k].expense || 0)) / 100);
-        const total = incomeSeries.reduce((s, v) => s + Math.abs(v), 0) + expenseSeries.reduce((s, v) => s + Math.abs(v), 0);
+        const profit = income - expense;
+        const total = income + expense + Math.abs(Math.min(0, profit));
         if (!total) {
           container.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted)">No data available for selected date range</div>';
           return;
@@ -5162,14 +5130,14 @@
         const colors = getChartColors();
         const ctx = chartEl.getContext('2d');
         reportsCharts['reportsProfitLoss'] = new Chart(ctx, {
-          type: 'line',
+          type: 'doughnut',
           data: {
-            labels: monthLabels,
-            datasets: [
-              { label: 'Income', data: incomeSeries, borderColor: colors.income, backgroundColor: colors.income, tension: 0.3, fill: false, pointRadius: 2 },
-              { label: 'Expenses', data: expenseSeries, borderColor: colors.expense, backgroundColor: colors.expense, tension: 0.3, fill: false, pointRadius: 2 },
-              { label: 'Net', data: netSeries, borderColor: colors.profit, backgroundColor: colors.profit, tension: 0.3, fill: false, pointRadius: 2 }
-            ]
+            labels: ['Income', 'Expenses', profit > 0 ? 'Profit' : 'Loss'],
+            datasets: [{
+              data: [income / 100, expense / 100, Math.abs(profit) / 100],
+              backgroundColor: [colors.income, colors.expense, profit > 0 ? colors.profit : colors.expense],
+              borderWidth: 0
+            }]
           },
           options: {
             responsive: true,
@@ -5179,21 +5147,13 @@
               tooltip: {
                 callbacks: {
                   label: (context) => {
-                    const label = context.dataset.label || '';
-                    const value = fmt(context.parsed.y * 100, file.business.base_currency);
-                    return `${label}: ${value}`;
+                    const label = context.label || '';
+                    const value = fmt(context.parsed * 100, file.business.base_currency);
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percent = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} (${percent}%)`;
                   }
                 }
-              }
-            },
-            scales: {
-              x: { ticks: { color: colors.text, maxRotation: 45, minRotation: 0 }, grid: { color: colors.grid } },
-              y: {
-                ticks: {
-                  color: colors.text,
-                  callback: (value) => fmt(value * 100, file.business.base_currency)
-                },
-                grid: { color: colors.grid }
               }
             }
           }
