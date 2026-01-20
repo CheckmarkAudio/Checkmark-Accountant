@@ -796,6 +796,43 @@
       background: var(--border);
       border-color: var(--accent);
     }
+    .ledger-issue-pill {
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      background: rgba(226,85,85,0.12);
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+    .ledger-issue-pill:hover {
+      background: rgba(226,85,85,0.18);
+      border-color: var(--danger);
+    }
+    .ledger-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .ledger-status-row.issue {
+      border-color: rgba(226,85,85,0.35);
+      background: rgba(226,85,85,0.05);
+    }
+    .ledger-status-row.clickable {
+      cursor: pointer;
+    }
+    .ledger-status-row.clickable:hover {
+      border-color: var(--danger);
+    }
     .calculator-window {
       position: fixed;
       width: min(320px, 92vw);
@@ -1167,6 +1204,9 @@
           <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
         </div>
       </div>
+      <div class="row" style="margin-left:auto; gap:10px; align-items:center">
+        <button id="ledger-issue-pill" class="ledger-issue-pill hidden" type="button">Ledger Issue</button>
+      </div>
     </header>
     <nav class="tabs">
       <button data-tab="dashboard" class="active">Dashboard</button>
@@ -1394,6 +1434,10 @@
       </section>
 
       <section data-section="reports" class="hidden">
+        <div id="ledger-status-row" class="ledger-status-row" tabindex="-1" aria-disabled="true">
+          <span id="ledger-status-text">Ledger Status: OK</span>
+          <span id="ledger-status-time" class="muted"></span>
+        </div>
         <div class="card" style="margin-bottom: 28px;">
           <h3 style="margin-bottom: 20px;">Date Range</h3>
           <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center;">
@@ -1905,6 +1949,7 @@
     let businessList = [];
     let activeId = null;
     let file = null;
+    let lastLedgerStatus = null;
     let undoStack = [];
     let deleteBusinessBtn = null;
 
@@ -2148,6 +2193,7 @@
       alert('Migration complete. Select a migrated business to continue.');
       renderBusinessSelector();
       renderMigrationBlock();
+      renderLedgerIndicators();
     };
 
     // ---------- Ledger Engine ----------
@@ -2270,6 +2316,7 @@
         setTimeout(() => {
           setDatePreset('all', 'reports');
           refreshReports();
+          renderLedgerIndicators();
         }, 100);
       }
       if (tab === 'settings') {
@@ -2441,6 +2488,7 @@
       // #region agent log
       logDebug('loadActive:after-renderAll','renderAll completed',{},'E');
       // #endregion
+      renderLedgerIndicators();
       setTab('dashboard');
       // #region agent log
       logDebug('loadActive:complete','loadActive completed',{},'E');
@@ -3530,7 +3578,7 @@
         file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: invoiceTotal(inv) });
         postInvoicePayment(inv, pay);
         inv.status = 'paid';
-        saveFile(); renderInvoices();
+        saveFile(); renderInvoices(); renderLedgerIndicators();
       });
       $('#modal-body').querySelectorAll('[data-dep]').forEach(btn=>btn.onclick=()=>{$('#deposit').value=btn.dataset.dep;});
     };
@@ -3658,7 +3706,7 @@
         else file.transactions = file.transactions.map(x=>x.transaction_id===saved.transaction_id ? saved : x);
         postTransaction(saved);
         localStorage.removeItem(STORAGE.draftTxn(activeId));
-        saveFile(); renderTransactions(); renderDashboard();
+        saveFile(); renderTransactions(); renderDashboard(); renderLedgerIndicators();
         closePanel();
       };
       $('#cancel-txn').onclick = () => {
@@ -3674,12 +3722,12 @@
       // Remove any posted ledger entries linked to this transaction so balances stay correct
       removeLinkedEntries({ transaction_id: t.transaction_id });
       file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
-      saveFile(); renderTransactions(); renderDashboard();
+      saveFile(); renderTransactions(); renderDashboard(); renderLedgerIndicators();
       showToast('Transaction deleted', () => { 
         file.transactions.push(t); 
         postTransaction(t); // re-post ledger impact if user undoes delete
         saveFile(); 
-        renderTransactions(); renderDashboard();
+        renderTransactions(); renderDashboard(); renderLedgerIndicators();
       });
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:after',data:{transaction_id:t.transaction_id,remainingTransactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -4415,6 +4463,7 @@
       renderSummary(clientRevenue(), $('#report-client'));
       renderSummary(projectProfit(), $('#report-project'));
       renderTaxSummary();
+      renderLedgerIndicators();
     };
 
     // ---------- Settings ----------
@@ -4443,6 +4492,136 @@
         <div>Orphaned entries: ${orphan.length}</div>
         <div>Missing links: manual review</div>
       `;
+    };
+
+    const computeLedgerStatus = (dataFile) => {
+      const checkedAtIso = new Date().toISOString();
+      const issues = [];
+      if (!dataFile) {
+        return { status: 'ok', checkedAtIso, summary: 'No data loaded', issues };
+      }
+      const lineTotals = new Map();
+      (dataFile.ledger_lines || []).forEach(l => {
+        if (!l.ledger_entry_id) return;
+        const totals = lineTotals.get(l.ledger_entry_id) || { debits: 0, credits: 0 };
+        totals.debits += Number(l.debit_cents) || 0;
+        totals.credits += Number(l.credit_cents) || 0;
+        lineTotals.set(l.ledger_entry_id, totals);
+      });
+      const unbalanced = [];
+      (dataFile.ledger_entries || []).forEach(e => {
+        const totals = lineTotals.get(e.ledger_entry_id) || { debits: 0, credits: 0 };
+        if (totals.debits !== totals.credits) unbalanced.push(e.ledger_entry_id);
+      });
+      if (unbalanced.length) {
+        issues.push({ type: 'unbalanced_entries', count: unbalanced.length, examples: unbalanced.slice(0, 3) });
+      }
+
+      const txIds = new Set((dataFile.transactions || []).map(t => t.transaction_id));
+      const payIds = new Set((dataFile.payments || []).map(p => p.payment_id));
+      let orphanCount = 0;
+      (dataFile.ledger_entries || []).forEach(e => {
+        if (e.linked_transaction_id && !txIds.has(e.linked_transaction_id)) orphanCount++;
+        else if (e.linked_payment_id && !payIds.has(e.linked_payment_id)) orphanCount++;
+      });
+      if (orphanCount) {
+        issues.push({ type: 'orphan_links', count: orphanCount });
+      }
+
+      const warnCount = (dataFile.change_log || []).filter(c => c.type === 'warn').length;
+      if (warnCount) {
+        issues.push({ type: 'warnings', count: warnCount });
+      }
+
+      const status = issues.length ? 'issue' : 'ok';
+      const summary = status === 'issue' ? 'Ledger issue detected' : 'Ledger OK';
+      return { status, checkedAtIso, summary, issues };
+    };
+
+    const openLedgerIssueModal = (result) => {
+      if (!result || result.status !== 'issue') return;
+      const issues = result.issues || [];
+      const lines = [];
+      const unbalanced = issues.find(i => i.type === 'unbalanced_entries');
+      if (unbalanced) {
+        lines.push(`${unbalanced.count} entr${unbalanced.count === 1 ? 'y' : 'ies'} don't add up.`);
+      }
+      const orphan = issues.find(i => i.type === 'orphan_links');
+      if (orphan) {
+        lines.push(`${orphan.count} entr${orphan.count === 1 ? 'y' : 'ies'} point to missing transactions or payments.`);
+      }
+      const warnings = issues.find(i => i.type === 'warnings');
+      if (warnings) {
+        lines.push(`${warnings.count} warning${warnings.count === 1 ? '' : 's'} were imported from earlier data.`);
+      }
+      if (!lines.length) lines.push('An integrity issue was detected, but details are unavailable.');
+      showModal(`
+        <div class="stack">
+          <h3>Ledger Issue Detected</h3>
+          <div class="stack" style="gap:10px">
+            <h4 style="margin:0">What happened</h4>
+            <ul style="margin:0; padding-left:18px">
+              ${lines.map(line => `<li>${line}</li>`).join('')}
+            </ul>
+          </div>
+          <div class="stack" style="gap:10px">
+            <h4 style="margin:0">What to do</h4>
+            <p>Go to Settings → Integrity Check to review the details and decide next steps.</p>
+          </div>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Close</button>
+            <button data-confirm class="primary">Go to Settings → Integrity Check</button>
+          </div>
+        </div>
+      `, () => {
+        setTab('settings');
+      });
+    };
+
+    const renderLedgerIndicators = () => {
+      const result = computeLedgerStatus(file);
+      lastLedgerStatus = result;
+      const statusRow = $('#ledger-status-row');
+      const statusText = $('#ledger-status-text');
+      const statusTime = $('#ledger-status-time');
+      const issuePill = $('#ledger-issue-pill');
+      const isIssue = result.status === 'issue';
+      if (statusText) {
+        statusText.textContent = isIssue
+          ? 'Ledger Status: Issue (Click for details)'
+          : 'Ledger Status: OK';
+      }
+      if (statusTime) {
+        const localTime = new Date(result.checkedAtIso).toLocaleString();
+        statusTime.textContent = `Last checked: ${localTime}`;
+      }
+      if (statusRow) {
+        statusRow.classList.toggle('issue', isIssue);
+        statusRow.classList.toggle('clickable', isIssue);
+        statusRow.tabIndex = isIssue ? 0 : -1;
+        statusRow.setAttribute('aria-disabled', isIssue ? 'false' : 'true');
+        if (isIssue) {
+          statusRow.onclick = () => openLedgerIssueModal(result);
+          statusRow.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openLedgerIssueModal(result);
+            }
+          };
+        } else {
+          statusRow.onclick = null;
+          statusRow.onkeydown = null;
+        }
+      }
+      if (issuePill) {
+        if (isIssue) {
+          issuePill.classList.remove('hidden');
+          issuePill.onclick = () => openLedgerIssueModal(result);
+        } else {
+          issuePill.classList.add('hidden');
+          issuePill.onclick = null;
+        }
+      }
     };
 
     const updateHeaderImagePreview = () => {
