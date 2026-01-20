@@ -374,15 +374,8 @@
       letter-spacing: -0.02em;
       color: var(--text);
     }
-    section[data-section="dashboard"] > .card {
-      display: flex;
-      flex-direction: column;
-    }
     #dashboard-activity {
-      flex: 1;
-      min-height: 0;
       gap: 0;
-      overflow: hidden;
     }
     #dashboard-activity {
       gap: 0;
@@ -6134,78 +6127,19 @@
       return row;
     };
 
-    let dashboardActivityCache = [];
-    let dashboardActivityResizeBound = false;
-    let dashboardActivityObserver = null;
-    let dashboardActivityRaf = null;
-    let dashboardActivityTimeout = null;
-
-    const syncDashboardActivityHeight = () => {
-      const dashboardSection = $$('section[data-section="dashboard"]')[0];
-      if (!dashboardSection) return;
-      const cards = dashboardSection.querySelectorAll(':scope > .card');
-      if (cards.length < 2) return;
-      const overviewCard = cards[0];
-      const activityCard = cards[1];
-      const overviewHeight = overviewCard.getBoundingClientRect().height;
-      if (overviewHeight > 0) {
-        activityCard.style.height = `${overviewHeight}px`;
-      }
-    };
-
-    const scheduleDashboardActivityRender = () => {
-      if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
-      if (dashboardActivityTimeout) clearTimeout(dashboardActivityTimeout);
-      const run = () => {
-        const section = $$('section[data-section="dashboard"]')[0];
-        if (!section || section.classList.contains('hidden')) return;
-        if (dashboardActivityCache.length) {
-          renderDashboardActivityList(dashboardActivityCache);
-        } else {
-          syncDashboardActivityHeight();
-        }
-      };
-      dashboardActivityRaf = requestAnimationFrame(() => {
-        dashboardActivityRaf = null;
-        run();
-      });
-      dashboardActivityTimeout = setTimeout(() => {
-        dashboardActivityTimeout = null;
-        run();
-      }, 150);
-    };
-
     const renderDashboardActivityList = (activity) => {
       const dashboardSection = $$('section[data-section="dashboard"]')[0];
       if (!dashboardSection) return;
       const cards = dashboardSection.querySelectorAll(':scope > .card');
       if (cards.length < 2) return;
-      const overviewCard = cards[0];
       const activityCard = cards[1];
       const act = activityCard.querySelector('#dashboard-activity');
       if (!act) return;
 
-      const overviewHeight = overviewCard.getBoundingClientRect().height;
-      if (overviewHeight > 0) {
-        activityCard.style.height = `${overviewHeight}px`;
-      }
-
       act.innerHTML = '';
       if (!activity.length) return;
 
-      const cardStyles = getComputedStyle(activityCard);
-      const paddingBottom = parseFloat(cardStyles.paddingBottom || 0) || 0;
-      const cardHeight = activityCard.getBoundingClientRect().height;
-      const primaryHeight = Math.max(0, cardHeight - act.offsetTop - paddingBottom);
-      const fallbackHeight = Math.max(0, act.getBoundingClientRect().height);
-      const availableHeight = primaryHeight || fallbackHeight;
-
       activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
-      if (availableHeight > 0) {
-        while (act.lastElementChild && act.scrollHeight > availableHeight) {
-          act.removeChild(act.lastElementChild);
-        }
-      }
       const lastRow = act.lastElementChild;
       if (lastRow) lastRow.style.borderBottom = 'none';
     };
@@ -6264,25 +6198,8 @@
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
-      dashboardActivityCache = activity;
       renderDashboardActivityList(activity);
       renderDashboardClientRevenueChart({ start, end });
-      scheduleDashboardActivityRender();
-      if (!dashboardActivityResizeBound) {
-        dashboardActivityResizeBound = true;
-        const dashboardSection = $$('section[data-section="dashboard"]')[0];
-        if (dashboardSection) {
-          const cards = dashboardSection.querySelectorAll(':scope > .card');
-          if (cards.length >= 2) {
-            const overviewCard = cards[0];
-            if (window.ResizeObserver) {
-              dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
-              dashboardActivityObserver.observe(overviewCard);
-            }
-          }
-        }
-        window.addEventListener('resize', () => scheduleDashboardActivityRender());
-      }
     };
 
     // ---------- Event wiring ----------
