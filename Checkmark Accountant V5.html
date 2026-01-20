@@ -1390,6 +1390,7 @@
           <div id="header-image-preview" style="margin-top:10px"></div>
           <label style="margin-top:16px">Header Image Fit</label>
           <select id="header-image-fit">
+            <option value="off">No Header</option>
             <option value="cover">Cover (Fill)</option>
             <option value="contain">Contain (Fit)</option>
             <option value="fill">Fill (Stretch)</option>
@@ -1402,7 +1403,6 @@
             <span id="header-opacity-value">10%</span>
             <span>100%</span>
           </div>
-          <button id="remove-header-image" class="ghost" style="margin-top:10px; display:none; color:var(--danger)">Remove Header Image</button>
         </div>
         <div class="card" style="grid-column:2">
           <h3>Invoicing</h3>
@@ -1918,10 +1918,10 @@
       const headerImage = file?.settings?.headerImageDataUrl;
       const headerImgEl = $('#custom-header-image');
       if (headerImgEl) {
-        if (headerImage) {
+        const fit = file?.settings?.headerImageFit || 'cover';
+        if (headerImage && fit !== 'off') {
           headerImgEl.src = headerImage;
           headerImgEl.style.display = 'block';
-          const fit = file?.settings?.headerImageFit || 'cover';
           const opacity = (file?.settings?.headerImageOpacity || 10) / 100;
           headerImgEl.style.objectFit = fit;
           headerImgEl.style.opacity = opacity;
@@ -4272,25 +4272,22 @@
     const updateHeaderImagePreview = () => {
       if (!file) return;
       const preview = $('#header-image-preview');
-      const removeBtn = $('#remove-header-image');
       const headerImage = file.settings?.headerImageDataUrl;
       const fitSelect = $('#header-image-fit');
       const opacitySlider = $('#header-image-opacity');
       const opacityValue = $('#header-opacity-value');
       
       if (preview) {
-        if (headerImage) {
-          const fit = file.settings?.headerImageFit || 'cover';
+        const fit = file.settings?.headerImageFit || 'cover';
+        if (headerImage && fit !== 'off') {
           const opacity = file.settings?.headerImageOpacity || 10;
           preview.innerHTML = `<img src="${headerImage}" alt="Header preview" style="max-width:100%; max-height:150px; border-radius:8px; border:1px solid var(--border); margin-top:10px; object-fit:${fit}">`;
-          if (removeBtn) removeBtn.style.display = 'block';
           if (fitSelect) fitSelect.value = fit;
           if (opacitySlider) opacitySlider.value = opacity;
           if (opacityValue) opacityValue.textContent = opacity + '%';
         } else {
           preview.innerHTML = '';
-          if (removeBtn) removeBtn.style.display = 'none';
-          if (fitSelect) fitSelect.value = 'cover';
+          if (fitSelect) fitSelect.value = fit === 'off' ? 'off' : 'cover';
           if (opacitySlider) opacitySlider.value = 10;
           if (opacityValue) opacityValue.textContent = '10%';
         }
@@ -6485,7 +6482,7 @@
         const headerImage = $('#header-image'); if (headerImage) headerImage.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ 
           if(file) { 
             file.settings.headerImageDataUrl=url; 
-            if (!file.settings.headerImageFit) file.settings.headerImageFit = 'cover';
+            if (!file.settings.headerImageFit || file.settings.headerImageFit === 'off') file.settings.headerImageFit = 'cover';
             if (!file.settings.headerImageOpacity) file.settings.headerImageOpacity = 10;
             saveFile(); 
             applyTheme(); 
@@ -6494,9 +6491,14 @@
         });
         const headerImageFit = $('#header-image-fit'); if (headerImageFit) headerImageFit.onchange = (e) => {
           if(file) {
-            file.settings.headerImageFit = e.target.value;
+            const nextFit = e.target.value;
+            file.settings.headerImageFit = nextFit;
+            if (nextFit === 'off') {
+              file.settings.headerImageDataUrl = null;
+            }
             saveFile();
             applyTheme();
+            updateHeaderImagePreview();
           }
         };
         const headerImageOpacity = $('#header-image-opacity'); if (headerImageOpacity) {
@@ -6510,14 +6512,6 @@
             }
           };
         }
-        const removeHeaderImage = $('#remove-header-image'); if (removeHeaderImage) removeHeaderImage.onclick = () => {
-          if(file) {
-            file.settings.headerImageDataUrl = null;
-            saveFile();
-            applyTheme();
-            updateHeaderImagePreview();
-          }
-        };
         const exportJson = $('#export-json'); if (exportJson) exportJson.onclick = () => {
           if (!file) {
             showToast('No business data to export');
