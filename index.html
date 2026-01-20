@@ -6589,13 +6589,11 @@
     };
 
     const renderDashboardActivityList = (activity) => {
-      const dashboardSection = $$('section[data-section="dashboard"]')[0];
-      if (!dashboardSection) return;
-      const cards = dashboardSection.querySelectorAll(':scope > .card');
-      if (cards.length < 2) return;
-      const overviewCard = cards[0];
-      const activityCard = cards[1];
-      const act = activityCard.querySelector('#dashboard-activity');
+      const act = $('#dashboard-activity');
+      const kpi = $('#dashboard-kpis');
+      const activityCard = act ? act.closest('.card') : null;
+      const overviewCard = kpi ? kpi.closest('.card') : null;
+      if (!activityCard || !overviewCard) return;
       if (!act) return;
 
       const overviewHeight = overviewCard.getBoundingClientRect().height;
@@ -6694,19 +6692,14 @@
       if (!dashboardActivityResizeBound) {
         dashboardActivityResizeBound = true;
         const dashboardSection = $$('section[data-section="dashboard"]')[0];
-        if (dashboardSection) {
-          const cards = dashboardSection.querySelectorAll(':scope > .card');
-          if (cards.length >= 2) {
-            const overviewCard = cards[0];
-            if (window.ResizeObserver) {
-              dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
-              dashboardActivityObserver.observe(overviewCard);
-            }
-          }
-          if (window.ResizeObserver) {
-            dashboardSectionObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
-            dashboardSectionObserver.observe(dashboardSection);
-          }
+        const kpiCard = $('#dashboard-kpis')?.closest('.card');
+        if (window.ResizeObserver && kpiCard) {
+          dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
+          dashboardActivityObserver.observe(kpiCard);
+        }
+        if (window.ResizeObserver && dashboardSection) {
+          dashboardSectionObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
+          dashboardSectionObserver.observe(dashboardSection);
         }
         window.addEventListener('resize', () => scheduleDashboardActivityRender());
       }
