@@ -379,6 +379,8 @@
       flex-direction: column;
     }
     #dashboard-activity {
+      flex: 1;
+      min-height: 0;
       gap: 0;
       overflow: hidden;
     }
@@ -6124,15 +6126,24 @@
     let dashboardActivityResizeBound = false;
     let dashboardActivityObserver = null;
     let dashboardActivityRaf = null;
+    let dashboardActivityTimeout = null;
 
     const scheduleDashboardActivityRender = () => {
       if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
-      dashboardActivityRaf = requestAnimationFrame(() => {
-        dashboardActivityRaf = null;
+      if (dashboardActivityTimeout) clearTimeout(dashboardActivityTimeout);
+      const run = () => {
         if (dashboardActivityCache.length) {
           renderDashboardActivityList(dashboardActivityCache);
         }
+      };
+      dashboardActivityRaf = requestAnimationFrame(() => {
+        dashboardActivityRaf = null;
+        run();
       });
+      dashboardActivityTimeout = setTimeout(() => {
+        dashboardActivityTimeout = null;
+        run();
+      }, 120);
     };
 
     const buildDashboardActivityRow = (activityItem) => {
@@ -6165,19 +6176,11 @@
       act.innerHTML = '';
       if (!activity.length) return;
 
-      const sectionWidth = dashboardSection.getBoundingClientRect().width;
-      const isWide = sectionWidth >= 1024;
-      const isTallBox = overviewHeight >= 700;
-      const baseCap = isWide ? 14 : 24;
-      const maxItems = isTallBox ? activity.length : baseCap;
-      activity.slice(0, maxItems).forEach(item => act.appendChild(buildDashboardActivityRow(item)));
-      const actRect = act.getBoundingClientRect();
-      if (actRect.height > 0) {
-        const listBottom = actRect.bottom;
-        let last = act.lastElementChild;
-        while (last && last.getBoundingClientRect().bottom > listBottom) {
-          act.removeChild(last);
-          last = act.lastElementChild;
+      activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
+      const availableHeight = act.clientHeight;
+      if (availableHeight > 0) {
+        while (act.lastElementChild && act.scrollHeight > availableHeight) {
+          act.removeChild(act.lastElementChild);
         }
       }
       const lastRow = act.lastElementChild;
