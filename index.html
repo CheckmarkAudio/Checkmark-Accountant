@@ -3560,7 +3560,7 @@
 
     const txnForm = (t={}) => {
       const recentCats = recentSelections('category');
-      const typeValue = t.type || 'income';
+      const typeValue = t.type || 'expense';
       return `
         <form id="txn-form" class="stack">
           <label>Date</label><input name="date" type="date" value="${t.date||today()}">
@@ -3574,6 +3574,13 @@
           <datalist id="cat-list">${file.accounts.map(a=>`<option value="${escapeHtml(a.code)} - ${escapeHtml(a.name)}">`).join('')}</datalist>
           <div class="row" style="gap:8px; flex-wrap:wrap">${recentCats.map(c=>`<button type="button" class="recent-chip" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>
           <label>Amount</label><input name="amount" type="number" step="0.01" value="${centsToMoney(t.amount_cents||0)}">
+          <label>Time to Amount</label>
+          <div class="row" style="gap:8px; align-items:center">
+            <input id="txn-time" type="text" placeholder="hh:mm">
+            <input id="txn-rate" type="number" step="0.01" placeholder="Rate">
+            <button type="button" id="txn-apply-time" class="ghost">Apply</button>
+          </div>
+          <div class="muted" id="txn-time-note" style="font-size:0.9rem;">Enter time (hh:mm) and rate to fill the amount.</div>
           <label>Project</label><select name="project_id"><option value="">None</option>${file.projects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===t.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
           <label>Memo</label><input name="memo" value="${escapeHtml(t.memo||'')}">
           <div class="row" style="gap:8px">
@@ -3612,6 +3619,29 @@
         const catInput = form.querySelector('[name="category"]');
         if (catInput) catInput.value = btn.dataset.cat;
       });
+      const amountInput = form.querySelector('[name="amount"]');
+      const timeInput = $('#txn-time');
+      const rateInput = $('#txn-rate');
+      const applyTimeBtn = $('#txn-apply-time');
+      if (timeInput) {
+        timeInput.oninput = () => {
+          const normalized = normalizeTimeInput(timeInput.value);
+          if (normalized !== timeInput.value) timeInput.value = normalized;
+        };
+      }
+      if (applyTimeBtn) {
+        applyTimeBtn.onclick = () => {
+          const minutes = parseTimeToMinutes(timeInput?.value);
+          const rate = Number(rateInput?.value);
+          if (!amountInput) return;
+          if (!Number.isFinite(rate) || rate <= 0 || minutes === null) {
+            showToast('Enter a valid time and rate');
+            return;
+          }
+          const total = (minutes / 60) * rate;
+          amountInput.value = trimTrailingZeros(total.toFixed(2));
+        };
+      }
       const saveTxnDraft = () => {
         const data = new FormData(form);
         const saved = {
