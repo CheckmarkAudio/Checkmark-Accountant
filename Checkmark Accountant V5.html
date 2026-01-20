@@ -374,8 +374,13 @@
       letter-spacing: -0.02em;
       color: var(--text);
     }
+    section[data-section="dashboard"] > .card {
+      display: flex;
+      flex-direction: column;
+    }
     #dashboard-activity {
       gap: 0;
+      overflow: hidden;
     }
     #dashboard-activity {
       gap: 0;
@@ -6115,6 +6120,21 @@
     };
 
     // ---------- Dashboard ----------
+    let dashboardActivityCache = [];
+    let dashboardActivityResizeBound = false;
+    let dashboardActivityObserver = null;
+    let dashboardActivityRaf = null;
+
+    const scheduleDashboardActivityRender = () => {
+      if (dashboardActivityRaf) cancelAnimationFrame(dashboardActivityRaf);
+      dashboardActivityRaf = requestAnimationFrame(() => {
+        dashboardActivityRaf = null;
+        if (dashboardActivityCache.length) {
+          renderDashboardActivityList(dashboardActivityCache);
+        }
+      });
+    };
+
     const buildDashboardActivityRow = (activityItem) => {
       const row = document.createElement('div');
       row.className = 'row';
@@ -6132,14 +6152,29 @@
       if (!dashboardSection) return;
       const cards = dashboardSection.querySelectorAll(':scope > .card');
       if (cards.length < 2) return;
+      const overviewCard = cards[0];
       const activityCard = cards[1];
       const act = activityCard.querySelector('#dashboard-activity');
       if (!act) return;
+
+      const overviewHeight = overviewCard.getBoundingClientRect().height;
+      if (overviewHeight > 0) {
+        activityCard.style.height = `${overviewHeight}px`;
+      }
 
       act.innerHTML = '';
       if (!activity.length) return;
 
       activity.forEach(item => act.appendChild(buildDashboardActivityRow(item)));
+      const actRect = act.getBoundingClientRect();
+      if (actRect.height > 0) {
+        const listBottom = actRect.bottom;
+        let last = act.lastElementChild;
+        while (last && last.getBoundingClientRect().bottom > listBottom) {
+          act.removeChild(last);
+          last = act.lastElementChild;
+        }
+      }
       const lastRow = act.lastElementChild;
       if (lastRow) lastRow.style.borderBottom = 'none';
     };
@@ -6198,8 +6233,25 @@
       });
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
+      dashboardActivityCache = activity;
       renderDashboardActivityList(activity);
       renderDashboardClientRevenueChart({ start, end });
+      scheduleDashboardActivityRender();
+      if (!dashboardActivityResizeBound) {
+        dashboardActivityResizeBound = true;
+        const dashboardSection = $$('section[data-section="dashboard"]')[0];
+        if (dashboardSection) {
+          const cards = dashboardSection.querySelectorAll(':scope > .card');
+          if (cards.length >= 2) {
+            const overviewCard = cards[0];
+            if (window.ResizeObserver) {
+              dashboardActivityObserver = new ResizeObserver(() => scheduleDashboardActivityRender());
+              dashboardActivityObserver.observe(overviewCard);
+            }
+          }
+        }
+        window.addEventListener('resize', () => scheduleDashboardActivityRender());
+      }
     };
 
     // ---------- Event wiring ----------
