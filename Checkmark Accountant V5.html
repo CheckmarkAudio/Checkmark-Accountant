@@ -2185,18 +2185,8 @@
       }
       if (tab === 'analytics' && file) {
         setTimeout(() => {
-          // Initialize date inputs if not already set
-          const startInput = $('#analytics-start');
-          const endInput = $('#analytics-end');
-          if (startInput && !startInput.value) {
-            setDatePreset('all', 'analytics');
-          } else if (startInput && endInput) {
-            // If dates are set, just render
-            renderAnalytics();
-          } else {
-            setDatePreset('all', 'analytics');
-            renderAnalytics();
-          }
+          setDatePreset('all', 'analytics');
+          renderAnalytics();
         }, 100);
       }
       if (tab === 'reports' && file) {
