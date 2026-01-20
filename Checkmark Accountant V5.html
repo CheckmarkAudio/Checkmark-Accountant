@@ -374,6 +374,16 @@
       letter-spacing: -0.02em;
       color: var(--text);
     }
+    section[data-section="dashboard"] > .card {
+      display: flex;
+      flex-direction: column;
+    }
+    #dashboard-activity {
+      flex: 1;
+      min-height: 0;
+      gap: 0;
+      overflow: auto;
+    }
     #dashboard-activity {
       gap: 0;
     }
@@ -6124,6 +6134,21 @@
       return row;
     };
 
+    let dashboardActivityResizeBound = false;
+
+    const syncDashboardActivityHeight = () => {
+      const dashboardSection = $$('section[data-section="dashboard"]')[0];
+      if (!dashboardSection) return;
+      const cards = dashboardSection.querySelectorAll(':scope > .card');
+      if (cards.length < 2) return;
+      const overviewCard = cards[0];
+      const activityCard = cards[1];
+      const overviewHeight = overviewCard.getBoundingClientRect().height;
+      if (overviewHeight > 0) {
+        activityCard.style.maxHeight = `${overviewHeight}px`;
+      }
+    };
+
     const renderDashboardActivityList = (activity) => {
       const act = $('#dashboard-activity');
       if (!act) return;
@@ -6191,6 +6216,15 @@
       file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
       renderDashboardActivityList(activity);
+      syncDashboardActivityHeight();
+      if (!dashboardActivityResizeBound) {
+        dashboardActivityResizeBound = true;
+        window.addEventListener('resize', () => {
+          const dashboardSection = $$('section[data-section="dashboard"]')[0];
+          if (!dashboardSection || dashboardSection.classList.contains('hidden')) return;
+          syncDashboardActivityHeight();
+        });
+      }
       renderDashboardClientRevenueChart({ start, end });
     };
 
