@@ -4254,7 +4254,7 @@
       
       // Include invoice income for the date range
       const invoices = file.invoices.filter(inv => {
-        if (inv.status === 'void') return false;
+        if (inv.status === 'void' || inv.status === 'draft') return false;
         if (!inv.issue_date) return allTime;
         return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       });
@@ -4296,7 +4296,7 @@
       // Use invoices directly (by issue date) instead of just payments
       const allTime = isAllTimeRange(start, end);
       const invoices = file.invoices.filter(inv => {
-        if (inv.status === 'void') return false;
+        if (inv.status === 'void' || inv.status === 'draft') return false;
         if (!inv.issue_date) return allTime;
         return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       });
@@ -4341,6 +4341,7 @@
       const allTime = isAllTimeRange(start, end);
       file.invoices
         .filter(inv => {
+          if (inv.status === 'void' || inv.status === 'draft') return false;
           if (!inv.issue_date) return allTime;
           return allTime || (inv.issue_date >= start && inv.issue_date <= end);
         })
@@ -4714,7 +4715,7 @@
     const getDashboardFilteredInvoices = (range) => {
       const { start, end, allTime } = getDashboardRangeFilter(range);
       return file.invoices.filter(inv => {
-        if (inv.status === 'void') return false;
+        if (inv.status === 'void' || inv.status === 'draft') return false;
         if (!inv.issue_date) return allTime;
         return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       });
@@ -5150,7 +5151,7 @@
           }
         });
         file.invoices.forEach(inv => {
-          if (inv.status === 'void') return;
+          if (inv.status === 'void' || inv.status === 'draft') return;
           if (!inv.issue_date && !allTime) return;
           if (!allTime && (inv.issue_date < start || inv.issue_date > end)) return;
           income += invoiceTotal(inv);
@@ -5228,7 +5229,7 @@
         });
 
         file.invoices.forEach(inv => {
-          if (inv.status === 'void') return;
+          if (inv.status === 'void' || inv.status === 'draft') return;
           if (!inv.issue_date) return;
           if (!allTime && (inv.issue_date < start || inv.issue_date > end)) return;
           const month = inv.issue_date.substring(0, 7);
@@ -6607,7 +6608,7 @@
       const expense = posted.filter(l=>file.accounts.find(a=>a.code===l.account_code)?.type==='expense')
         .reduce((s,l)=>s+(l.debit_cents||0)-(l.credit_cents||0),0);
       const invoiceIncome = file.invoices.filter(inv => {
-        if (inv.status === 'void') return false;
+        if (inv.status === 'void' || inv.status === 'draft') return false;
         if (!inv.issue_date) return allTime;
         return allTime || (inv.issue_date >= start && inv.issue_date <= end);
       }).reduce((s, inv)=>s+invoiceTotal(inv),0);
@@ -6616,7 +6617,7 @@
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:renderDashboard',message:'renderDashboard:totals',data:{income,expense,postedCount:posted.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       const net = income - expense;
-      const openInvoices = file.invoices.filter(i=>i.status!=='paid').length;
+      const openInvoices = file.invoices.filter(i=>i.status!=='paid' && i.status!=='draft').length;
       const cards = [
         { label:'Income', value:fmt(income,file.business.base_currency) },
         { label:'Expenses', value:fmt(expense,file.business.base_currency) },
@@ -6632,6 +6633,7 @@
       });
       const activity = [];
       file.invoices.forEach(i=>{
+        if (i.status === 'draft') return;
         const party = file.parties.find(p=>p.party_id===i.party_id);
         const clientName = party ? ` - ${party.name}` : '';
         activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:invoiceTotal(i), status:i.status });
