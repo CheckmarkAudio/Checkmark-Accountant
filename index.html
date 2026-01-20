@@ -2453,11 +2453,12 @@
       showModal(`
         <div class="stack">
           <h3>Welcome to Checkmark Accountant V5</h3>
-          <p>You don't have any businesses yet. Create your first business to get started.</p>
+          <p>You don't have any businesses yet. Import a backup or create a new business to get started.</p>
           <label>Business Name</label>
           <input type="text" id="new-business-name" placeholder="My Business" value="My Business" autofocus>
           <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
             <button data-cancel>Cancel</button>
+            <button id="import-first-business" type="button">Import Data</button>
             <button data-confirm class="primary">Create Business</button>
           </div>
         </div>
@@ -2471,6 +2472,14 @@
       // Auto-focus and allow Enter key to submit
       setTimeout(() => {
         const nameInput = $('#new-business-name');
+        const importBtn = $('#import-first-business');
+        if (importBtn) {
+          importBtn.onclick = () => {
+            closeModal();
+            const importJson = $('#import-json');
+            if (importJson) importJson.click();
+          };
+        }
         if (nameInput) {
           nameInput.focus();
           nameInput.select();
@@ -4529,16 +4538,21 @@
           if (!data.business || !data.business.business_id) {
             throw new Error('Invalid file format: missing business data');
           }
+          const hasActiveBusiness = Boolean(activeId && file);
+          const importWarning = hasActiveBusiness
+            ? `<p><strong>Warning:</strong> This will replace all data for the current business "${file?.business?.name || 'Current Business'}".</p>`
+            : `<p>This will create a new business from the imported data.</p>`;
+          const confirmLabel = hasActiveBusiness ? 'Import Anyway' : 'Import Business';
           // Confirm before overwriting
           showModal(`
             <div class="stack">
               <h3>Import Business Data</h3>
-              <p><strong>Warning:</strong> This will replace all data for the current business "${file?.business?.name || 'Current Business'}".</p>
+              ${importWarning}
               <p>Business to import: <strong>${data.business.name || 'Unknown'}</strong></p>
               <p style="color:var(--danger)">This action cannot be undone. Make sure you have exported a backup first.</p>
               <div class="row" style="justify-content:flex-end; gap:8px">
                 <button data-cancel>Cancel</button>
-                <button data-confirm class="primary">Import Anyway</button>
+                <button data-confirm class="primary">${confirmLabel}</button>
               </div>
             </div>
           `, () => {
@@ -6937,18 +6951,6 @@
           showToast(`Exported ${allData.businesses.length} business(es)`);
         };
         const importJsonBtn = $('#import-json-btn'); if (importJsonBtn) importJsonBtn.onclick = () => {
-          if (!activeId && !businessList.length) {
-            showModal(`
-              <div class="stack">
-                <h3>No Active Business</h3>
-                <p>Please create or select a business before importing data.</p>
-                <div class="row" style="justify-content:flex-end">
-                  <button data-cancel class="primary">OK</button>
-                </div>
-              </div>
-            `, () => {});
-            return;
-          }
           const importJson = $('#import-json'); if (importJson) importJson.click();
         };
         const importJson = $('#import-json'); if (importJson) importJson.onchange = (e) => {
