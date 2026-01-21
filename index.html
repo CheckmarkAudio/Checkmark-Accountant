@@ -8261,13 +8261,32 @@
       e.stopPropagation();
     };
 
+    const getCalculatorMinHeight = () => {
+      const header = $('#calculator-header');
+      const body = $('#calculator-body');
+      const display = $('#calculator-window .calculator-display');
+      const headerHeight = header ? header.offsetHeight : 0;
+      const displayHeight = display ? display.offsetHeight : 0;
+      let bodyPadding = 0;
+      let displayMargin = 0;
+      if (body) {
+        const bodyStyles = getComputedStyle(body);
+        bodyPadding = parseFloat(bodyStyles.paddingTop) + parseFloat(bodyStyles.paddingBottom);
+      }
+      if (display) {
+        const displayStyles = getComputedStyle(display);
+        displayMargin = parseFloat(displayStyles.marginTop) + parseFloat(displayStyles.marginBottom);
+      }
+      return Math.max(120, Math.ceil(headerHeight + displayHeight + bodyPadding + displayMargin));
+    };
+
     const onResize = (e) => {
       if (!isResizing) return;
       const deltaX = e.clientX - resizeStart.x;
       const deltaY = e.clientY - resizeStart.y;
-      // Minimum size: just header + display (approximately 200px width, 180px height)
+      // Minimum size: just header + display (no buttons visible)
       const minWidth = 200;
-      const minHeight = 180;
+      const minHeight = getCalculatorMinHeight();
       calculatorState.width = Math.max(minWidth, resizeStart.width + deltaX);
       calculatorState.height = Math.max(minHeight, resizeStart.height + deltaY);
       updateCalculatorSize();
