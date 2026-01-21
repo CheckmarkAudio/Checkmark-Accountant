@@ -1841,7 +1841,7 @@
     // ---------- Utilities ----------
     // #region agent log
     const DEBUG = true;
-    const RUN_ID = 'pre-fix';
+    const RUN_ID = 'post-fix';
     if (DEBUG) {
       try { localStorage.removeItem('_debug_logs'); } catch(e) {}
     }
@@ -4801,8 +4801,8 @@
 
     // ---------- Reports ----------
     // CANONICAL_MODEL: INVOICE_TXN_FIRST
-    const CANONICAL_MODEL = 'INVOICE_TXN_FIRST';
-    const isDevMode = () => {
+    let CANONICAL_MODEL = 'INVOICE_TXN_FIRST';
+    let isDevMode = () => {
       return window?.location?.protocol === 'file:' || window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
     };
     const normalizeRange = (start, end) => ({
@@ -4818,7 +4818,7 @@
       const acct = file.accounts.find(a => a.code === code);
       return acct?.name || category || fallback;
     };
-    const computeFinancials = (file, { start, end } = {}) => {
+    let computeFinancials = (file, { start, end } = {}) => {
       if (!file) return { income: 0, expense: 0, profit: 0, ar: 0, cash: 0, openInvoiceCount: 0, monthly: {}, invoiceIssuedTotal: 0, unbalancedEntries: [] };
       const range = normalizeRange(start, end);
       const allTime = isAllTimeRange(range.start, range.end);
@@ -4948,11 +4948,11 @@
       };
     };
     // CANONICAL_MODEL: LEDGER_FIRST
-    const CANONICAL_MODEL = 'LEDGER_FIRST';
-    const isDevMode = () => {
+    CANONICAL_MODEL = 'LEDGER_FIRST';
+    isDevMode = () => {
       return window?.location?.protocol === 'file:' || window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
     };
-    const computeFinancials = (file, { start, end } = {}) => {
+    computeFinancials = (file, { start, end } = {}) => {
       if (!file) return { income: 0, expense: 0, profit: 0, ar: 0, cash: 0, openInvoiceCount: 0, monthly: {}, unbalancedEntries: [] };
       const rangeStart = start || '1900-01-01';
       const rangeEnd = end || '2999-12-31';
