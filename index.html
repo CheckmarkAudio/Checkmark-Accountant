@@ -4953,11 +4953,17 @@
       return window?.location?.protocol === 'file:' || window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
     };
     computeFinancials = (file, { start, end } = {}) => {
+      // #region agent log
+      logDebug('computeFinancials:entry','computeFinancials called',{hasFile:!!file,rangeStart:start||null,rangeEnd:end||null,basis:file?.settings?.accounting_basis},'H5');
+      // #endregion
       if (!file) return { income: 0, expense: 0, profit: 0, ar: 0, cash: 0, openInvoiceCount: 0, monthly: {}, unbalancedEntries: [] };
       const rangeStart = start || '1900-01-01';
       const rangeEnd = end || '2999-12-31';
       const allTime = isAllTimeRange(rangeStart, rangeEnd);
       const posted = postedLines();
+      // #region agent log
+      logDebug('computeFinancials:posted','Posted lines snapshot',{postedCount:posted.length,ledgerEntries:file.ledger_entries?.length||0,ledgerLines:file.ledger_lines?.length||0},'H6');
+      // #endregion
       const ledgerLines = posted.filter(l => {
         const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
         if (!entry) return false;
@@ -4997,6 +5003,9 @@
         if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
         appsByInvoice[app.invoice_id] += app.amount_cents || 0;
       });
+      // #region agent log
+      logDebug('computeFinancials:invoice-basis','Invoice/payment snapshot',{invoiceCount:file.invoices?.length||0,paymentCount:file.payments?.length||0,appCount:(file.payment_applications||[]).length},'H7');
+      // #endregion
       let ar = 0;
       let openInvoiceCount = 0;
       let invoiceIssuedTotal = 0;
@@ -5027,6 +5036,9 @@
         const cred = lines.reduce((s, l) => s + (l.credit_cents || 0), 0);
         if (deb !== cred) unbalancedEntries.push(e.ledger_entry_id);
       });
+      // #region agent log
+      logDebug('computeFinancials:exit','computeFinancials totals',{income,expense,profit:income-expense,ar,cash,openInvoiceCount,unbalancedCount:unbalancedEntries.length},'H8');
+      // #endregion
       if (isDevMode()) {
         const hasInvoicePayments = file.ledger_entries.some(e => {
           if (!e.linked_invoice_id) return false;
