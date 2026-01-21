@@ -4956,7 +4956,10 @@
         openInvoiceCount,
         monthly,
         invoiceIssuedTotal,
-        unbalancedEntries
+        unbalancedEntries,
+        txnIncome,
+        txnExpense,
+        paymentsIncome
       };
     };
     const computeFinancials = (file, { start, end } = {}) => {
@@ -4966,9 +4969,19 @@
       const incomeDiff = (ledgerFin?.income || 0) - (invoiceFin?.income || 0);
       const expenseDiff = (ledgerFin?.expense || 0) - (invoiceFin?.expense || 0);
       const hasLedger = (file?.ledger_entries?.length || 0) > 0 && (file?.ledger_lines?.length || 0) > 0;
-      const useLedger = basis === 'cash' && hasLedger && Math.abs(incomeDiff) < 1 && Math.abs(expenseDiff) < 1;
+      const invoiceIncome = invoiceFin?.invoiceIssuedTotal || 0;
+      const cashIncome = invoiceFin?.paymentsIncome || 0;
+      const useInvoiceOverride = basis === 'cash'
+        && invoiceIncome > 0
+        && (invoiceFin?.txnIncome || 0) === 0
+        && Math.abs(cashIncome - invoiceIncome) > 0;
+      const useLedger = !useInvoiceOverride
+        && basis === 'cash'
+        && hasLedger
+        && Math.abs(incomeDiff) < 1
+        && Math.abs(expenseDiff) < 1;
       // #region agent log
-      logDebug('computeFinancials:select','Selected compute model',{basis,hasLedger,incomeDiff,expenseDiff,useLedger,ledgerEntries:file?.ledger_entries?.length||0,ledgerLines:file?.ledger_lines?.length||0,invoiceCount:file?.invoices?.length||0,paymentCount:file?.payments?.length||0,transactionCount:file?.transactions?.length||0},'H9');
+      logDebug('computeFinancials:select','Selected compute model',{basis,hasLedger,incomeDiff,expenseDiff,useLedger,useInvoiceOverride,invoiceIncome,cashIncome,ledgerEntries:file?.ledger_entries?.length||0,ledgerLines:file?.ledger_lines?.length||0,invoiceCount:file?.invoices?.length||0,paymentCount:file?.payments?.length||0,transactionCount:file?.transactions?.length||0},'H9');
       // #endregion
       return useLedger ? ledgerFin : invoiceFin;
     };
