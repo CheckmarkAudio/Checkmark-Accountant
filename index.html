@@ -146,6 +146,11 @@
         flex-wrap: wrap;
         row-gap: 12px;
       }
+      header.topbar .top-actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+      }
       nav.tabs {
         flex-wrap: wrap;
         row-gap: 10px;
@@ -291,6 +296,18 @@
     header.topbar > * {
       position: relative;
       z-index: 1;
+    }
+    header.topbar .top-actions {
+      margin-left: auto;
+      gap: 12px;
+    }
+    header.topbar .top-actions button {
+      background: var(--surface-soft);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .dark header.topbar .top-actions button {
+      color: #fff;
     }
     .logo-chip {
       display: inline-flex;
@@ -1175,6 +1192,10 @@
           <strong id="business-name" style="font-size:1.1rem;font-weight:700;line-height:1.3">Checkmark Accountant V5</strong>
         </div>
       </div>
+      <div class="row top-actions" style="margin-left:auto; gap:12px">
+        <button id="open-calculator" data-quickkey="C" title="Quick key: C">Calculator</button>
+        <button id="open-note" data-quickkey="N" title="Quick key: N">Note</button>
+      </div>
     </header>
     <nav class="tabs">
       <button data-tab="dashboard" class="active" title="Quick key: 1">Dashboard</button>
@@ -1190,8 +1211,6 @@
         <button id="quick-add-transaction" data-quickkey="T" title="Quick key: T">Quick Txn</button>
         <button id="quick-add-client" data-quickkey="Shift + C" title="Quick key: Shift + C">Quick Client</button>
         <button id="quick-add-project" data-quickkey="P" title="Quick key: P">Quick Project</button>
-        <button id="open-calculator" data-quickkey="C" title="Quick key: C">Calculator</button>
-        <button id="open-note" data-quickkey="N" title="Quick key: N">Note</button>
       </div>
     </nav>
     <main>
@@ -7106,12 +7125,12 @@
         logDebug('bindUI:tabs','Tab buttons found',{count:tabButtons.length},'B');
         // #endregion
         tabButtons.forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
-        const addInvoice = $('#add-invoice'); if (addInvoice) addInvoice.onclick = () => editInvoice({});
-        const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => editInvoice({});
-        const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => editTxn({});
-        const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => editTxn({});
-        const quickAddClient = $('#quick-add-client'); if (quickAddClient) quickAddClient.onclick = () => editClient({});
-        const quickAddProject = $('#quick-add-project'); if (quickAddProject) quickAddProject.onclick = () => editProject({});
+        const addInvoice = $('#add-invoice'); if (addInvoice) addInvoice.onclick = () => togglePanelFor('Invoice', () => editInvoice({}));
+        const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => togglePanelFor('Invoice', () => editInvoice({}));
+        const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => togglePanelFor('Transaction', () => editTxn({}));
+        const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => togglePanelFor('Transaction', () => editTxn({}));
+        const quickAddClient = $('#quick-add-client'); if (quickAddClient) quickAddClient.onclick = () => togglePanelFor('Client', () => editClient({}));
+        const quickAddProject = $('#quick-add-project'); if (quickAddProject) quickAddProject.onclick = () => togglePanelFor('Project', () => editProject({}));
         const exportInvoicesJsonBtn = $('#export-invoices-json'); if (exportInvoicesJsonBtn) exportInvoicesJsonBtn.onclick = () => exportInvoicesData('json');
         const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
@@ -7152,9 +7171,9 @@
         const serviceSearch = $('#service-search'); if (serviceSearch) serviceSearch.oninput = () => renderServices();
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
         const openNote = $('#open-note'); if (openNote) openNote.onclick = toggleNote;
-        const addClient = $('#add-client'); if (addClient) addClient.onclick = () => editClient({});
-        const addProject = $('#add-project'); if (addProject) addProject.onclick = () => editProject({});
-        const addService = $('#add-service'); if (addService) addService.onclick = () => editService({});
+        const addClient = $('#add-client'); if (addClient) addClient.onclick = () => togglePanelFor('Client', () => editClient({}));
+        const addProject = $('#add-project'); if (addProject) addProject.onclick = () => togglePanelFor('Project', () => editProject({}));
+        const addService = $('#add-service'); if (addService) addService.onclick = () => togglePanelFor('Service', () => editService({}));
         const closePanelBtn = $('#close-panel'); if (closePanelBtn) closePanelBtn.onclick = closePanel;
         const runPl = $('#run-pl'); if (runPl) runPl.onclick = runPL;
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
