@@ -2766,15 +2766,17 @@
           <div id="line-container" class="stack">${lineItems || ''}</div>
           <div class="row" style="justify-content:space-between"><div>Subtotal</div><div id="inv-subtotal">${fmt(subtotalCents,file.business.base_currency)}</div></div>
           <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap">
-            <div style="min-width:140px">
-              <label>Tax %</label>
-              <input name="tax_percent" id="tax-percent" type="number" step="0.01" min="0" value="${taxPercentDisplay}">
-              <div class="muted" style="font-size:0.85rem">Tax <span id="tax-percent-display">(${taxPercentDisplay || '0'}%)</span>: <span id="inv-tax">${fmt(taxCents,file.business.base_currency)}</span></div>
-            </div>
-            <div style="min-width:140px">
-              <label>Tip</label>
-              <input name="tip_amount" id="tip-amount" type="number" step="0.01" min="0" value="${centsToMoney(tipCents)}">
-              <div class="muted" style="font-size:0.85rem">Tip: <span id="inv-tip">${fmt(tipCents,file.business.base_currency)}</span></div>
+            <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:nowrap">
+              <div style="min-width:140px">
+                <label>Tax %</label>
+                <input name="tax_percent" id="tax-percent" type="number" step="0.01" min="0" value="${taxPercentDisplay}">
+                <div class="muted" style="font-size:0.85rem">Tax <span id="tax-percent-display">(${taxPercentDisplay || '0'}%)</span>: <span id="inv-tax">${fmt(taxCents,file.business.base_currency)}</span></div>
+              </div>
+              <div style="min-width:140px">
+                <label>Tip</label>
+                <input name="tip_amount" id="tip-amount" type="number" step="0.01" min="0" value="${centsToMoney(tipCents)}">
+                <div class="muted" style="font-size:0.85rem">Tip: <span id="inv-tip">${fmt(tipCents,file.business.base_currency)}</span></div>
+              </div>
             </div>
             <div style="min-width:200px; margin-left:auto">
               <label>Discount</label>
