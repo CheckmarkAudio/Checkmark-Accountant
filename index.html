@@ -1110,6 +1110,9 @@
       overflow: hidden;
       min-height: 0;
     }
+    .note-window.compact .note-body {
+      gap: 0;
+    }
     .note-toolbar {
       display: flex;
       flex-wrap: nowrap;
@@ -1118,6 +1121,9 @@
       overflow-x: auto;
       white-space: nowrap;
       flex-shrink: 0;
+    }
+    .note-window.compact .note-toolbar {
+      display: none;
     }
     .note-toolbar select,
     .note-toolbar input {
@@ -8546,17 +8552,34 @@
     const getNoteMinHeight = () => {
       const header = $('#note-header');
       const body = $('#note-window .note-body');
-      const toolbar = $('#note-window .note-toolbar');
+      const editor = $('#note-content');
       const headerHeight = header ? header.offsetHeight : 0;
-      const toolbarHeight = toolbar ? Math.max(toolbar.offsetHeight, toolbar.scrollHeight) : 0;
       let bodyPadding = 0;
-      let bodyGap = 0;
       if (body) {
         const bodyStyles = getComputedStyle(body);
         bodyPadding = parseFloat(bodyStyles.paddingTop) + parseFloat(bodyStyles.paddingBottom);
-        bodyGap = parseFloat(bodyStyles.rowGap || bodyStyles.gap) || 0;
       }
-      return Math.max(140, Math.ceil(headerHeight + bodyPadding + toolbarHeight + bodyGap));
+      let editorLineHeight = 22;
+      let editorPadding = 0;
+      if (editor) {
+        const editorStyles = getComputedStyle(editor);
+        editorLineHeight = parseFloat(editorStyles.lineHeight) || editorLineHeight;
+        editorPadding =
+          parseFloat(editorStyles.paddingTop) + parseFloat(editorStyles.paddingBottom);
+      }
+      return Math.max(120, Math.ceil(headerHeight + bodyPadding + editorLineHeight + editorPadding));
+    };
+
+    const updateNoteCompactState = () => {
+      const noteWindow = $('#note-window');
+      if (!noteWindow) return;
+      const minHeight = getNoteMinHeight();
+      const currentHeight = noteWindow.getBoundingClientRect().height;
+      if (currentHeight <= minHeight + 2) {
+        noteWindow.classList.add('compact');
+      } else {
+        noteWindow.classList.remove('compact');
+      }
     };
 
     const startNoteDrag = (e) => {
@@ -8606,6 +8629,7 @@
       noteState.width = Math.max(minWidth, noteResizeStart.width + deltaX);
       noteState.height = Math.max(minHeight, noteResizeStart.height + deltaY);
       updateNoteSize();
+      updateNoteCompactState();
     };
 
     const endNoteResize = () => {
@@ -8631,6 +8655,7 @@
         window.style.width = noteState.width + 'px';
         window.style.height = noteState.height + 'px';
       }
+      updateNoteCompactState();
     };
 
     const openNote = () => {
@@ -8640,6 +8665,7 @@
       $('#note-minimized').classList.add('hidden');
       updateNotePosition();
       updateNoteSize();
+      updateNoteCompactState();
       renderNoteMenu();
       saveNoteState();
     };
@@ -8683,6 +8709,7 @@
       if (minimized) minimized.classList.add('hidden');
       updateNotePosition();
       updateNoteSize();
+      updateNoteCompactState();
       renderNoteMenu();
       saveNoteState();
     };
@@ -8701,6 +8728,7 @@
       loadNoteState();
       updateNotePosition();
       updateNoteSize();
+      updateNoteCompactState();
       renderNoteMenu();
 
       const header = $('#note-header');
