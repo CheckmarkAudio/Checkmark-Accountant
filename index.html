@@ -1772,6 +1772,10 @@
       return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(centsToMoney(cents));
     };
     const invoiceSubtotal = (inv) => inv?.subtotal_cents ?? inv?.total_cents ?? 0;
+    const invoiceDiscount = (inv) => {
+      const discount = Number(inv?.discount_cents);
+      return Number.isFinite(discount) ? discount : 0;
+    };
     const invoiceTip = (inv) => {
       const tip = Number(inv?.tip_cents);
       return Number.isFinite(tip) ? tip : 0;
@@ -1783,15 +1787,19 @@
     const invoiceTax = (inv) => {
       if (inv?.tax_cents !== undefined && inv?.tax_cents !== null) return inv.tax_cents;
       const subtotal = invoiceSubtotal(inv);
+      const discount = invoiceDiscount(inv);
       const pct = invoiceTaxPercent(inv);
-      return Math.round(subtotal * (pct/100));
+      const taxable = Math.max(0, subtotal - discount);
+      return Math.round(taxable * (pct/100));
     };
     const invoiceTotal = (inv) => {
       if (inv?.total_cents !== undefined && inv?.total_cents !== null) return inv.total_cents;
       const subtotal = invoiceSubtotal(inv);
+      const discount = invoiceDiscount(inv);
       const tax = invoiceTax(inv);
       const tip = invoiceTip(inv);
-      return subtotal + tax + tip;
+      const taxable = Math.max(0, subtotal - discount);
+      return taxable + tax + tip;
     };
     const clone = (obj) => JSON.parse(JSON.stringify(obj));
     const csvEscape = (val) => {
@@ -2717,9 +2725,11 @@
       const taxPercentDisplay = trimTrailingZeros((Number(taxPercentDefault)||0).toFixed(2));
       const subtotalFromLines = lines.length ? lines.reduce((s,l)=>s+(l.line_total_cents||0),0) : null;
       const subtotalCents = subtotalFromLines ?? inv.subtotal_cents ?? inv.total_cents ?? 0;
-      const taxCents = inv.tax_cents ?? Math.round(subtotalCents * ((Number(taxPercentDefault)||0)/100));
+      const discountCents = inv.discount_cents ?? 0;
+      const taxableCents = Math.max(0, subtotalCents - discountCents);
+      const taxCents = inv.tax_cents ?? Math.round(taxableCents * ((Number(taxPercentDefault)||0)/100));
       const tipCents = inv.tip_cents ?? 0;
-      const totalCents = inv.total_cents ?? (subtotalCents + taxCents + tipCents);
+      const totalCents = inv.total_cents ?? (taxableCents + taxCents + tipCents);
       const selectedPartyId = inv.party_id || null;
       const filteredProjects = selectedPartyId ? file.projects.filter(p=>{
         // Handle backward compatibility: convert party_id to party_ids array
@@ -2744,12 +2754,23 @@
           </div>
           <div id="line-container" class="stack">${lineItems || ''}</div>
           <div class="row" style="justify-content:space-between"><div>Subtotal</div><div id="inv-subtotal">${fmt(subtotalCents,file.business.base_currency)}</div></div>
-          <label>Tax %</label>
-          <input name="tax_percent" id="tax-percent" type="number" step="0.01" min="0" value="${taxPercentDisplay}">
-          <div class="row" style="justify-content:space-between"><div>Tax <span class="muted" id="tax-percent-display">(${taxPercentDisplay || '0'}%)</span></div><div id="inv-tax">${fmt(taxCents,file.business.base_currency)}</div></div>
-          <label>Tip</label>
-          <input name="tip_amount" id="tip-amount" type="number" step="0.01" min="0" value="${centsToMoney(tipCents)}">
-          <div class="row" style="justify-content:space-between"><div>Tip</div><div id="inv-tip">${fmt(tipCents,file.business.base_currency)}</div></div>
+          <div class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap">
+            <div style="min-width:140px">
+              <label>Tax %</label>
+              <input name="tax_percent" id="tax-percent" type="number" step="0.01" min="0" value="${taxPercentDisplay}">
+              <div class="muted" style="font-size:0.85rem">Tax <span id="tax-percent-display">(${taxPercentDisplay || '0'}%)</span>: <span id="inv-tax">${fmt(taxCents,file.business.base_currency)}</span></div>
+            </div>
+            <div style="min-width:140px">
+              <label>Tip</label>
+              <input name="tip_amount" id="tip-amount" type="number" step="0.01" min="0" value="${centsToMoney(tipCents)}">
+              <div class="muted" style="font-size:0.85rem">Tip: <span id="inv-tip">${fmt(tipCents,file.business.base_currency)}</span></div>
+            </div>
+            <div style="min-width:140px">
+              <label>Discount</label>
+              <input name="discount_amount" id="discount-amount" type="number" step="0.01" min="0" value="${centsToMoney(discountCents)}">
+              <div class="muted" style="font-size:0.85rem">Discount: <span id="inv-discount">${fmt(discountCents,file.business.base_currency)}</span></div>
+            </div>
+          </div>
           <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
           <div class="row" style="gap:8px">
             <button class="primary" type="submit">Save</button>
@@ -2795,6 +2816,7 @@
         tax_percent: inv.tax_percent ?? (inv.invoice_id ? 0 : (file.settings.default_tax_percent ?? 0)),
         tax_cents: inv.tax_cents ?? null,
         subtotal_cents: inv.subtotal_cents ?? null,
+        discount_cents: inv.discount_cents ?? 0,
         tip_cents: inv.tip_cents ?? 0,
         total_cents: inv.total_cents ?? null,
         lines: (file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id).map(clone)) || []
@@ -2890,9 +2912,11 @@
         }));
         const subtotal = lines.reduce((s,l)=>s+l.line_total_cents,0);
         const taxPercent = Math.max(0, Number(form.querySelector('[name="tax_percent"]')?.value)||0);
-        const taxCents = Math.round(subtotal * (taxPercent/100));
+        const discountCents = moneyToCents(form.querySelector('[name="discount_amount"]')?.value || 0);
+        const taxable = Math.max(0, subtotal - discountCents);
+        const taxCents = Math.round(taxable * (taxPercent/100));
         const tipCents = moneyToCents(form.querySelector('[name="tip_amount"]')?.value || 0);
-        const total = subtotal + taxCents + tipCents;
+        const total = taxable + taxCents + tipCents;
         const saved = {
           invoice_id: invoice.invoice_id,
           party_id: form.querySelector('[name="party_id"]').value,
@@ -2903,6 +2927,7 @@
           subtotal_cents: subtotal,
           tax_percent: taxPercent,
           tax_cents: taxCents,
+          discount_cents: discountCents,
           tip_cents: tipCents,
           total_cents: total,
           created_at: invoice.created_at || nowIso(),
@@ -2938,9 +2963,11 @@
         }));
         const subtotal = lines.reduce((s,l)=>s+l.line_total_cents,0);
         const taxPercent = Math.max(0, Number(data.get('tax_percent'))||0);
-        const taxCents = Math.round(subtotal * (taxPercent/100));
+        const discountCents = moneyToCents(data.get('discount_amount') || 0);
+        const taxable = Math.max(0, subtotal - discountCents);
+        const taxCents = Math.round(taxable * (taxPercent/100));
         const tipCents = moneyToCents(data.get('tip_amount') || 0);
-        const total = subtotal + taxCents + tipCents;
+        const total = taxable + taxCents + tipCents;
         const saved = {
           invoice_id: invoice.invoice_id,
           party_id: data.get('party_id'),
@@ -2951,6 +2978,7 @@
           subtotal_cents: subtotal,
           tax_percent: taxPercent,
           tax_cents: taxCents,
+          discount_cents: discountCents,
           tip_cents: tipCents,
           total_cents: total,
           created_at: invoice.created_at || nowIso(),
@@ -2995,10 +3023,13 @@
       },0);
       const taxInput = $('#tax-percent');
       const taxPercent = Math.max(0, Number(taxInput?.value)||0);
-      const taxCents = Math.round(subtotal * (taxPercent/100));
+      const discountInput = $('#discount-amount');
+      const discountCents = moneyToCents(discountInput?.value || 0);
+      const taxable = Math.max(0, subtotal - discountCents);
+      const taxCents = Math.round(taxable * (taxPercent/100));
       const tipInput = $('#tip-amount');
       const tipCents = moneyToCents(tipInput?.value || 0);
-      const total = subtotal + taxCents + tipCents;
+      const total = taxable + taxCents + tipCents;
       const taxPercentLabel = $('#tax-percent-display');
       if (taxPercentLabel) taxPercentLabel.textContent = `(${trimTrailingZeros(taxPercent.toFixed(2))}%)`;
       const subtotalEl = $('#inv-subtotal');
@@ -3007,6 +3038,8 @@
       if (taxEl) taxEl.textContent = fmt(taxCents, file.business.base_currency);
       const tipEl = $('#inv-tip');
       if (tipEl) tipEl.textContent = fmt(tipCents, file.business.base_currency);
+      const discountEl = $('#inv-discount');
+      if (discountEl) discountEl.textContent = fmt(discountCents, file.business.base_currency);
       const totalEl = $('#inv-total');
       if (totalEl) totalEl.textContent = fmt(total, file.business.base_currency);
     };
@@ -3123,6 +3156,7 @@
       const invoiceTaxPercentVal = invoiceTaxPercent(inv);
       const invoiceTaxCents = invoiceTax(inv);
       const invoiceTipCents = invoiceTip(inv);
+      const invoiceDiscountCents = invoiceDiscount(inv);
       const invoiceTotalCents = invoiceTotal(inv);
       const isDark = document.documentElement.classList.contains('dark');
       const lightLogo = settings.logoLightDataUrl;
@@ -3208,6 +3242,12 @@
                   <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Subtotal:</td>
                   <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceSubtotalCents, business.base_currency)}</td>
                 </tr>
+                ${invoiceDiscountCents ? `
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Discount:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(-invoiceDiscountCents, business.base_currency)}</td>
+                </tr>
+                ` : ''}
                 <tr>
                   <td colspan="3" style="text-align:right; font-weight:600; padding:12px 18px">Tax (${trimTrailingZeros(invoiceTaxPercentVal.toFixed(2))}%):</td>
                   <td style="text-align:right; font-weight:600; padding:12px 18px">${fmt(invoiceTaxCents, business.base_currency)}</td>
@@ -3258,6 +3298,7 @@
       // For print, prefer light logo, fallback to dark
       const logoUrl = lightLogo || darkLogo || '';
       const printSubtotal = invoiceSubtotal(inv);
+      const printDiscount = invoiceDiscount(inv);
       const printTaxPercent = invoiceTaxPercent(inv);
       const printTax = invoiceTax(inv);
       const printTip = invoiceTip(inv);
@@ -3444,6 +3485,12 @@
                   <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Subtotal:</td>
                   <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printSubtotal, business.base_currency)}</td>
                 </tr>
+                ${printDiscount ? `
+                <tr>
+                  <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Discount:</td>
+                  <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(-printDiscount, business.base_currency)}</td>
+                </tr>
+                ` : ''}
                 <tr>
                   <td colspan="3" style="text-align:right; font-weight:600; padding:12px 12px">Tax (${trimTrailingZeros(printTaxPercent.toFixed(2))}%):</td>
                   <td style="text-align:right; font-weight:600; padding:12px 12px">${fmt(printTax, business.base_currency)}</td>
@@ -3481,6 +3528,7 @@
       const darkLogo = settings.logoDarkDataUrl;
       const logoUrl = lightLogo || darkLogo || '';
       const pdfSubtotal = invoiceSubtotal(inv);
+      const pdfDiscount = invoiceDiscount(inv);
       const pdfTaxPercent = invoiceTaxPercent(inv);
       const pdfTax = invoiceTax(inv);
       const pdfTip = invoiceTip(inv);
@@ -3568,6 +3616,12 @@
               <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Subtotal:</td>
               <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfSubtotal, business.base_currency)}</td>
             </tr>
+            ${pdfDiscount ? `
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Discount:</td>
+              <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(-pdfDiscount, business.base_currency)}</td>
+            </tr>
+            ` : ''}
             <tr>
               <td colspan="3" style="text-align: right; font-weight: 600; padding: 12px 18px;">Tax (${trimTrailingZeros(pdfTaxPercent.toFixed(2))}%):</td>
               <td style="text-align: right; font-weight: 600; padding: 12px 18px;">${fmt(pdfTax, business.base_currency)}</td>
