@@ -4836,6 +4836,9 @@
       const txnExpense = txnsInRange.filter(t => t.type === 'expense')
         .reduce((s, t) => s + (Number(t.amount_cents) || 0), 0);
       const paymentsIncome = paymentsInRange.reduce((s, p) => s + (Number(p.amount_cents) || 0), 0);
+      // #region agent log
+      logDebug('computeFinancialsInvoice:range','Invoice model range snapshot',{start:range.start,end:range.end,allTime,basis,txnCount:txnsInRange.length,paymentCount:paymentsInRange.length,txnIncome,txnExpense,paymentsIncome},'H10');
+      // #endregion
 
       let invoiceIssuedTotal = 0;
       const invoicesInRange = file.invoices.filter(inv => {
@@ -4980,6 +4983,9 @@
         if (!entry.entry_date) return allTime;
         return allTime || (entry.entry_date >= rangeStart && entry.entry_date <= rangeEnd);
       });
+      // #region agent log
+      logDebug('computeFinancialsLedger:range','Ledger model range snapshot',{rangeStart,rangeEnd,allTime,ledgerLinesInRange:ledgerLines.length},'H10');
+      // #endregion
       let income = 0;
       let expense = 0;
       let cash = 0;
@@ -5615,6 +5621,9 @@
         default:
           return null;
       }
+      // #region agent log
+      logDebug('dateRangeForPreset','Preset range resolved',{preset,start,end},'H10');
+      // #endregion
       return { start, end };
     };
     const getDateRange = () => {
@@ -5700,6 +5709,9 @@
       saveDashboardRange(range, preset);
       $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === preset));
       updateDashboardRangeLabel(range);
+      // #region agent log
+      logDebug('setDashboardPreset','Dashboard preset set',{preset,start:range.start,end:range.end},'H10');
+      // #endregion
     };
 
     const setReportsRange = (start, end) => {
