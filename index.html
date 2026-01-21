@@ -1776,10 +1776,16 @@
   <script>
     // ---------- Utilities ----------
     // #region agent log
-    const DEBUG = false;
+    const DEBUG = true;
+    const RUN_ID = 'pre-fix';
+    if (DEBUG) {
+      try { localStorage.removeItem('_debug_logs'); } catch(e) {}
+    }
     const logDebug = (location, message, data, hypothesisId) => {
       if (!DEBUG) return;
-      const logEntry = {location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
+      const logEntry = {location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:RUN_ID,hypothesisId};
+      window.__debugLogs = window.__debugLogs || [];
+      window.__debugLogs.push(logEntry);
       console.log('[DEBUG]', logEntry);
       try {
         const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
@@ -1788,8 +1794,70 @@
         localStorage.setItem('_debug_logs', JSON.stringify(logs));
       } catch(e) {}
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
+      if (navigator.sendBeacon) {
+        try {
+          const blob = new Blob([JSON.stringify(logEntry)], { type: 'application/json' });
+          navigator.sendBeacon('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c', blob);
+        } catch(e) {}
+      }
+      if (window.__refreshDebugOverlay) {
+        try { window.__refreshDebugOverlay(); } catch(e) {}
+      }
     };
     // #endregion
+    // #region agent log
+    logDebug('debug:enabled','Debug logging enabled',{userAgent:navigator.userAgent},'H0');
+    // #endregion
+    const initDebugPanel = () => {
+      if (!DEBUG) return;
+      if (document.getElementById('debug-panel')) return;
+      const panel = document.createElement('div');
+      panel.id = 'debug-panel';
+      panel.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99999;display:flex;gap:8px;align-items:center;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font:12px system-ui;';
+      panel.innerHTML = '<button id="debug-open" style="background:#2563eb;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Debug Logs</button>';
+      document.body.appendChild(panel);
+      const overlay = document.createElement('div');
+      overlay.id = 'debug-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99998;display:none;align-items:center;justify-content:center;';
+      overlay.innerHTML = '<div style="width:min(900px,92vw);background:#0b1020;color:#fff;border-radius:12px;padding:16px;box-shadow:0 12px 32px rgba(0,0,0,0.35);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><strong>Debug Logs</strong><button id="debug-close" style="background:transparent;border:1px solid #334155;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer;">Close</button></div><textarea id="debug-log-output" readonly style="width:100%;height:45vh;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px;font:12px ui-monospace, SFMono-Regular;"></textarea><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;"><button id="debug-refresh" style="background:#1f2937;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Refresh</button><button id="debug-copy" style="background:#16a34a;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Copy</button></div></div>';
+      document.body.appendChild(overlay);
+      const refreshLogs = () => {
+        try {
+          const localLogs = (() => {
+            try { return JSON.parse(localStorage.getItem('_debug_logs') || '[]'); } catch(e) { return []; }
+          })();
+          const memLogs = Array.isArray(window.__debugLogs) ? window.__debugLogs : [];
+          const combined = [...localLogs, ...memLogs];
+          const out = combined.map(l => JSON.stringify(l)).join('\n');
+          const ta = document.getElementById('debug-log-output');
+          if (ta) ta.value = out;
+        } catch(e) {}
+      };
+      window.__refreshDebugOverlay = refreshLogs;
+      const openBtn = panel.querySelector('#debug-open');
+      if (openBtn) openBtn.onclick = () => { overlay.style.display = 'flex'; refreshLogs(); };
+      const closeBtn = overlay.querySelector('#debug-close');
+      if (closeBtn) closeBtn.onclick = () => { overlay.style.display = 'none'; };
+      const refreshBtn = overlay.querySelector('#debug-refresh');
+      if (refreshBtn) refreshBtn.onclick = refreshLogs;
+      const copyBtn = overlay.querySelector('#debug-copy');
+      if (copyBtn) copyBtn.onclick = () => {
+        refreshLogs();
+        const ta = document.getElementById('debug-log-output');
+        if (!ta) return;
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(ta.value).catch(()=>{});
+        } else {
+          ta.select();
+          document.execCommand('copy');
+        }
+      };
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDebugPanel);
+    } else {
+      initDebugPanel();
+    }
     const $ = (sel) => {
       const result = document.querySelector(sel);
       // #region agent log
@@ -2070,8 +2138,14 @@
       logDebug('loadList:entry','loadList called',{},'D');
       // #endregion
       try {
-        businessList = JSON.parse(localStorage.getItem(STORAGE.v5List) || '[]');
-        activeId = localStorage.getItem(STORAGE.v5Active);
+        const listRaw = localStorage.getItem(STORAGE.v5List) || '[]';
+        const activeStored = localStorage.getItem(STORAGE.v5Active);
+        const activeRaw = activeStored ? (localStorage.getItem(STORAGE.v5Data(activeStored)) || '') : '';
+        // #region agent log
+        logDebug('loadList:raw','Local storage raw lengths',{listRawLength:listRaw.length,activeId:activeStored,activeRawLength:activeRaw.length},'H2');
+        // #endregion
+        businessList = JSON.parse(listRaw);
+        activeId = activeStored;
         // #region agent log
         logDebug('loadList:success','Business list loaded',{count:businessList.length,activeId},'D');
         // #endregion
@@ -2584,6 +2658,9 @@
       ensureFile();
       cleanOrphanLedgerEntries();
       if (renumberInvoices()) saveFile();
+      // #region agent log
+      logDebug('loadActive:file-shape','Active file shape',{schemaVersion:file?.schema_version ?? null,accountsCount:file?.accounts?.length ?? 0,invoicesCount:file?.invoices?.length ?? 0,transactionsCount:file?.transactions?.length ?? 0},'H4');
+      // #endregion
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:loadActive',message:'loadActive:file-loaded',data:{transactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
@@ -7387,8 +7464,12 @@
       try {
         document.addEventListener('keydown', handleQuickKeys);
         const tabButtons = $$('nav.tabs button');
+        const navTabs = document.querySelector('nav.tabs');
         // #region agent log
         logDebug('bindUI:tabs','Tab buttons found',{count:tabButtons.length},'B');
+        // #endregion
+        // #region agent log
+        logDebug('bindUI:elements','Key UI elements presence',{hasNavTabs:!!navTabs,hasAddInvoice:!!$('#add-invoice'),hasAddTransaction:!!$('#add-transaction'),hasSettingsTab:!!document.querySelector('nav.tabs [data-tab="settings"]')},'H1');
         // #endregion
         tabButtons.forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
         const addInvoice = $('#add-invoice'); if (addInvoice) addInvoice.onclick = () => togglePanelFor('Invoice', () => editInvoice({}));
@@ -9054,6 +9135,9 @@
       logDebug('initApp:entry','initApp called - app initialization started',{},'A');
       // #endregion
       try {
+        // #region agent log
+        logDebug('initApp:env','Environment snapshot on init',{readyState:document.readyState,hasChart:!!window.Chart,hasJsPdf:!!(window.jspdf||window.jsPDF),hasHtml2Canvas:!!window.html2canvas,hasLocalStorage:!!window.localStorage},'H3');
+        // #endregion
         syncStickyOffsets();
         window.addEventListener('resize', syncStickyOffsets);
         bindUI();
@@ -9094,11 +9178,19 @@
       // #region agent log
       logDebug('window:error','Unhandled JavaScript error',{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error?.stack},'A');
       // #endregion
+      if (document.getElementById('debug-overlay')) {
+        document.getElementById('debug-overlay').style.display = 'flex';
+        if (window.__refreshDebugOverlay) window.__refreshDebugOverlay();
+      }
     });
     window.addEventListener('unhandledrejection', (e) => {
       // #region agent log
       logDebug('window:unhandledrejection','Unhandled promise rejection',{reason:e.reason},'A');
       // #endregion
+      if (document.getElementById('debug-overlay')) {
+        document.getElementById('debug-overlay').style.display = 'flex';
+        if (window.__refreshDebugOverlay) window.__refreshDebugOverlay();
+      }
     });
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
