@@ -1208,6 +1208,10 @@
   </style>
 </head>
 <body>
+  <div id="debug-static-banner" style="position:fixed;top:0;left:0;right:0;z-index:100000;background:#dc2626;color:#fff;padding:10px 12px;font:14px system-ui;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div><strong>Debug mode</strong> — click to open logs.</div>
+    <button style="background:#fff;color:#111827;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;" onclick="(function(){var overlay=document.getElementById('debug-overlay'); if(overlay){overlay.style.display='flex'; if(window.__refreshDebugOverlay){window.__refreshDebugOverlay();}} else {alert('Debug overlay not ready. Scroll to the bottom-right for the Debug Logs button or reload once.');}})()">Open Debug Logs</button>
+  </div>
   <div id="splash-overlay" class="splash-overlay hidden" role="dialog" aria-label="Brand intro">
     <div class="splash-card">
       <video id="splash-video" class="splash-video" playsinline preload="auto">
