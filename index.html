@@ -8392,7 +8392,8 @@
       calculatorState.minimized = false;
       $('#calculator-window').classList.remove('hidden');
       $('#calculator-minimized').classList.add('hidden');
-      if (calculatorUseDefaultOpenSize) {
+      const minHeight = getCalculatorMinHeight();
+      if (calculatorUseDefaultOpenSize || calculatorState.height <= minHeight + 2) {
         calculatorState.width = Math.max(320, calculatorState.width);
         calculatorState.height = getCalculatorContentHeight();
         calculatorUseDefaultOpenSize = false;
@@ -8664,6 +8665,11 @@
       noteState.minimized = false;
       $('#note-window').classList.remove('hidden');
       $('#note-minimized').classList.add('hidden');
+      const minHeight = getNoteMinHeight();
+      if (noteState.height <= minHeight + 2) {
+        noteState.width = Math.max(360, noteState.width);
+        noteState.height = Math.max(380, noteState.height);
+      }
       updateNotePosition();
       updateNoteSize();
       updateNoteCompactState();
