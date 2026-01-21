@@ -1117,6 +1117,7 @@
       align-items: center;
       overflow-x: auto;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .note-toolbar select,
     .note-toolbar input {
@@ -8547,7 +8548,7 @@
       const body = $('#note-window .note-body');
       const toolbar = $('#note-window .note-toolbar');
       const headerHeight = header ? header.offsetHeight : 0;
-      const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+      const toolbarHeight = toolbar ? Math.max(toolbar.offsetHeight, toolbar.scrollHeight) : 0;
       let bodyPadding = 0;
       let bodyGap = 0;
       if (body) {
