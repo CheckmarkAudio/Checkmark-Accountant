@@ -1251,7 +1251,7 @@
         </div>
       </div>
       <div class="row top-actions" style="margin-left:auto; gap:12px">
-        <button id="open-calculator" class="icon-btn" data-quickkey="C" title="Quick key: C" aria-label="Calculator">
+        <button id="open-calculator" class="icon-btn" data-quickkey="M" title="Quick key: M" aria-label="Calculator">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <rect x="4" y="2.5" width="16" height="19" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
             <rect x="7" y="5.5" width="10" height="4" rx="1" ry="1" fill="currentColor" opacity="0.25"/>
@@ -1282,10 +1282,10 @@
       <button data-tab="reports" title="Quick key: 7">Reports</button>
       <button data-tab="settings" title="Quick key: 8">Settings</button>
       <div class="row top-actions" style="margin-left:auto; gap:16px">
-        <button id="quick-add-invoice" class="primary" data-quickkey="I" title="Quick key: I">Quick Invoice</button>
-        <button id="quick-add-transaction" data-quickkey="T" title="Quick key: T">Quick Txn</button>
-        <button id="quick-add-client" data-quickkey="Shift + C" title="Quick key: Shift + C">Quick Client</button>
-        <button id="quick-add-project" data-quickkey="P" title="Quick key: P">Quick Project</button>
+        <button id="quick-add-invoice" class="primary" data-quickkey="Z" title="Quick key: Z">Quick Invoice</button>
+        <button id="quick-add-transaction" data-quickkey="X" title="Quick key: X">Quick Txn</button>
+        <button id="quick-add-client" data-quickkey="C" title="Quick key: C">Quick Client</button>
+        <button id="quick-add-project" data-quickkey="V" title="Quick key: V">Quick Project</button>
       </div>
     </nav>
     <main>
@@ -1321,7 +1321,7 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Invoices</h3>
-            <button id="add-invoice" class="primary" title="Quick key: I">New Invoice</button>
+            <button id="add-invoice" class="primary" title="Quick key: Z">New Invoice</button>
           </div>
           <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0;">
             <div class="row" style="gap: 8px; flex-wrap: wrap;">
@@ -1369,7 +1369,7 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Transactions</h3>
-            <button id="add-transaction" class="primary" title="Quick key: T">New Transaction</button>
+            <button id="add-transaction" class="primary" title="Quick key: X">New Transaction</button>
           </div>
           <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0;">
             <div class="row" style="gap: 8px; flex-wrap: wrap;">
@@ -1416,7 +1416,7 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Clients / Parties</h3>
-            <button id="add-client" class="primary" data-quickkey="Shift + C" title="Quick key: Shift + C">New Client</button>
+            <button id="add-client" class="primary" data-quickkey="C" title="Quick key: C">New Client</button>
           </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-clients-json" class="ghost">Export JSON</button>
@@ -1437,7 +1437,7 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Projects</h3>
-            <button id="add-project" class="primary" data-quickkey="P" title="Quick key: P">New Project</button>
+            <button id="add-project" class="primary" data-quickkey="V" title="Quick key: V">New Project</button>
           </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-projects-json" class="ghost">Export JSON</button>
@@ -7333,10 +7333,7 @@
       if ($('#modal-overlay')?.classList.contains('show')) return;
       const key = e.key.toLowerCase();
       let handled = true;
-      if (key === 'c' && e.shiftKey) {
-        togglePanelFor('Client', () => editClient({}));
-      } else {
-        switch (key) {
+      switch (key) {
           case '1':
             setTab('dashboard');
             break;
@@ -7361,13 +7358,19 @@
           case '8':
             setTab('settings');
             break;
-          case 'i':
+          case 'z':
             togglePanelFor('Invoice', () => editInvoice({}));
             break;
-          case 't':
+          case 'x':
             togglePanelFor('Transaction', () => editTxn({}));
             break;
           case 'c':
+            togglePanelFor('Client', () => editClient({}));
+            break;
+          case 'v':
+            togglePanelFor('Project', () => editProject({}));
+            break;
+          case 'm':
             toggleCalculator();
             break;
           case 'n':
@@ -7376,13 +7379,9 @@
           case 's':
             togglePanelFor('Service', () => editService({}));
             break;
-          case 'p':
-            togglePanelFor('Project', () => editProject({}));
-            break;
           default:
             handled = false;
         }
-      }
       if (handled) e.preventDefault();
     };
     const bindUI = () => {
