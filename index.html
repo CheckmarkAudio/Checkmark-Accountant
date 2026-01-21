@@ -903,6 +903,9 @@
       overflow-x: hidden;
       min-height: 0;
     }
+    .calculator-window.compact .calculator-body {
+      overflow: hidden;
+    }
     .calculator-window[style*="height"] .calculator-body {
       min-height: 0;
     }
@@ -922,6 +925,9 @@
       text-align: right;
       position: relative;
       padding-right: 54px;
+    }
+    .calculator-window.compact .calculator-display {
+      margin-bottom: 0;
     }
     .calculator-display-toolbar {
       position: absolute;
@@ -966,6 +972,9 @@
       gap: 8px;
       flex: 0 0 auto;
       padding-bottom: 4px;
+    }
+    .calculator-window.compact .calculator-buttons {
+      display: none;
     }
     .calc-btn {
       border: 1px solid var(--border);
@@ -8280,6 +8289,18 @@
       return Math.max(120, Math.ceil(headerHeight + displayHeight + bodyPadding + displayMargin));
     };
 
+    const updateCalculatorCompactState = () => {
+      const calcWindow = $('#calculator-window');
+      if (!calcWindow) return;
+      const minHeight = getCalculatorMinHeight();
+      const currentHeight = calcWindow.getBoundingClientRect().height;
+      if (currentHeight <= minHeight + 2) {
+        calcWindow.classList.add('compact');
+      } else {
+        calcWindow.classList.remove('compact');
+      }
+    };
+
     const onResize = (e) => {
       if (!isResizing) return;
       const deltaX = e.clientX - resizeStart.x;
@@ -8290,6 +8311,7 @@
       calculatorState.width = Math.max(minWidth, resizeStart.width + deltaX);
       calculatorState.height = Math.max(minHeight, resizeStart.height + deltaY);
       updateCalculatorSize();
+      updateCalculatorCompactState();
     };
 
     const endResize = () => {
@@ -8308,11 +8330,12 @@
     };
 
     const updateCalculatorSize = () => {
-      const window = $('#calculator-window');
-      if (window) {
-        window.style.width = calculatorState.width + 'px';
-        window.style.height = calculatorState.height + 'px';
+      const calcWindow = $('#calculator-window');
+      if (calcWindow) {
+        calcWindow.style.width = calculatorState.width + 'px';
+        calcWindow.style.height = calculatorState.height + 'px';
       }
+      updateCalculatorCompactState();
     };
 
     const openCalculator = () => {
