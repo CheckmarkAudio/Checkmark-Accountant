@@ -2425,9 +2425,9 @@
       }
     };
     const closeAllTabs = () => {
-      $$('nav.tabs button').forEach(btn => btn.classList.remove('active'));
-      $$('section[data-section]').forEach(sec => sec.classList.add('hidden'));
       closePanel();
+      closeCalculator();
+      closeNote();
     };
 
     const showSplashVideo = () => {
