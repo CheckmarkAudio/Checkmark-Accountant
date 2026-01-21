@@ -141,6 +141,15 @@
       color: #fff;
       border-color: var(--accent);
     }
+    #discount-value {
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+    #discount-value::-webkit-outer-spin-button,
+    #discount-value::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
     @media (max-width: 1100px) {
       header.topbar {
         flex-wrap: wrap;
