@@ -6138,6 +6138,41 @@
               const amount = Number(t.amount_cents) || 0;
               if (amount > 0) categoryMap[name] = (categoryMap[name] || 0) + amount;
             });
+
+          const paymentsInRange = file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }));
+          const appsByPayment = {};
+          (file.payment_applications || []).forEach(app => {
+            const payment = file.payments.find(p => p.payment_id === app.payment_id);
+            if (!payment || !inDateRange(payment.payment_date, { start, end, allTime })) return;
+            appsByPayment[app.payment_id] = (appsByPayment[app.payment_id] || 0) + (Number(app.amount_cents) || 0);
+            const inv = file.invoices.find(i => i.invoice_id === app.invoice_id);
+            if (!inv || inv.status === 'void' || inv.status === 'draft') return;
+            const total = invoiceTotal(inv);
+            if (!total) return;
+            const ratio = Math.min(1, (Number(app.amount_cents) || 0) / total);
+            if (!Number.isFinite(ratio) || ratio <= 0) return;
+            const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+            if (!lines.length) {
+              const name = 'Uncategorized Income';
+              categoryMap[name] = (categoryMap[name] || 0) + (Number(app.amount_cents) || 0);
+              return;
+            }
+            lines.forEach(line => {
+              const acct = file.accounts.find(a => a.code === line.income_account_code);
+              const name = acct ? acct.name : 'Uncategorized Income';
+              const allocated = (Number(line.line_total_cents) || 0) * ratio;
+              if (allocated > 0) categoryMap[name] = (categoryMap[name] || 0) + allocated;
+            });
+          });
+
+          paymentsInRange.forEach(payment => {
+            const applied = appsByPayment[payment.payment_id] || 0;
+            const unapplied = (Number(payment.amount_cents) || 0) - applied;
+            if (unapplied > 0) {
+              const name = 'Uncategorized Income';
+              categoryMap[name] = (categoryMap[name] || 0) + unapplied;
+            }
+          });
         }
 
         const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
