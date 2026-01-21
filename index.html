@@ -1621,6 +1621,12 @@
           <label>Default Tax % (optional)</label>
           <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
           <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
+          <label style="margin-top:16px">Accounting Basis</label>
+          <select id="accounting-basis">
+            <option value="cash">Cash (payments/transactions)</option>
+            <option value="accrual">Accrual (invoices issued)</option>
+          </select>
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Cash uses payments + income transactions. Accrual uses invoices for income.</p>
           <label style="margin-top:16px">GRT % (optional)</label>
           <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
           <label style="margin-top:16px">GRT Basis</label>
@@ -6474,16 +6480,31 @@
     const renderDashboardClientRevenueChart = (range) => {
       try {
         destroyDashboardChart('clientRevenue');
-        const invoices = getDashboardFilteredInvoices(range);
+        const { start, end } = range || getDashboardRange();
+        const allTime = isAllTimeRange(start, end);
+        const basis = (file?.settings?.accounting_basis || 'cash');
         const clientMap = {};
-        invoices.forEach(inv => {
-          const party = file.parties.find(p => p.party_id === inv.party_id);
-          const name = party?.name || 'Unknown';
-          const invTotal = invoiceTotal(inv);
-          if (invTotal > 0) {
-            clientMap[name] = (clientMap[name] || 0) + invTotal;
-          }
-        });
+        if (basis === 'accrual') {
+          const invoices = getDashboardFilteredInvoices({ start, end });
+          invoices.forEach(inv => {
+            const party = file.parties.find(p => p.party_id === inv.party_id);
+            const name = party?.name || 'Unknown';
+            const invTotal = invoiceTotal(inv);
+            if (invTotal > 0) {
+              clientMap[name] = (clientMap[name] || 0) + invTotal;
+            }
+          });
+        } else {
+          const payments = file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }));
+          payments.forEach(p => {
+            const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
+            if (!inv) return;
+            const party = file.parties.find(pt => pt.party_id === inv.party_id);
+            const name = party?.name || 'Unknown';
+            const amt = Number(p.amount_cents) || 0;
+            if (amt > 0) clientMap[name] = (clientMap[name] || 0) + amt;
+          });
+        }
 
         const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
         const container = document.getElementById('dashboard-client-revenue-container');
@@ -6822,25 +6843,45 @@
 
     const expenseSummaryMap = () => {
       const map = {};
-      postedLinesInRange().forEach(l=>{
-        const acct = file.accounts.find(a=>a.code===l.account_code);
-        if (!acct || acct.type!=='expense') return;
-        const delta = (l.debit_cents||0)-(l.credit_cents||0);
-        map[acct.name] = (map[acct.name]||0) + delta;
-      });
+      const { start, end } = getReportsDateRange();
+      const allTime = isAllTimeRange(start, end);
+      file.transactions.filter(t => t.type === 'expense' && t.status !== 'draft')
+        .filter(t => inDateRange(t.date, { start, end, allTime }))
+        .forEach(t => {
+          const name = accountNameForCategory(t.category, 'Uncategorized Expense');
+          map[name] = (map[name] || 0) + (Number(t.amount_cents) || 0);
+        });
       return map;
     };
 
     const projectProfitMap = () => {
       const map = {};
-      postedLinesInRange().forEach(l=>{
-        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
-        if (!entry?.project_id) return;
-        const acct = file.accounts.find(a=>a.code===l.account_code);
-        if (!acct) return;
-        const delta = (l.credit_cents||0)-(l.debit_cents||0);
-        map[entry.project_id] = (map[entry.project_id]||0) + delta;
-      });
+      const { start, end } = getReportsDateRange();
+      const allTime = isAllTimeRange(start, end);
+      const basis = (file?.settings?.accounting_basis || 'cash');
+      const add = (projectId, delta) => {
+        map[projectId] = (map[projectId] || 0) + delta;
+      };
+      if (basis === 'accrual') {
+        file.invoices.forEach(inv => {
+          if (!inv.project_id) return;
+          if (inv.status === 'void' || inv.status === 'draft') return;
+          if (!inDateRange(inv.issue_date, { start, end, allTime })) return;
+          add(inv.project_id, invoiceTotal(inv));
+        });
+      } else {
+        file.transactions.filter(t => t.type === 'income' && t.project_id && t.status !== 'draft')
+          .filter(t => inDateRange(t.date, { start, end, allTime }))
+          .forEach(t => add(t.project_id, Number(t.amount_cents) || 0));
+        file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }))
+          .forEach(p => {
+            const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
+            if (inv?.project_id) add(inv.project_id, Number(p.amount_cents) || 0);
+          });
+      }
+      file.transactions.filter(t => t.type === 'expense' && t.project_id && t.status !== 'draft')
+        .filter(t => inDateRange(t.date, { start, end, allTime }))
+        .forEach(t => add(t.project_id, -(Number(t.amount_cents) || 0)));
       const named = {};
       Object.entries(map).forEach(([pid, val])=>{
         const project = file.projects.find(p=>p.project_id===pid);
@@ -7588,6 +7629,7 @@
         const logoLight = $('#logo-light'); if (logoLight) logoLight.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoLightDataUrl = url; if (!file.settings.logoDarkDataUrl) file.settings.logoDarkDataUrl = url; saveFile(); applyTheme(); } });
         const logoDark = $('#logo-dark'); if (logoDark) logoDark.onchange = (e)=>readFileAsDataUrl(e.target.files[0], url=>{ if(file) { file.settings.logoDarkDataUrl = url; if (!file.settings.logoLightDataUrl) file.settings.logoLightDataUrl = url; saveFile(); applyTheme(); } });
         const defaultTaxPercent = $('#default-tax-percent'); if (defaultTaxPercent) defaultTaxPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.default_tax_percent = val; saveFile(); } };
+        const accountingBasis = $('#accounting-basis'); if (accountingBasis) accountingBasis.onchange = (e)=>{ if(file) { file.settings.accounting_basis = e.target.value || 'cash'; saveFile(); if (isReportsActive()) refreshReports(); renderDashboard(); renderAnalytics(); } };
         const grtPercent = $('#grt-percent'); if (grtPercent) grtPercent.oninput = (e)=>{ if(file) { const val = Math.max(0, Number(e.target.value)||0); file.settings.grt_percent = val; saveFile(); if (isReportsActive()) refreshReports(); } };
         const grtBasis = $('#grt-basis'); if (grtBasis) grtBasis.onchange = (e)=>{ if(file) { file.settings.grt_basis = e.target.value; saveFile(); if (isReportsActive()) refreshReports(); } };
         const grtFilingFrequency = $('#grt-filing-frequency'); if (grtFilingFrequency) grtFilingFrequency.onchange = (e)=>{ if(file) { file.settings.grt_filing_frequency = e.target.value; saveFile(); if (isReportsActive()) refreshReports(); } };
@@ -8206,12 +8248,14 @@
       const themeSelect = $('#theme-select');
       const splashVideoToggle = $('#splash-video-toggle');
       const defaultTaxPercent = $('#default-tax-percent');
+      const accountingBasis = $('#accounting-basis');
       const grtPercent = $('#grt-percent');
       const grtBasis = $('#grt-basis');
       const grtFilingFrequency = $('#grt-filing-frequency');
       if (themeSelect) themeSelect.value = file.settings.theme;
       if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
+      if (accountingBasis) accountingBasis.value = file.settings.accounting_basis || 'cash';
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
       if (grtBasis) grtBasis.value = file.settings.grt_basis || 'invoices';
       if (grtFilingFrequency) grtFilingFrequency.value = file.settings.grt_filing_frequency || 'monthly';
