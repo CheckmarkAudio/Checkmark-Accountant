@@ -8297,8 +8297,6 @@
       const buttons = $('#calculator-window .calculator-buttons');
       const headerHeight = header ? header.offsetHeight : 0;
       const displayHeight = display ? display.offsetHeight : 0;
-      const showButtons = calcWindow && !calcWindow.classList.contains('compact');
-      const buttonsHeight = buttons && showButtons ? buttons.offsetHeight : 0;
       let bodyPadding = 0;
       let displayMargin = 0;
       if (body) {
@@ -8308,6 +8306,13 @@
       if (display) {
         const displayStyles = getComputedStyle(display);
         displayMargin = parseFloat(displayStyles.marginTop) + parseFloat(displayStyles.marginBottom);
+      }
+      let buttonsHeight = 0;
+      if (buttons) {
+        const wasCompact = calcWindow && calcWindow.classList.contains('compact');
+        if (wasCompact) calcWindow.classList.remove('compact');
+        buttonsHeight = buttons.offsetHeight;
+        if (wasCompact) calcWindow.classList.add('compact');
       }
       return Math.max(
         getCalculatorMinHeight(),
