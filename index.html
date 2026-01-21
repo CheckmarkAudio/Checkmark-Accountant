@@ -1811,9 +1811,14 @@
     const initDebugPanel = () => {
       if (!DEBUG) return;
       if (document.getElementById('debug-panel')) return;
+      const banner = document.createElement('div');
+      banner.id = 'debug-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#dc2626;color:#fff;padding:10px 12px;font:14px system-ui;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.25);';
+      banner.innerHTML = '<div><strong>Debug mode</strong> — click the button to open logs.</div><button id="debug-open-banner" style="background:#fff;color:#111827;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;">Open Debug Logs</button>';
+      document.body.appendChild(banner);
       const panel = document.createElement('div');
       panel.id = 'debug-panel';
-      panel.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99999;display:flex;gap:8px;align-items:center;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font:12px system-ui;';
+      panel.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99999;display:flex;gap:8px;align-items:center;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font:12px system-ui;opacity:0.5;';
       panel.innerHTML = '<button id="debug-open" style="background:#2563eb;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Debug Logs</button>';
       document.body.appendChild(panel);
       const overlay = document.createElement('div');
@@ -1834,8 +1839,11 @@
         } catch(e) {}
       };
       window.__refreshDebugOverlay = refreshLogs;
+      const openOverlay = () => { overlay.style.display = 'flex'; refreshLogs(); };
       const openBtn = panel.querySelector('#debug-open');
-      if (openBtn) openBtn.onclick = () => { overlay.style.display = 'flex'; refreshLogs(); };
+      if (openBtn) openBtn.onclick = openOverlay;
+      const openBannerBtn = banner.querySelector('#debug-open-banner');
+      if (openBannerBtn) openBannerBtn.onclick = openOverlay;
       const closeBtn = overlay.querySelector('#debug-close');
       if (closeBtn) closeBtn.onclick = () => { overlay.style.display = 'none'; };
       const refreshBtn = overlay.querySelector('#debug-refresh');
