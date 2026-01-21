@@ -4757,6 +4757,25 @@
       const output = $('#diagnostics-output');
       if (!output || !file) return;
       const fin = computeFinancials(file, { start, end });
+      const allTime = isAllTimeRange(start, end);
+      const ledgerLinesInRange = postedLines().filter(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        if (!entry) return false;
+        if (!entry.entry_date) return allTime;
+        return allTime || (entry.entry_date >= start && entry.entry_date <= end);
+      });
+      const txnsInRange = file.transactions.filter(t => {
+        if (t.status === 'draft') return false;
+        if (!t.date) return allTime;
+        return allTime || (t.date >= start && t.date <= end);
+      });
+      const txnIncome = txnsInRange.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount_cents || 0), 0);
+      const txnExpense = txnsInRange.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount_cents || 0), 0);
+      const invoicesInRange = file.invoices.filter(inv => {
+        if (inv.status === 'void' || inv.status === 'draft') return false;
+        if (!inv.issue_date) return allTime;
+        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
+      });
       const rangeLabel = `${start} to ${end}`;
       const unbalancedLabel = fin.unbalancedEntries.length
         ? `<span style="color:var(--danger)">Unbalanced Ledger Entries</span>`
@@ -4765,11 +4784,16 @@
         <div class="muted">Range: ${rangeLabel}</div>
         <div class="row" style="justify-content:space-between"><span>Income (ledger)</span><strong>${fmt(fin.income, file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between"><span>Expenses (ledger)</span><strong>${fmt(fin.expense, file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Income (transactions)</span><strong>${fmt(txnIncome, file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Expenses (transactions)</span><strong>${fmt(txnExpense, file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Invoices Issued Total</span><strong>${fmt(fin.invoiceIssuedTotal, file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between"><span>Profit</span><strong>${fmt(fin.profit, file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between"><span>Accounts Receivable</span><strong>${fmt(fin.ar, file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between"><span>Cash (ledger)</span><strong>${fmt(fin.cash, file.business.base_currency)}</strong></div>
         <div class="row" style="justify-content:space-between"><span>Open Invoices</span><strong>${fin.openInvoiceCount}</strong></div>
-        <div class="row" style="justify-content:space-between"><span>Invoice Issued Total</span><strong>${fmt(fin.invoiceIssuedTotal, file.business.base_currency)}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Ledger Lines (range)</span><strong>${ledgerLinesInRange.length}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Transactions (range)</span><strong>${txnsInRange.length}</strong></div>
+        <div class="row" style="justify-content:space-between"><span>Invoices (range)</span><strong>${invoicesInRange.length}</strong></div>
         <div class="row" style="justify-content:space-between"><span>${unbalancedLabel}</span><strong>${fin.unbalancedEntries.length}</strong></div>
       `;
     };
