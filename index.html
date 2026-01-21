@@ -151,9 +151,13 @@
       -webkit-appearance: none;
       margin: 0;
     }
-    #discount-value + .type-toggle-group {
-      flex: 0 0 152px;
-      min-width: 152px;
+    .discount-toggle-group {
+      flex: 0 0 160px;
+      min-width: 160px;
+    }
+    .discount-toggle-group .type-toggle {
+      flex: 1 1 0;
+      min-width: 0;
     }
     @media (max-width: 1100px) {
       header.topbar {
@@ -2831,7 +2835,7 @@
               <label>Discount</label>
               <div class="row" style="gap:8px; align-items:flex-end; justify-content:flex-end; flex-wrap:nowrap">
                 <input name="discount_value" id="discount-value" type="number" step="0.01" min="0" value="${discountValueDisplay}" style="flex:1; min-width:120px">
-                <div class="type-toggle-group">
+                <div class="type-toggle-group discount-toggle-group">
                   <button type="button" class="type-toggle ${discountType==='amount'?'active':''}" data-discount="amount">Cash</button>
                   <button type="button" class="type-toggle ${discountType==='percent'?'active':''}" data-discount="percent">%</button>
                 </div>
