@@ -1273,14 +1273,14 @@
       </div>
     </header>
     <nav class="tabs">
-      <button data-tab="dashboard" class="active" title="Quick key: 1">Dashboard</button>
-      <button data-tab="invoices" title="Quick key: 2">Invoices</button>
-      <button data-tab="transactions" title="Quick key: 3">Transactions</button>
-      <button data-tab="clients" title="Quick key: 4">Clients</button>
-      <button data-tab="services" title="Quick key: 5">Services</button>
-      <button data-tab="analytics" title="Quick key: 6">Analytics</button>
-      <button data-tab="reports" title="Quick key: 7">Reports</button>
-      <button data-tab="settings" title="Quick key: 8">Settings</button>
+      <button data-tab="dashboard" class="active" title="Quick key: A">Dashboard</button>
+      <button data-tab="invoices" title="Quick key: S">Invoices</button>
+      <button data-tab="transactions" title="Quick key: D">Transactions</button>
+      <button data-tab="clients" title="Quick key: F">Clients</button>
+      <button data-tab="services" title="Quick key: G">Services</button>
+      <button data-tab="analytics" title="Quick key: H">Analytics</button>
+      <button data-tab="reports" title="Quick key: J">Reports</button>
+      <button data-tab="settings" title="Quick key: K">Settings</button>
       <div class="row top-actions" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary" data-quickkey="Z" title="Quick key: Z">Quick Invoice</button>
         <button id="quick-add-transaction" data-quickkey="X" title="Quick key: X">Quick Txn</button>
@@ -7339,28 +7339,28 @@
       const key = e.key.toLowerCase();
       let handled = true;
       switch (key) {
-          case '1':
+          case 'a':
             setTab('dashboard');
             break;
-          case '2':
+          case 's':
             setTab('invoices');
             break;
-          case '3':
+          case 'd':
             setTab('transactions');
             break;
-          case '4':
+          case 'f':
             setTab('clients');
             break;
-          case '5':
+          case 'g':
             setTab('services');
             break;
-          case '6':
+          case 'h':
             setTab('analytics');
             break;
-          case '7':
+          case 'j':
             setTab('reports');
             break;
-          case '8':
+          case 'k':
             setTab('settings');
             break;
           case 'z':
