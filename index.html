@@ -8393,6 +8393,7 @@
       $('#calculator-window').classList.remove('hidden');
       $('#calculator-minimized').classList.add('hidden');
       if (calculatorUseDefaultOpenSize) {
+        calculatorState.width = Math.max(320, calculatorState.width);
         calculatorState.height = getCalculatorContentHeight();
         calculatorUseDefaultOpenSize = false;
       }
