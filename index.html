@@ -1732,8 +1732,8 @@
       <div id="note-content" class="note-editor" contenteditable="true" data-placeholder="Write a quick note..."></div>
       <div class="note-toolbar">
         <select id="note-menu"></select>
-        <button id="note-new" class="ghost">New</button>
         <button id="note-save" class="primary">Save</button>
+        <button id="note-new" class="ghost">New</button>
         <button id="note-delete" class="ghost">Delete</button>
         <button id="note-copy" class="ghost">Copy</button>
       </div>
@@ -8044,14 +8044,18 @@
       width: 320,
       height: 400
     };
+    let calculatorHasSavedState = false;
+    let calculatorUseDefaultOpenSize = true;
 
     const loadCalculatorState = () => {
       const saved = localStorage.getItem('ck5_calculator_state');
       if (saved) {
         try {
           calculatorState = { ...calculatorState, ...JSON.parse(saved) };
+          calculatorHasSavedState = true;
         } catch (e) {}
       }
+      calculatorUseDefaultOpenSize = !calculatorHasSavedState;
     };
 
     const saveCalculatorState = () => {
@@ -8381,6 +8385,10 @@
       calculatorState.minimized = false;
       $('#calculator-window').classList.remove('hidden');
       $('#calculator-minimized').classList.add('hidden');
+      if (calculatorUseDefaultOpenSize) {
+        calculatorState.height = getCalculatorContentHeight();
+        calculatorUseDefaultOpenSize = false;
+      }
       updateCalculatorPosition();
       updateCalculatorSize();
       saveCalculatorState();
