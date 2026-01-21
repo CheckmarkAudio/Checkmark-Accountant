@@ -2703,9 +2703,14 @@
         .map(p=>`<option value="${escapeHtml(p.party_id)}" ${p.party_id===inv.party_id?'selected':''}>${escapeHtml(p.name)}</option>`)
         .join('');
       const recentServiceIds = recentSelections('service');
-      const serviceRecent = recentServiceIds.length
-        ? recentServiceIds.map(id => file.services.find(s => s.service_id === id)).filter(Boolean)
-        : file.services.slice(-3).reverse();
+      const recentServices = recentServiceIds
+        .map(id => file.services.find(s => s.service_id === id))
+        .filter(Boolean);
+      const allServicesSorted = [...file.services].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const serviceOrdered = [
+        ...recentServices,
+        ...allServicesSorted.filter(s => !recentServices.find(r => r.service_id === s.service_id))
+      ];
       const lines = inv.lines || [];
       const lineItems = lines.map(l => lineRow(l)).join('');
       const taxPercentDefault = inv.tax_percent ?? file.settings.default_tax_percent ?? 0;
@@ -2730,8 +2735,11 @@
           <label>Project</label>
           <select name="project_id"><option value="">None</option>${filteredProjects.map(p=>`<option value="${escapeHtml(p.project_id)}" ${p.project_id===inv.project_id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select>
           <div class="row" style="gap:8px; flex-wrap:wrap">
-            <span class="muted">Recent services:</span>
-            ${serviceRecent.map(s=>`<button type="button" class="recent-chip" data-service="${escapeHtml(s.service_id)}">${escapeHtml(s.name)}</button>`).join('')}
+            <span class="muted">Services:</span>
+            ${serviceOrdered.length
+              ? serviceOrdered.map(s=>`<button type="button" class="recent-chip" data-service="${escapeHtml(s.service_id)}">${escapeHtml(s.name)}</button>`).join('')
+              : '<span class="muted">No services yet.</span>'
+            }
             <button type="button" class="ghost" id="add-service-inline">+ Add new</button>
           </div>
           <div id="line-container" class="stack">${lineItems || ''}</div>
@@ -2759,7 +2767,7 @@
       const timeNote = billing === 'hourly'
         ? (Number(qtyVal) ? `= ${trimTrailingZeros((Number(qtyVal)||0).toFixed(2))} hrs` : 'Enter hh:mm to convert')
         : '';
-      return `<div class="card" data-line="${escapeHtml(line.invoice_line_id||uuid())}" data-billing="${billing}" style="padding:20px; box-shadow:none; margin-bottom:12px">
+      return `<div class="card" data-line="${escapeHtml(line.invoice_line_id||uuid())}" data-billing="${billing}" data-service-id="${escapeHtml(line.service_id || '')}" style="padding:20px; box-shadow:none; margin-bottom:12px">
         <div class="row" style="gap:8px; align-items:center">
           <input class="line-name" placeholder="Service / Description" value="${escapeHtml(line.service_name||'')}">
           <input class="line-qty" type="number" step="0.01" value="${escapeHtml(qtyVal)}" style="width:90px" title="${billing==='hourly'?'Hours':'Quantity'}">
@@ -2865,6 +2873,7 @@
       const saveInvoiceDraft = () => {
         const lines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
           invoice_line_id: div.dataset.line || uuid(),
+          service_id: div.dataset.serviceId || null,
           service_name: div.querySelector('.line-name').value,
           quantity: Number(div.querySelector('.line-qty').value)||0,
           rate_cents: moneyToCents(div.querySelector('.line-rate').value),
@@ -2912,6 +2921,7 @@
         const data = new FormData(form);
         const lines = Array.from(container.querySelectorAll('[data-line]')).map(div => ({
           invoice_line_id: div.dataset.line,
+          service_id: div.dataset.serviceId || null,
           service_name: div.querySelector('.line-name').value,
           quantity: Number(div.querySelector('.line-qty').value)||0,
           rate_cents: moneyToCents(div.querySelector('.line-rate').value),
@@ -3005,9 +3015,36 @@
       if (container.querySelector('.empty')) container.innerHTML='';
       pushRecent('service', svc.service_id);
       const billing = svc.billing_type || 'flat';
+      const existing = Array.from(container.querySelectorAll('[data-line]'))
+        .find(div => div.dataset.serviceId === svc.service_id);
+      if (existing) {
+        if (billing === 'hourly') {
+          const qtyInput = existing.querySelector('.line-qty');
+          const timeInput = existing.querySelector('.line-time');
+          const note = existing.querySelector('[data-time-note]');
+          let minutes = parseTimeToMinutes(timeInput?.value || '');
+          if (minutes === null) {
+            const qty = Number(qtyInput?.value)||0;
+            minutes = Math.round(qty*60);
+          }
+          const nextMinutes = (minutes || 0) + 60;
+          if (timeInput) timeInput.value = minutesToTimeString(nextMinutes);
+          if (qtyInput) qtyInput.value = trimTrailingZeros((nextMinutes/60).toFixed(2)) || '0';
+          if (note) note.textContent = `= ${trimTrailingZeros(((nextMinutes/60)||0).toFixed(2))} hrs`;
+        } else {
+          const qtyInput = existing.querySelector('.line-qty');
+          if (qtyInput) {
+            const nextQty = (Number(qtyInput.value)||0) + 1;
+            qtyInput.value = trimTrailingZeros(nextQty.toFixed(2)) || '0';
+          }
+        }
+        updateInvoiceTotal(container);
+        return;
+      }
       const timeMinutes = billing==='hourly' ? 60 : null;
       const quantity = billing==='hourly' ? (timeMinutes/60) : 1;
       container.insertAdjacentHTML('beforeend', lineRow({
+        service_id: svc.service_id,
         service_name: svc.name,
         quantity,
         rate_cents: svc.default_rate_cents,
