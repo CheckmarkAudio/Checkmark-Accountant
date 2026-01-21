@@ -1177,13 +1177,13 @@
       </div>
     </header>
     <nav class="tabs">
-      <button data-tab="dashboard" class="active">Dashboard</button>
-      <button data-tab="invoices">Invoices</button>
-      <button data-tab="transactions">Transactions</button>
-      <button data-tab="clients">Clients</button>
-      <button data-tab="services">Services</button>
-      <button data-tab="analytics">Analytics</button>
-      <button data-tab="reports">Reports</button>
+      <button data-tab="dashboard" class="active" title="Quick key: 1">Dashboard</button>
+      <button data-tab="invoices" title="Quick key: 2">Invoices</button>
+      <button data-tab="transactions" title="Quick key: 3">Transactions</button>
+      <button data-tab="clients" title="Quick key: 4">Clients</button>
+      <button data-tab="services" title="Quick key: 5">Services</button>
+      <button data-tab="analytics" title="Quick key: 6">Analytics</button>
+      <button data-tab="reports" title="Quick key: 7">Reports</button>
       <div class="row top-actions" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary" data-quickkey="I" title="Quick key: I">Quick Invoice</button>
         <button id="quick-add-transaction" data-quickkey="T" title="Quick key: T">Quick Txn</button>
@@ -7045,6 +7045,30 @@
         togglePanelFor('Client', () => editClient({}));
       } else {
         switch (key) {
+          case '1':
+            setTab('dashboard');
+            break;
+          case '2':
+            setTab('invoices');
+            break;
+          case '3':
+            setTab('transactions');
+            break;
+          case '4':
+            setTab('clients');
+            break;
+          case '5':
+            setTab('services');
+            break;
+          case '6':
+            setTab('analytics');
+            break;
+          case '7':
+            setTab('reports');
+            break;
+          case '8':
+            setTab('settings');
+            break;
           case 'i':
             togglePanelFor('Invoice', () => editInvoice({}));
             break;
