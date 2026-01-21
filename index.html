@@ -2633,16 +2633,46 @@
           <button data-action="view">View</button>
           <button data-action="pay">Mark Paid</button>
           <button data-action="edit">Edit</button>
+          <button data-action="dup">Duplicate</button>
           <button data-action="void">Void</button>
           <button data-action="del">Delete</button>
         </td>`;
         tr.querySelector('[data-action="view"]').onclick = () => viewInvoice(inv);
         tr.querySelector('[data-action="edit"]').onclick = () => editInvoice(inv);
+        tr.querySelector('[data-action="dup"]').onclick = () => duplicateInvoice(inv);
         tr.querySelector('[data-action="del"]').onclick = () => deleteInvoice(inv);
         tr.querySelector('[data-action="pay"]').onclick = () => promptMarkPaid(inv);
         tr.querySelector('[data-action="void"]').onclick = () => voidInvoice(inv);
         tbody.appendChild(tr);
       });
+    };
+
+    const duplicateInvoice = (inv) => {
+      if (!file) return;
+      const newId = uuid();
+      const lines = file.invoice_lines
+        .filter(l => l.invoice_id === inv.invoice_id)
+        .map(l => ({
+          ...clone(l),
+          invoice_line_id: uuid(),
+          invoice_id: newId,
+          created_at: nowIso(),
+          updated_at: nowIso()
+        }));
+      const draft = {
+        ...clone(inv),
+        invoice_id: newId,
+        number: null,
+        status: 'draft',
+        issue_date: today(),
+        subtotal_cents: null,
+        tax_cents: null,
+        total_cents: null,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+        lines
+      };
+      editInvoice(draft, true);
     };
 
     const renderInvoiceDraft = () => {
@@ -3653,11 +3683,25 @@
         const typeLabel = `${escapeHtml(t.type || 'draft')}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${typeLabel}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
-        <td class="row actions">${isDraft ? '<button data-edit>Resume</button><button data-del>Delete</button>' : '<button data-edit>Edit</button><button data-del>Delete</button>'}</td>`;
+        <td class="row actions">${isDraft ? '<button data-edit>Resume</button><button data-dup>Add similar</button><button data-del>Delete</button>' : '<button data-edit>Edit</button><button data-dup>Add similar</button><button data-del>Delete</button>'}</td>`;
         tr.querySelector('[data-edit]').onclick = () => editTxn(t, isDraft);
+        tr.querySelector('[data-dup]').onclick = () => duplicateTxn(t);
         tr.querySelector('[data-del]').onclick = () => delTxn(t);
         tbody.appendChild(tr);
       });
+    };
+
+    const duplicateTxn = (t) => {
+      if (!file) return;
+      const draft = {
+        ...clone(t),
+        transaction_id: uuid(),
+        date: today(),
+        status: 'draft',
+        created_at: nowIso(),
+        updated_at: nowIso()
+      };
+      editTxn(draft, true);
     };
 
     const txnForm = (t={}) => {
@@ -3956,13 +4000,23 @@
       rows.forEach(s => {
         const tr = document.createElement('tr');
         const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
-        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-use>Use on Invoice</button><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.querySelector('[data-use]').onclick = () => useServiceOnInvoice(s);
         tr.querySelector('[data-edit]').onclick = () => editService(s);
         tr.querySelector('[data-del]').onclick = () => {
           file.services = file.services.filter(x=>x.service_id!==s.service_id); saveFile(); renderServices();
         };
         tbody.appendChild(tr);
       });
+    };
+
+    const useServiceOnInvoice = (svc) => {
+      if (!file) return;
+      editInvoice({});
+      setTimeout(() => {
+        const container = $('#line-container');
+        if (container) addLineFromService(container, svc);
+      }, 0);
     };
 
     const editService = (s={}) => {
