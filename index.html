@@ -1208,70 +1208,6 @@
   </style>
 </head>
 <body>
-  <div id="debug-static-banner" style="position:fixed;top:0;left:0;right:0;z-index:100000;background:#dc2626;color:#fff;padding:10px 12px;font:14px system-ui;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-    <div><strong>Debug mode</strong> — click to open logs.</div>
-    <button style="background:#fff;color:#111827;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;" onclick="(function(){var overlay=document.getElementById('debug-overlay'); if(overlay){overlay.style.display='flex'; if(window.__refreshDebugOverlay){window.__refreshDebugOverlay();}} else {alert('Debug overlay not ready. Scroll to the bottom-right for the Debug Logs button or reload once.');}})()">Open Debug Logs</button>
-  </div>
-  <script>
-    (function(){
-      try {
-        window.__debugLogs = window.__debugLogs || [];
-        var makeOverlay = function() {
-          if (document.getElementById('debug-overlay')) return;
-          var panel = document.createElement('div');
-          panel.id = 'debug-panel-inline';
-          panel.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:100001;display:flex;gap:8px;align-items:center;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font:12px system-ui;';
-          panel.innerHTML = '<button id="debug-open-inline" style="background:#2563eb;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Debug Logs</button>';
-          document.body.appendChild(panel);
-          var overlay = document.createElement('div');
-          overlay.id = 'debug-overlay';
-          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:none;align-items:center;justify-content:center;';
-          overlay.innerHTML = '<div style="width:min(900px,92vw);background:#0b1020;color:#fff;border-radius:12px;padding:16px;box-shadow:0 12px 32px rgba(0,0,0,0.35);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><strong>Debug Logs</strong><button id="debug-close-inline" style="background:transparent;border:1px solid #334155;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer;">Close</button></div><textarea id="debug-log-output" readonly style="width:100%;height:45vh;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px;font:12px ui-monospace, SFMono-Regular;"></textarea><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;"><button id="debug-refresh-inline" style="background:#1f2937;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Refresh</button><button id="debug-copy-inline" style="background:#16a34a;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Copy</button></div></div>';
-          document.body.appendChild(overlay);
-          var refreshLogs = function() {
-            try {
-              var localLogs = [];
-              try { localLogs = JSON.parse(localStorage.getItem('_debug_logs') || '[]'); } catch(e) {}
-              var memLogs = Array.isArray(window.__debugLogs) ? window.__debugLogs : [];
-              var combined = localLogs.concat(memLogs);
-              var out = combined.map(function(l){ return JSON.stringify(l); }).join('\n');
-              var ta = document.getElementById('debug-log-output');
-              if (ta) ta.value = out;
-            } catch(e) {}
-          };
-          window.__refreshDebugOverlay = refreshLogs;
-          var openOverlay = function(){ overlay.style.display = 'flex'; refreshLogs(); };
-          panel.querySelector('#debug-open-inline').onclick = openOverlay;
-          overlay.querySelector('#debug-close-inline').onclick = function(){ overlay.style.display = 'none'; };
-          overlay.querySelector('#debug-refresh-inline').onclick = refreshLogs;
-          overlay.querySelector('#debug-copy-inline').onclick = function(){
-            refreshLogs();
-            var ta = document.getElementById('debug-log-output');
-            if (!ta) return;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(ta.value).catch(function(){});
-            } else {
-              ta.select();
-              document.execCommand('copy');
-            }
-          };
-        };
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', makeOverlay);
-        } else {
-          makeOverlay();
-        }
-        window.addEventListener('error', function(e){
-          window.__debugLogs.push({location:'inline:error',message:e.message,data:{filename:e.filename,lineno:e.lineno,colno:e.colno},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H0'});
-          if (window.__refreshDebugOverlay) window.__refreshDebugOverlay();
-        });
-        window.addEventListener('unhandledrejection', function(e){
-          window.__debugLogs.push({location:'inline:unhandledrejection',message:'Unhandled promise rejection',data:{reason:e.reason},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H0'});
-          if (window.__refreshDebugOverlay) window.__refreshDebugOverlay();
-        });
-      } catch(e) {}
-    })();
-  </script>
   <div id="splash-overlay" class="splash-overlay hidden" role="dialog" aria-label="Brand intro">
     <div class="splash-card">
       <video id="splash-video" class="splash-video" playsinline preload="auto">
@@ -1839,104 +1775,7 @@
 
   <script>
     // ---------- Utilities ----------
-    // #region agent log
-    const DEBUG = true;
-    const RUN_ID = 'post-fix';
-    if (DEBUG) {
-      try { localStorage.removeItem('_debug_logs'); } catch(e) {}
-    }
-    const logDebug = (location, message, data, hypothesisId) => {
-      if (!DEBUG) return;
-      const logEntry = {location,message,data:data||{},timestamp:Date.now(),sessionId:'debug-session',runId:RUN_ID,hypothesisId};
-      window.__debugLogs = window.__debugLogs || [];
-      window.__debugLogs.push(logEntry);
-      console.log('[DEBUG]', logEntry);
-      try {
-        const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
-        logs.push(logEntry);
-        if (logs.length > 1000) logs.shift();
-        localStorage.setItem('_debug_logs', JSON.stringify(logs));
-      } catch(e) {}
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
-      if (navigator.sendBeacon) {
-        try {
-          const blob = new Blob([JSON.stringify(logEntry)], { type: 'application/json' });
-          navigator.sendBeacon('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c', blob);
-        } catch(e) {}
-      }
-      if (window.__refreshDebugOverlay) {
-        try { window.__refreshDebugOverlay(); } catch(e) {}
-      }
-    };
-    // #endregion
-    // #region agent log
-    logDebug('debug:enabled','Debug logging enabled',{userAgent:navigator.userAgent},'H0');
-    // #endregion
-    const initDebugPanel = () => {
-      if (!DEBUG) return;
-      if (document.getElementById('debug-panel')) return;
-      const banner = document.createElement('div');
-      banner.id = 'debug-banner';
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#dc2626;color:#fff;padding:10px 12px;font:14px system-ui;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.25);';
-      banner.innerHTML = '<div><strong>Debug mode</strong> — click the button to open logs.</div><button id="debug-open-banner" style="background:#fff;color:#111827;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;">Open Debug Logs</button>';
-      document.body.appendChild(banner);
-      const panel = document.createElement('div');
-      panel.id = 'debug-panel';
-      panel.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99999;display:flex;gap:8px;align-items:center;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font:12px system-ui;opacity:0.5;';
-      panel.innerHTML = '<button id="debug-open" style="background:#2563eb;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Debug Logs</button>';
-      document.body.appendChild(panel);
-      const overlay = document.createElement('div');
-      overlay.id = 'debug-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99998;display:none;align-items:center;justify-content:center;';
-      overlay.innerHTML = '<div style="width:min(900px,92vw);background:#0b1020;color:#fff;border-radius:12px;padding:16px;box-shadow:0 12px 32px rgba(0,0,0,0.35);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><strong>Debug Logs</strong><button id="debug-close" style="background:transparent;border:1px solid #334155;color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer;">Close</button></div><textarea id="debug-log-output" readonly style="width:100%;height:45vh;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px;font:12px ui-monospace, SFMono-Regular;"></textarea><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;"><button id="debug-refresh" style="background:#1f2937;border:1px solid #334155;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Refresh</button><button id="debug-copy" style="background:#16a34a;border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;">Copy</button></div></div>';
-      document.body.appendChild(overlay);
-      const refreshLogs = () => {
-        try {
-          const localLogs = (() => {
-            try { return JSON.parse(localStorage.getItem('_debug_logs') || '[]'); } catch(e) { return []; }
-          })();
-          const memLogs = Array.isArray(window.__debugLogs) ? window.__debugLogs : [];
-          const combined = [...localLogs, ...memLogs];
-          const out = combined.map(l => JSON.stringify(l)).join('\n');
-          const ta = document.getElementById('debug-log-output');
-          if (ta) ta.value = out;
-        } catch(e) {}
-      };
-      window.__refreshDebugOverlay = refreshLogs;
-      const openOverlay = () => { overlay.style.display = 'flex'; refreshLogs(); };
-      const openBtn = panel.querySelector('#debug-open');
-      if (openBtn) openBtn.onclick = openOverlay;
-      const openBannerBtn = banner.querySelector('#debug-open-banner');
-      if (openBannerBtn) openBannerBtn.onclick = openOverlay;
-      const closeBtn = overlay.querySelector('#debug-close');
-      if (closeBtn) closeBtn.onclick = () => { overlay.style.display = 'none'; };
-      const refreshBtn = overlay.querySelector('#debug-refresh');
-      if (refreshBtn) refreshBtn.onclick = refreshLogs;
-      const copyBtn = overlay.querySelector('#debug-copy');
-      if (copyBtn) copyBtn.onclick = () => {
-        refreshLogs();
-        const ta = document.getElementById('debug-log-output');
-        if (!ta) return;
-        if (navigator.clipboard?.writeText) {
-          navigator.clipboard.writeText(ta.value).catch(()=>{});
-        } else {
-          ta.select();
-          document.execCommand('copy');
-        }
-      };
-    };
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initDebugPanel);
-    } else {
-      initDebugPanel();
-    }
-    const $ = (sel) => {
-      const result = document.querySelector(sel);
-      // #region agent log
-      if (!result) logDebug('$:null',`querySelector returned null for: ${sel}`,{selector:sel},'C');
-      // #endregion
-      return result;
-    };
+    const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
     const nowIso = () => new Date().toISOString();
     const today = () => new Date().toISOString().slice(0,10);
@@ -2206,25 +2045,13 @@
     const saveList = () => localStorage.setItem(STORAGE.v5List, JSON.stringify(businessList));
     const saveActive = () => activeId ? localStorage.setItem(STORAGE.v5Active, activeId) : localStorage.removeItem(STORAGE.v5Active);
     const loadList = () => {
-      // #region agent log
-      logDebug('loadList:entry','loadList called',{},'D');
-      // #endregion
       try {
         const listRaw = localStorage.getItem(STORAGE.v5List) || '[]';
         const activeStored = localStorage.getItem(STORAGE.v5Active);
         const activeRaw = activeStored ? (localStorage.getItem(STORAGE.v5Data(activeStored)) || '') : '';
-        // #region agent log
-        logDebug('loadList:raw','Local storage raw lengths',{listRawLength:listRaw.length,activeId:activeStored,activeRawLength:activeRaw.length},'H2');
-        // #endregion
         businessList = JSON.parse(listRaw);
         activeId = activeStored;
-        // #region agent log
-        logDebug('loadList:success','Business list loaded',{count:businessList.length,activeId},'D');
-        // #endregion
       } catch(e) {
-        // #region agent log
-        logDebug('loadList:error','Error loading business list',{error:e.message},'D');
-        // #endregion
         throw e;
       }
     };
@@ -2459,9 +2286,6 @@
     };
 
     const removeLinkedEntries = ({ transaction_id=null, payment_id=null }) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:removeLinkedEntries',message:'removeLinkedEntries:entry',data:{transaction_id,payment_id,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       if (!transaction_id && !payment_id) return;
       const keepIds = [];
       file.ledger_entries = file.ledger_entries.filter(e=>{
@@ -2471,9 +2295,6 @@
         return true;
       });
       file.ledger_lines = file.ledger_lines.filter(l => keepIds.includes(l.ledger_entry_id) || (!transaction_id && !payment_id));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:removeLinkedEntries',message:'removeLinkedEntries:after',data:{transaction_id,payment_id,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     };
 
     const postEntry = (entry) => {
@@ -2713,14 +2534,8 @@
     };
 
     const loadActive = () => {
-      // #region agent log
-      logDebug('loadActive:entry','loadActive called',{activeId,businessListLength:businessList.length},'E');
-      // #endregion
       if (!activeId && businessList.length) activeId = businessList[0].id;
       if (!activeId) {
-        // #region agent log
-        logDebug('loadActive:early-return','No activeId and no businessList',{},'E');
-        // #endregion
         // Prompt to create a business if none exists
         promptCreateBusinessIfNeeded();
         return;
@@ -2730,25 +2545,10 @@
       ensureFile();
       cleanOrphanLedgerEntries();
       if (renumberInvoices()) saveFile();
-      // #region agent log
-      logDebug('loadActive:file-shape','Active file shape',{schemaVersion:file?.schema_version ?? null,accountsCount:file?.accounts?.length ?? 0,invoicesCount:file?.invoices?.length ?? 0,transactionsCount:file?.transactions?.length ?? 0},'H4');
-      // #endregion
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:loadActive',message:'loadActive:file-loaded',data:{transactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       renderBusinessSelector();
       applyTheme();
-      // #region agent log
-      logDebug('loadActive:before-renderAll','About to call renderAll',{fileExists:!!file},'E');
-      // #endregion
       renderAll();
-      // #region agent log
-      logDebug('loadActive:after-renderAll','renderAll completed',{},'E');
-      // #endregion
       setTab('dashboard');
-      // #region agent log
-      logDebug('loadActive:complete','loadActive completed',{},'E');
-      // #endregion
     };
 
     const promptCreateBusinessIfNeeded = () => {
@@ -4237,9 +4037,6 @@
     };
 
     const delTxn = (t) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:entry',data:{transaction_id:t.transaction_id,type:t.type,amount_cents:t.amount_cents,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       // Remove any posted ledger entries linked to this transaction so balances stay correct
       removeLinkedEntries({ transaction_id: t.transaction_id });
       file.transactions = file.transactions.filter(x=>x.transaction_id!==t.transaction_id);
@@ -4250,9 +4047,6 @@
         saveFile(); 
         renderTransactions(); renderDashboard();
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:delTxn',message:'delTxn:after',data:{transaction_id:t.transaction_id,remainingTransactions:file.transactions.length,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     };
 
     // ---------- Clients / Services ----------
@@ -4836,9 +4630,6 @@
       const txnExpense = txnsInRange.filter(t => t.type === 'expense')
         .reduce((s, t) => s + (Number(t.amount_cents) || 0), 0);
       const paymentsIncome = paymentsInRange.reduce((s, p) => s + (Number(p.amount_cents) || 0), 0);
-      // #region agent log
-      logDebug('computeFinancialsInvoice:range','Invoice model range snapshot',{start:range.start,end:range.end,allTime,basis,txnCount:txnsInRange.length,paymentCount:paymentsInRange.length,txnIncome,txnExpense,paymentsIncome},'H10');
-      // #endregion
 
       let invoiceIssuedTotal = 0;
       const invoicesInRange = file.invoices.filter(inv => {
@@ -4859,9 +4650,6 @@
         if (!inDateRange(pay.payment_date, { ...range, allTime })) return sum;
         return sum + (Number(app.amount_cents) || 0);
       }, 0);
-      // #region agent log
-      logDebug('computeFinancialsInvoice:apps','Payment application sum',{invoiceIssuedTotal,invoicesInRange:invoicesInRange.length,appSum,appCount:(file.payment_applications||[]).length},'H11');
-      // #endregion
 
       let income = 0;
       let expense = 0;
@@ -4988,9 +4776,6 @@
         && hasLedger
         && Math.abs(incomeDiff) < 1
         && Math.abs(expenseDiff) < 1;
-      // #region agent log
-      logDebug('computeFinancials:select','Selected compute model',{basis,hasLedger,incomeDiff,expenseDiff,useLedger,useInvoiceOverride,invoiceIncome,cashIncome,ledgerEntries:file?.ledger_entries?.length||0,ledgerLines:file?.ledger_lines?.length||0,invoiceCount:file?.invoices?.length||0,paymentCount:file?.payments?.length||0,transactionCount:file?.transactions?.length||0},'H9');
-      // #endregion
       if (useInvoiceOverride) {
         const adjustedIncome = invoiceFin.invoiceIssuedTotal || 0;
         const adjustedMonthly = invoiceFin.invoiceMonthly || invoiceFin.monthly || {};
@@ -5000,9 +4785,6 @@
           monthly: adjustedMonthly,
           profit: adjustedIncome - (invoiceFin.expense || 0)
         };
-        // #region agent log
-        logDebug('computeFinancials:override','Applied invoice override',{adjustedIncome,adjustedMonthlyKeys:Object.keys(adjustedMonthly).length},'H9');
-        // #endregion
         return adjusted;
       }
       return useLedger ? ledgerFin : invoiceFin;
@@ -5010,26 +4792,17 @@
     // CANONICAL_MODEL: LEDGER_FIRST
     CANONICAL_MODEL = 'LEDGER_FIRST';
     const computeFinancialsLedger = (file, { start, end } = {}) => {
-      // #region agent log
-      logDebug('computeFinancials:entry','computeFinancials called',{hasFile:!!file,rangeStart:start||null,rangeEnd:end||null,basis:file?.settings?.accounting_basis},'H5');
-      // #endregion
       if (!file) return { income: 0, expense: 0, profit: 0, ar: 0, cash: 0, openInvoiceCount: 0, monthly: {}, unbalancedEntries: [] };
       const rangeStart = start || '1900-01-01';
       const rangeEnd = end || '2999-12-31';
       const allTime = isAllTimeRange(rangeStart, rangeEnd);
       const posted = postedLines();
-      // #region agent log
-      logDebug('computeFinancials:posted','Posted lines snapshot',{postedCount:posted.length,ledgerEntries:file.ledger_entries?.length||0,ledgerLines:file.ledger_lines?.length||0},'H6');
-      // #endregion
       const ledgerLines = posted.filter(l => {
         const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
         if (!entry) return false;
         if (!entry.entry_date) return allTime;
         return allTime || (entry.entry_date >= rangeStart && entry.entry_date <= rangeEnd);
       });
-      // #region agent log
-      logDebug('computeFinancialsLedger:range','Ledger model range snapshot',{rangeStart,rangeEnd,allTime,ledgerLinesInRange:ledgerLines.length},'H10');
-      // #endregion
       let income = 0;
       let expense = 0;
       let cash = 0;
@@ -5063,9 +4836,6 @@
         if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
         appsByInvoice[app.invoice_id] += app.amount_cents || 0;
       });
-      // #region agent log
-      logDebug('computeFinancials:invoice-basis','Invoice/payment snapshot',{invoiceCount:file.invoices?.length||0,paymentCount:file.payments?.length||0,appCount:(file.payment_applications||[]).length},'H7');
-      // #endregion
       let ar = 0;
       let openInvoiceCount = 0;
       let invoiceIssuedTotal = 0;
@@ -5096,9 +4866,6 @@
         const cred = lines.reduce((s, l) => s + (l.credit_cents || 0), 0);
         if (deb !== cred) unbalancedEntries.push(e.ledger_entry_id);
       });
-      // #region agent log
-      logDebug('computeFinancials:exit','computeFinancials totals',{income,expense,profit:income-expense,ar,cash,openInvoiceCount,unbalancedCount:unbalancedEntries.length},'H8');
-      // #endregion
       if (isDevMode()) {
         const hasInvoicePayments = file.ledger_entries.some(e => {
           if (!e.linked_invoice_id) return false;
@@ -5172,14 +4939,8 @@
       `;
     };
     const postedLines = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:entry',data:{ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length,entries:file.ledger_entries.map(e=>({id:e.ledger_entry_id,type:e.entry_type,linkedTxn:e.linked_transaction_id||null,linkedPay:e.linked_payment_id||null}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
       const lines = file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:postedLines',message:'postedLines:after',data:{returned:lines.length,postedIdsCount:postedIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       return lines;
     };
 
@@ -5665,9 +5426,6 @@
         default:
           return null;
       }
-      // #region agent log
-      logDebug('dateRangeForPreset','Preset range resolved',{preset,start,end},'H10');
-      // #endregion
       return { start, end };
     };
     const getDateRange = () => {
@@ -5753,9 +5511,6 @@
       saveDashboardRange(range, preset);
       $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === preset));
       updateDashboardRangeLabel(range);
-      // #region agent log
-      logDebug('setDashboardPreset','Dashboard preset set',{preset,start:range.start,end:range.end},'H10');
-      // #endregion
     };
 
     const setReportsRange = (start, end) => {
@@ -7488,9 +7243,6 @@
       $$('.date-preset-btn[data-for="dashboard"]').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === getDashboardPreset()));
       updateDashboardRangeLabel({ start, end });
       const fin = computeFinancials(file, { start, end });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:renderDashboard',message:'renderDashboard:totals',data:{income:fin.income,expense:fin.expense,ledgerEntries:file.ledger_entries.length,ledgerLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       const cards = [
         { label:'Income', value:fmt(fin.income,file.business.base_currency) },
         { label:'Expenses', value:fmt(fin.expense,file.business.base_currency) },
@@ -7608,19 +7360,10 @@
       if (handled) e.preventDefault();
     };
     const bindUI = () => {
-      // #region agent log
-      logDebug('bindUI:entry','bindUI called',{},'B');
-      // #endregion
       try {
         document.addEventListener('keydown', handleQuickKeys);
         const tabButtons = $$('nav.tabs button');
         const navTabs = document.querySelector('nav.tabs');
-        // #region agent log
-        logDebug('bindUI:tabs','Tab buttons found',{count:tabButtons.length},'B');
-        // #endregion
-        // #region agent log
-        logDebug('bindUI:elements','Key UI elements presence',{hasNavTabs:!!navTabs,hasAddInvoice:!!$('#add-invoice'),hasAddTransaction:!!$('#add-transaction'),hasSettingsTab:!!document.querySelector('nav.tabs [data-tab="settings"]')},'H1');
-        // #endregion
         tabButtons.forEach(btn => btn.onclick = () => setTab(btn.dataset.tab));
         const addInvoice = $('#add-invoice'); if (addInvoice) addInvoice.onclick = () => togglePanelFor('Invoice', () => editInvoice({}));
         const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => togglePanelFor('Invoice', () => editInvoice({}));
@@ -8099,14 +7842,7 @@
             }
           });
         }
-        
-        // #region agent log
-        logDebug('bindUI:complete','bindUI completed successfully',{},'B');
-        // #endregion
       } catch(e) {
-        // #region agent log
-        logDebug('bindUI:error','Error in bindUI',{error:e.message,stack:e.stack},'B');
-        // #endregion
         console.error('bindUI error:', e);
         throw e;
       }
@@ -8145,9 +7881,6 @@
         return keep;
       });
       file.ledger_lines = file.ledger_lines.filter(l=>keptIds.includes(l.ledger_entry_id));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/251e5d6a-3d5b-41b3-b796-d6cf2eef1b0c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Checkmark Accountant V5.html:cleanOrphanLedgerEntries',message:'cleanOrphanLedgerEntries:result',data:{beforeEntries,afterEntries:file.ledger_entries.length,beforeLines,afterLines:file.ledger_lines.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (beforeEntries !== file.ledger_entries.length || beforeLines !== file.ledger_lines.length) saveFile();
     };
 
@@ -8441,13 +8174,7 @@
 
     // ---------- Render all ----------
     const renderAll = () => {
-      // #region agent log
-      logDebug('renderAll:entry','renderAll called',{fileExists:!!file},'F');
-      // #endregion
       if (!file) {
-        // #region agent log
-        logDebug('renderAll:early-return','No file object, returning early',{},'F');
-        // #endregion
         return;
       }
       renderInvoices();
@@ -8495,9 +8222,6 @@
       renderMigrationBlock();
       runIntegrity();
       populateGRTYearSelect();
-      // #region agent log
-      logDebug('renderAll:complete','renderAll completed',{},'F');
-      // #endregion
     };
 
     // ---------- Calculator ----------
@@ -9281,25 +9005,13 @@
 
     // ---------- Init ----------
     const initApp = () => {
-      // #region agent log
-      logDebug('initApp:entry','initApp called - app initialization started',{},'A');
-      // #endregion
       try {
-        // #region agent log
-        logDebug('initApp:env','Environment snapshot on init',{readyState:document.readyState,hasChart:!!window.Chart,hasJsPdf:!!(window.jspdf||window.jsPDF),hasHtml2Canvas:!!window.html2canvas,hasLocalStorage:!!window.localStorage},'H3');
-        // #endregion
         syncStickyOffsets();
         window.addEventListener('resize', syncStickyOffsets);
         bindUI();
-        // #region agent log
-        logDebug('initApp:after-bindUI','bindUI completed',{},'A');
-        // #endregion
         initCalculatorWindow();
         initNoteWindow();
         loadList();
-        // #region agent log
-        logDebug('initApp:after-loadList','loadList completed',{businessListLength:businessList.length,activeId},'A');
-        // #endregion
         if (!businessList.length && detectV4()) {
           renderMigrationBlock();
           setTab('settings');
@@ -9309,50 +9021,23 @@
         if (file?.settings?.show_splash_video !== false) {
           showSplashVideo();
         }
-        // #region agent log
-        logDebug('initApp:complete','initApp completed successfully',{},'A');
-        // #endregion
       } catch(e) {
-        // #region agent log
-        logDebug('initApp:error','Error in initApp',{error:e.message,stack:e.stack},'A');
-        // #endregion
         console.error('Init error:', e);
         throw e;
       }
     };
 
-    // #region agent log
-    logDebug('script:load','Script loaded, waiting for DOMContentLoaded',{readyState:document.readyState},'A');
-    // #endregion
     window.addEventListener('error', (e) => {
-      // #region agent log
-      logDebug('window:error','Unhandled JavaScript error',{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error?.stack},'A');
-      // #endregion
-      if (document.getElementById('debug-overlay')) {
-        document.getElementById('debug-overlay').style.display = 'flex';
-        if (window.__refreshDebugOverlay) window.__refreshDebugOverlay();
-      }
+      console.error('Unhandled error:', e);
     });
     window.addEventListener('unhandledrejection', (e) => {
-      // #region agent log
-      logDebug('window:unhandledrejection','Unhandled promise rejection',{reason:e.reason},'A');
-      // #endregion
-      if (document.getElementById('debug-overlay')) {
-        document.getElementById('debug-overlay').style.display = 'flex';
-        if (window.__refreshDebugOverlay) window.__refreshDebugOverlay();
-      }
+      console.error('Unhandled promise rejection:', e.reason);
     });
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        // #region agent log
-        logDebug('DOMContentLoaded:fired','DOMContentLoaded event fired',{},'A');
-        // #endregion
         initApp();
       });
     } else {
-      // #region agent log
-      logDebug('DOMContentLoaded:already-ready','DOM already ready, calling initApp immediately',{},'A');
-      // #endregion
       initApp();
     }
   </script>
