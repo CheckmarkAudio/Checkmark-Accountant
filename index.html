@@ -1189,7 +1189,7 @@
         <button id="quick-add-transaction" data-quickkey="T" title="Quick key: T">Quick Txn</button>
         <button id="open-calculator" data-quickkey="C" title="Quick key: C">Calculator</button>
         <button id="open-note" data-quickkey="N" title="Quick key: N">Note</button>
-        <button id="open-settings" data-quickkey="," title="Quick key: ,">Settings</button>
+        <button id="open-settings">Settings</button>
       </div>
     </nav>
     <main>
@@ -7062,9 +7062,6 @@
             break;
           case 'p':
             togglePanelFor('Project', () => editProject({}));
-            break;
-          case ',':
-            setTab('settings');
             break;
           default:
             handled = false;
