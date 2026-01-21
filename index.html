@@ -4802,7 +4802,7 @@
     // ---------- Reports ----------
     // CANONICAL_MODEL: INVOICE_TXN_FIRST
     let CANONICAL_MODEL = 'INVOICE_TXN_FIRST';
-    let isDevMode = () => {
+    const isDevMode = () => {
       return window?.location?.protocol === 'file:' || window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
     };
     const normalizeRange = (start, end) => ({
@@ -4818,7 +4818,7 @@
       const acct = file.accounts.find(a => a.code === code);
       return acct?.name || category || fallback;
     };
-    let computeFinancials = (file, { start, end } = {}) => {
+    const computeFinancialsInvoice = (file, { start, end } = {}) => {
       if (!file) return { income: 0, expense: 0, profit: 0, ar: 0, cash: 0, openInvoiceCount: 0, monthly: {}, invoiceIssuedTotal: 0, unbalancedEntries: [] };
       const range = normalizeRange(start, end);
       const allTime = isAllTimeRange(range.start, range.end);
@@ -4947,12 +4947,22 @@
         unbalancedEntries
       };
     };
+    const computeFinancials = (file, { start, end } = {}) => {
+      const basis = file?.settings?.accounting_basis || 'cash';
+      const invoiceFin = computeFinancialsInvoice(file, { start, end });
+      const ledgerFin = computeFinancialsLedger(file, { start, end });
+      const incomeDiff = (ledgerFin?.income || 0) - (invoiceFin?.income || 0);
+      const expenseDiff = (ledgerFin?.expense || 0) - (invoiceFin?.expense || 0);
+      const hasLedger = (file?.ledger_entries?.length || 0) > 0 && (file?.ledger_lines?.length || 0) > 0;
+      const useLedger = basis === 'cash' && hasLedger && Math.abs(incomeDiff) < 1 && Math.abs(expenseDiff) < 1;
+      // #region agent log
+      logDebug('computeFinancials:select','Selected compute model',{basis,hasLedger,incomeDiff,expenseDiff,useLedger,ledgerEntries:file?.ledger_entries?.length||0,ledgerLines:file?.ledger_lines?.length||0,invoiceCount:file?.invoices?.length||0,paymentCount:file?.payments?.length||0,transactionCount:file?.transactions?.length||0},'H9');
+      // #endregion
+      return useLedger ? ledgerFin : invoiceFin;
+    };
     // CANONICAL_MODEL: LEDGER_FIRST
     CANONICAL_MODEL = 'LEDGER_FIRST';
-    isDevMode = () => {
-      return window?.location?.protocol === 'file:' || window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
-    };
-    computeFinancials = (file, { start, end } = {}) => {
+    const computeFinancialsLedger = (file, { start, end } = {}) => {
       // #region agent log
       logDebug('computeFinancials:entry','computeFinancials called',{hasFile:!!file,rangeStart:start||null,rangeEnd:end||null,basis:file?.settings?.accounting_basis},'H5');
       // #endregion
