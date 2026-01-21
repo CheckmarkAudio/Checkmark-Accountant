@@ -8547,8 +8547,13 @@
       const header = $('#note-header');
       const body = $('#note-window .note-body');
       const toolbar = $('#note-window .note-toolbar');
-      const headerHeight = header ? header.offsetHeight : 0;
-      const toolbarHeight = toolbar ? Math.max(toolbar.offsetHeight, toolbar.scrollHeight) : 0;
+      const saveBtn = $('#note-save');
+      const headerHeight = header ? header.getBoundingClientRect().height : 0;
+      const toolbarHeight = toolbar
+        ? Math.max(toolbar.getBoundingClientRect().height, toolbar.scrollHeight)
+        : 0;
+      const buttonHeight = saveBtn ? saveBtn.getBoundingClientRect().height : 0;
+      const toolbarRowHeight = Math.max(toolbarHeight, buttonHeight);
       let bodyPadding = 0;
       let bodyGap = 0;
       if (body) {
@@ -8556,7 +8561,15 @@
         bodyPadding = parseFloat(bodyStyles.paddingTop) + parseFloat(bodyStyles.paddingBottom);
         bodyGap = parseFloat(bodyStyles.rowGap || bodyStyles.gap) || 0;
       }
-      return Math.max(140, Math.ceil(headerHeight + bodyPadding + toolbarHeight + bodyGap));
+      return Math.max(140, Math.ceil(headerHeight + bodyPadding + toolbarRowHeight + bodyGap));
+    };
+
+    const updateNoteMinSize = () => {
+      const noteWindow = $('#note-window');
+      if (!noteWindow) return;
+      const minHeight = getNoteMinHeight();
+      noteWindow.style.minHeight = minHeight + 'px';
+      noteState.height = Math.max(minHeight, noteState.height);
     };
 
     const startNoteDrag = (e) => {
@@ -8626,8 +8639,7 @@
     const updateNoteSize = () => {
       const window = $('#note-window');
       if (window) {
-        const minHeight = getNoteMinHeight();
-        noteState.height = Math.max(minHeight, noteState.height);
+        updateNoteMinSize();
         window.style.width = noteState.width + 'px';
         window.style.height = noteState.height + 'px';
       }
@@ -8638,6 +8650,7 @@
       noteState.minimized = false;
       $('#note-window').classList.remove('hidden');
       $('#note-minimized').classList.add('hidden');
+      updateNoteMinSize();
       updateNotePosition();
       updateNoteSize();
       renderNoteMenu();
@@ -8681,6 +8694,7 @@
       const minimized = $('#note-minimized');
       if (noteWindow) noteWindow.classList.remove('hidden');
       if (minimized) minimized.classList.add('hidden');
+      updateNoteMinSize();
       updateNotePosition();
       updateNoteSize();
       renderNoteMenu();
@@ -8699,6 +8713,7 @@
 
     const initNoteWindow = () => {
       loadNoteState();
+      updateNoteMinSize();
       updateNotePosition();
       updateNoteSize();
       renderNoteMenu();
