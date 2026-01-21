@@ -213,6 +213,7 @@
       }
       nav.tabs {
         overflow-x: auto;
+        overflow-y: visible;
         -webkit-overflow-scrolling: touch;
       }
       nav.tabs button {
@@ -353,7 +354,8 @@
       border-bottom: 1px solid var(--border);
       position: sticky;
       top: var(--topbar-height, 76px);
-      z-index: 10;
+      z-index: 30;
+      overflow: visible;
     }
     nav.tabs button {
       background: transparent;
