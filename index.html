@@ -1184,12 +1184,14 @@
       <button data-tab="services" title="Quick key: 5">Services</button>
       <button data-tab="analytics" title="Quick key: 6">Analytics</button>
       <button data-tab="reports" title="Quick key: 7">Reports</button>
+      <button data-tab="settings" title="Quick key: 8">Settings</button>
       <div class="row top-actions" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary" data-quickkey="I" title="Quick key: I">Quick Invoice</button>
         <button id="quick-add-transaction" data-quickkey="T" title="Quick key: T">Quick Txn</button>
+        <button id="quick-add-client" data-quickkey="Shift + C" title="Quick key: Shift + C">Quick Client</button>
+        <button id="quick-add-project" data-quickkey="P" title="Quick key: P">Quick Project</button>
         <button id="open-calculator" data-quickkey="C" title="Quick key: C">Calculator</button>
         <button id="open-note" data-quickkey="N" title="Quick key: N">Note</button>
-        <button id="open-settings">Settings</button>
       </div>
     </nav>
     <main>
@@ -7108,6 +7110,8 @@
         const quickAddInvoice = $('#quick-add-invoice'); if (quickAddInvoice) quickAddInvoice.onclick = () => editInvoice({});
         const addTransaction = $('#add-transaction'); if (addTransaction) addTransaction.onclick = () => editTxn({});
         const quickAddTransaction = $('#quick-add-transaction'); if (quickAddTransaction) quickAddTransaction.onclick = () => editTxn({});
+        const quickAddClient = $('#quick-add-client'); if (quickAddClient) quickAddClient.onclick = () => editClient({});
+        const quickAddProject = $('#quick-add-project'); if (quickAddProject) quickAddProject.onclick = () => editProject({});
         const exportInvoicesJsonBtn = $('#export-invoices-json'); if (exportInvoicesJsonBtn) exportInvoicesJsonBtn.onclick = () => exportInvoicesData('json');
         const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
@@ -7511,7 +7515,6 @@
           deleteBusiness(activeId);
         };
         const businessSelector = $('#business-selector'); if (businessSelector) businessSelector.onchange = (e)=>{ activeId = e.target.value; saveActive(); loadActive(); };
-        const openSettings = $('#open-settings'); if (openSettings) openSettings.onclick = ()=> setTab('settings');
         
         // Close side-panel when clicking outside of it (but not on calculator/notes or interactive elements)
         document.addEventListener('click', (e) => {
