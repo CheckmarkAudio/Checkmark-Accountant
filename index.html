@@ -2424,6 +2424,11 @@
         runIntegrity();
       }
     };
+    const closeAllTabs = () => {
+      $$('nav.tabs button').forEach(btn => btn.classList.remove('active'));
+      $$('section[data-section]').forEach(sec => sec.classList.add('hidden'));
+      closePanel();
+    };
 
     const showSplashVideo = () => {
       const overlay = $('#splash-overlay');
@@ -7369,6 +7374,9 @@
             break;
           case 'v':
             togglePanelFor('Project', () => editProject({}));
+            break;
+          case 'b':
+            closeAllTabs();
             break;
           case 'm':
             toggleCalculator();
