@@ -8542,6 +8542,22 @@
     let isNoteResizing = false;
     let noteResizeStart = { x: 0, y: 0, width: 0, height: 0 };
 
+    const getNoteMinHeight = () => {
+      const header = $('#note-header');
+      const body = $('#note-window .note-body');
+      const toolbar = $('#note-window .note-toolbar');
+      const headerHeight = header ? header.offsetHeight : 0;
+      const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
+      let bodyPadding = 0;
+      let bodyGap = 0;
+      if (body) {
+        const bodyStyles = getComputedStyle(body);
+        bodyPadding = parseFloat(bodyStyles.paddingTop) + parseFloat(bodyStyles.paddingBottom);
+        bodyGap = parseFloat(bodyStyles.rowGap || bodyStyles.gap) || 0;
+      }
+      return Math.max(140, Math.ceil(headerHeight + bodyPadding + toolbarHeight + bodyGap));
+    };
+
     const startNoteDrag = (e) => {
       if (e.target.closest('.note-controls')) return;
       isNoteDragging = true;
@@ -8585,7 +8601,7 @@
       const deltaX = e.clientX - noteResizeStart.x;
       const deltaY = e.clientY - noteResizeStart.y;
       const minWidth = 280;
-      const minHeight = 120;
+      const minHeight = getNoteMinHeight();
       noteState.width = Math.max(minWidth, noteResizeStart.width + deltaX);
       noteState.height = Math.max(minHeight, noteResizeStart.height + deltaY);
       updateNoteSize();
@@ -8609,6 +8625,8 @@
     const updateNoteSize = () => {
       const window = $('#note-window');
       if (window) {
+        const minHeight = getNoteMinHeight();
+        noteState.height = Math.max(minHeight, noteState.height);
         window.style.width = noteState.width + 'px';
         window.style.height = noteState.height + 'px';
       }
