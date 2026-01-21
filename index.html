@@ -1645,13 +1645,15 @@
           <button id="import-json-btn">Import</button>
           <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
           <div id="integrity-output" class="stack space"></div>
-          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
-            <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
-            <div id="migration-block" class="stack"></div>
-          </div>
-          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
-            <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
-            <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+          <div class="row" style="align-items:flex-start; gap:12px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+            <div style="flex:1">
+              <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
+              <div id="migration-block" class="stack"></div>
+            </div>
+            <div style="flex:1">
+              <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
+              <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+            </div>
           </div>
         </div>
         <div class="card" style="grid-column:4">
@@ -1660,12 +1662,14 @@
           <select id="business-selector"></select>
           <div id="business-info" class="stack"></div>
           <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
-          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
-            <button id="new-business" class="primary" style="width:100%">+ New Business</button>
-          </div>
-          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
-            <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
-            <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+          <div class="row" style="align-items:flex-start; gap:12px; margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <div style="flex:1">
+              <button id="new-business" class="primary" style="width:100%">+ New Business</button>
+            </div>
+            <div style="flex:1">
+              <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
+              <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+            </div>
           </div>
         </div>
       </section>
