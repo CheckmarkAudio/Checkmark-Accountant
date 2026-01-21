@@ -8289,6 +8289,32 @@
       return Math.max(120, Math.ceil(headerHeight + displayHeight + bodyPadding + displayMargin));
     };
 
+    const getCalculatorContentHeight = () => {
+      const calcWindow = $('#calculator-window');
+      const header = $('#calculator-header');
+      const body = $('#calculator-body');
+      const display = $('#calculator-window .calculator-display');
+      const buttons = $('#calculator-window .calculator-buttons');
+      const headerHeight = header ? header.offsetHeight : 0;
+      const displayHeight = display ? display.offsetHeight : 0;
+      const showButtons = calcWindow && !calcWindow.classList.contains('compact');
+      const buttonsHeight = buttons && showButtons ? buttons.offsetHeight : 0;
+      let bodyPadding = 0;
+      let displayMargin = 0;
+      if (body) {
+        const bodyStyles = getComputedStyle(body);
+        bodyPadding = parseFloat(bodyStyles.paddingTop) + parseFloat(bodyStyles.paddingBottom);
+      }
+      if (display) {
+        const displayStyles = getComputedStyle(display);
+        displayMargin = parseFloat(displayStyles.marginTop) + parseFloat(displayStyles.marginBottom);
+      }
+      return Math.max(
+        getCalculatorMinHeight(),
+        Math.ceil(headerHeight + displayHeight + bodyPadding + displayMargin + buttonsHeight)
+      );
+    };
+
     const updateCalculatorCompactState = () => {
       const calcWindow = $('#calculator-window');
       if (!calcWindow) return;
@@ -8309,7 +8335,11 @@
       const minWidth = 200;
       const minHeight = getCalculatorMinHeight();
       calculatorState.width = Math.max(minWidth, resizeStart.width + deltaX);
-      calculatorState.height = Math.max(minHeight, resizeStart.height + deltaY);
+      const maxHeight = getCalculatorContentHeight();
+      calculatorState.height = Math.min(
+        maxHeight,
+        Math.max(minHeight, resizeStart.height + deltaY)
+      );
       updateCalculatorSize();
       updateCalculatorCompactState();
     };
@@ -8332,6 +8362,9 @@
     const updateCalculatorSize = () => {
       const calcWindow = $('#calculator-window');
       if (calcWindow) {
+        const minHeight = getCalculatorMinHeight();
+        const maxHeight = getCalculatorContentHeight();
+        calculatorState.height = Math.min(maxHeight, Math.max(minHeight, calculatorState.height));
         calcWindow.style.width = calculatorState.width + 'px';
         calcWindow.style.height = calculatorState.height + 'px';
       }
