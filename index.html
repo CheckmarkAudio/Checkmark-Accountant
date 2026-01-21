@@ -1570,8 +1570,10 @@
       <section data-section="settings" class="grid cols-4 hidden">
         <div class="card" style="grid-column:1">
           <h3>Appearance</h3>
-          <label>Intro Video on Startup</label>
-          <button id="splash-video-toggle" class="ghost" style="width:100%">On</button>
+          <div class="row" style="align-items:center; justify-content:space-between; gap:10px">
+            <label style="margin:0">Intro Video on Startup</label>
+            <button id="splash-video-toggle" class="ghost" style="width:auto; padding:6px 12px; font-size:0.85rem">On</button>
+          </div>
           <label style="margin-top:16px">Theme</label>
           <select id="theme-select">
             <option value="system">System</option>
