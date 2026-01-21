@@ -4645,6 +4645,153 @@
     };
 
     // ---------- Reports ----------
+    // CANONICAL_MODEL: INVOICE_TXN_FIRST
+    const CANONICAL_MODEL = 'INVOICE_TXN_FIRST';
+    const isDevMode = () => {
+      return window?.location?.protocol === 'file:' || window?.location?.hostname === 'localhost' || window?.location?.hostname === '127.0.0.1';
+    };
+    const normalizeRange = (start, end) => ({
+      start: start || '1900-01-01',
+      end: end || '2999-12-31'
+    });
+    const inDateRange = (date, { start, end, allTime }) => {
+      if (!date) return allTime;
+      return allTime || (date >= start && date <= end);
+    };
+    const accountNameForCategory = (category, fallback) => {
+      const code = findAccountCode(category);
+      const acct = file.accounts.find(a => a.code === code);
+      return acct?.name || category || fallback;
+    };
+    const computeFinancials = (file, { start, end } = {}) => {
+      if (!file) return { income: 0, expense: 0, profit: 0, ar: 0, cash: 0, openInvoiceCount: 0, monthly: {}, invoiceIssuedTotal: 0, unbalancedEntries: [] };
+      const range = normalizeRange(start, end);
+      const allTime = isAllTimeRange(range.start, range.end);
+      const basis = (file?.settings?.accounting_basis || 'cash');
+      const monthly = {};
+
+      const txnsInRange = file.transactions.filter(t => {
+        if (t.status === 'draft') return false;
+        return inDateRange(t.date, { ...range, allTime });
+      });
+      const paymentsInRange = file.payments.filter(p => inDateRange(p.payment_date, { ...range, allTime }));
+
+      const txnIncome = txnsInRange.filter(t => t.type === 'income')
+        .reduce((s, t) => s + (Number(t.amount_cents) || 0), 0);
+      const txnExpense = txnsInRange.filter(t => t.type === 'expense')
+        .reduce((s, t) => s + (Number(t.amount_cents) || 0), 0);
+      const paymentsIncome = paymentsInRange.reduce((s, p) => s + (Number(p.amount_cents) || 0), 0);
+
+      let invoiceIssuedTotal = 0;
+      const invoicesInRange = file.invoices.filter(inv => {
+        if (inv.status === 'void' || inv.status === 'draft') return false;
+        return inDateRange(inv.issue_date, { ...range, allTime });
+      });
+      invoicesInRange.forEach(inv => { invoiceIssuedTotal += invoiceTotal(inv); });
+
+      let income = 0;
+      let expense = 0;
+      if (basis === 'accrual') {
+        income = invoiceIssuedTotal;
+        expense = txnExpense;
+        invoicesInRange.forEach(inv => {
+          if (!inv.issue_date) return;
+          const month = inv.issue_date.substring(0, 7);
+          if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
+          monthly[month].income += invoiceTotal(inv);
+        });
+        txnsInRange.filter(t => t.type === 'expense' && t.date).forEach(t => {
+          const month = t.date.substring(0, 7);
+          if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
+          monthly[month].expense += Number(t.amount_cents) || 0;
+        });
+      } else {
+        income = txnIncome + paymentsIncome;
+        expense = txnExpense;
+        txnsInRange.filter(t => t.date).forEach(t => {
+          const month = t.date.substring(0, 7);
+          if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
+          if (t.type === 'income') monthly[month].income += Number(t.amount_cents) || 0;
+          if (t.type === 'expense') monthly[month].expense += Number(t.amount_cents) || 0;
+        });
+        paymentsInRange.filter(p => p.payment_date).forEach(p => {
+          const month = p.payment_date.substring(0, 7);
+          if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
+          monthly[month].income += Number(p.amount_cents) || 0;
+        });
+      }
+      Object.keys(monthly).forEach(month => {
+        monthly[month].profit = monthly[month].income - monthly[month].expense;
+      });
+
+      const appsByInvoice = {};
+      (file.payment_applications || []).forEach(app => {
+        if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
+        appsByInvoice[app.invoice_id] += app.amount_cents || 0;
+      });
+      let ar = 0;
+      let openInvoiceCount = 0;
+      invoicesInRange.forEach(inv => {
+        const total = invoiceTotal(inv);
+        const paidFromApps = appsByInvoice[inv.invoice_id] || 0;
+        const paid = paidFromApps || (inv.status === 'paid' ? total : 0);
+        const balance = Math.max(0, total - paid);
+        if (balance > 0) {
+          ar += balance;
+          openInvoiceCount += 1;
+        }
+        if (isDevMode() && inv.status === 'paid' && paidFromApps === 0) {
+          console.warn('[Diagnostics] Paid invoice has no payment applications.', { invoice_id: inv.invoice_id });
+        }
+      });
+
+      const posted = postedLines();
+      const ledgerLines = posted.filter(l => {
+        const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
+        if (!entry) return false;
+        return inDateRange(entry.entry_date, { ...range, allTime });
+      });
+      const cashAccountCodes = new Set();
+      const defaultCash = file?.settings?.default_cash_account_code;
+      if (defaultCash) cashAccountCodes.add(defaultCash);
+      file.accounts.forEach(a => {
+        if (a.type === 'asset' && /cash|bank|checking|savings|undeposited/i.test(a.name || '')) {
+          cashAccountCodes.add(a.code);
+        }
+      });
+      let cash = 0;
+      ledgerLines.forEach(l => {
+        if (cashAccountCodes.has(l.account_code)) {
+          cash += (l.debit_cents || 0) - (l.credit_cents || 0);
+        }
+      });
+
+      const unbalancedEntries = [];
+      file.ledger_entries.forEach(e => {
+        if (e.status !== 'posted') return;
+        const lines = file.ledger_lines.filter(l => l.ledger_entry_id === e.ledger_entry_id);
+        const deb = lines.reduce((s, l) => s + (l.debit_cents || 0), 0);
+        const cred = lines.reduce((s, l) => s + (l.credit_cents || 0), 0);
+        if (deb !== cred) unbalancedEntries.push(e.ledger_entry_id);
+      });
+
+      if (isDevMode()) {
+        if (basis === 'cash' && invoiceIssuedTotal > 0 && (txnIncome + paymentsIncome) === 0) {
+          console.warn('[Diagnostics] Cash basis selected but no cash income found; invoices exist.', { invoiceIssuedTotal });
+        }
+      }
+      return {
+        income,
+        expense,
+        profit: income - expense,
+        ar,
+        cash,
+        openInvoiceCount,
+        monthly,
+        invoiceIssuedTotal,
+        unbalancedEntries
+      };
+    };
     // CANONICAL_MODEL: LEDGER_FIRST
     const CANONICAL_MODEL = 'LEDGER_FIRST';
     const isDevMode = () => {
@@ -4825,12 +4972,35 @@
 
     const summaryByAccount = (type) => {
       const map = {};
-      postedLines().forEach(l=>{
-        const acct = file.accounts.find(a=>a.code===l.account_code);
-        if (!acct || acct.type!==type) return;
-        const delta = (l.debit_cents||0)-(l.credit_cents||0);
-        map[acct.name] = (map[acct.name]||0) + delta;
-      });
+      const { start, end } = getReportsDateRange();
+      const allTime = isAllTimeRange(start, end);
+      if (type === 'expense') {
+        file.transactions.filter(t => t.type === 'expense' && t.status !== 'draft')
+          .filter(t => inDateRange(t.date, { start, end, allTime }))
+          .forEach(t => {
+            const name = accountNameForCategory(t.category, 'Uncategorized Expense');
+            map[name] = (map[name] || 0) + (Number(t.amount_cents) || 0);
+          });
+      } else if (type === 'income') {
+        const basis = (file?.settings?.accounting_basis || 'cash');
+        if (basis === 'accrual') {
+          file.invoice_lines.forEach(line => {
+            const inv = file.invoices.find(i => i.invoice_id === line.invoice_id);
+            if (!inv || inv.status === 'void' || inv.status === 'draft') return;
+            if (!inDateRange(inv.issue_date, { start, end, allTime })) return;
+            const acct = file.accounts.find(a => a.code === line.income_account_code);
+            const name = acct ? acct.name : 'Uncategorized Income';
+            map[name] = (map[name] || 0) + (Number(line.line_total_cents) || 0);
+          });
+        } else {
+          file.transactions.filter(t => t.type === 'income' && t.status !== 'draft')
+            .filter(t => inDateRange(t.date, { start, end, allTime }))
+            .forEach(t => {
+              const name = accountNameForCategory(t.category, 'Uncategorized Income');
+              map[name] = (map[name] || 0) + (Number(t.amount_cents) || 0);
+            });
+        }
+      }
       return map;
     };
 
@@ -4843,34 +5013,61 @@
     const clientRevenue = () => {
       const { start, end } = getReportsDateRange();
       const result = {};
-      // Use invoices directly (by issue date) instead of just payments
       const allTime = isAllTimeRange(start, end);
-      const invoices = file.invoices.filter(inv => {
-        if (inv.status === 'void' || inv.status === 'draft') return false;
-        if (!inv.issue_date) return allTime;
-        return allTime || (inv.issue_date >= start && inv.issue_date <= end);
-      });
-      invoices.forEach(inv => {
-        const party = file.parties.find(p=>p.party_id===inv.party_id);
-        const name = party?.name || 'Unknown';
-        result[name] = (result[name]||0) + invoiceTotal(inv);
-      });
+      const basis = (file?.settings?.accounting_basis || 'cash');
+      if (basis === 'accrual') {
+        const invoices = file.invoices.filter(inv => {
+          if (inv.status === 'void' || inv.status === 'draft') return false;
+          return inDateRange(inv.issue_date, { start, end, allTime });
+        });
+        invoices.forEach(inv => {
+          const party = file.parties.find(p=>p.party_id===inv.party_id);
+          const name = party?.name || 'Unknown';
+          result[name] = (result[name]||0) + invoiceTotal(inv);
+        });
+      } else {
+        const payments = file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }));
+        payments.forEach(p => {
+          const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
+          if (!inv) return;
+          const party = file.parties.find(pt=>pt.party_id===inv.party_id);
+          const name = party?.name || 'Unknown';
+          result[name] = (result[name]||0) + (Number(p.amount_cents) || 0);
+        });
+      }
       return result;
     };
 
     const projectProfit = () => {
       const map = {};
-      postedLines().forEach(l=>{
-        const entry = file.ledger_entries.find(e=>e.ledger_entry_id===l.ledger_entry_id);
-        if (!entry?.project_id) return;
-        const acct = file.accounts.find(a=>a.code===l.account_code);
-        if (!acct) return;
-        const proj = file.projects.find(p=>p.project_id===entry.project_id);
+      const { start, end } = getReportsDateRange();
+      const allTime = isAllTimeRange(start, end);
+      const basis = (file?.settings?.accounting_basis || 'cash');
+      const add = (projectId, delta) => {
+        const proj = file.projects.find(p=>p.project_id===projectId);
         const name = proj?.name || 'Unassigned';
-        if (!map[name]) map[name]=0;
-        if (acct.type==='income') map[name] += (l.credit_cents||0)-(l.debit_cents||0);
-        if (acct.type==='expense') map[name] -= (l.debit_cents||0)-(l.credit_cents||0);
-      });
+        map[name] = (map[name] || 0) + delta;
+      };
+      if (basis === 'accrual') {
+        file.invoices.forEach(inv => {
+          if (!inv.project_id) return;
+          if (inv.status === 'void' || inv.status === 'draft') return;
+          if (!inDateRange(inv.issue_date, { start, end, allTime })) return;
+          add(inv.project_id, invoiceTotal(inv));
+        });
+      } else {
+        file.transactions.filter(t => t.type === 'income' && t.project_id && t.status !== 'draft')
+          .filter(t => inDateRange(t.date, { start, end, allTime }))
+          .forEach(t => add(t.project_id, Number(t.amount_cents) || 0));
+        file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }))
+          .forEach(p => {
+            const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
+            if (inv?.project_id) add(inv.project_id, Number(p.amount_cents) || 0);
+          });
+      }
+      file.transactions.filter(t => t.type === 'expense' && t.project_id && t.status !== 'draft')
+        .filter(t => inDateRange(t.date, { start, end, allTime }))
+        .forEach(t => add(t.project_id, -(Number(t.amount_cents) || 0)));
       return map;
     };
 
@@ -5810,17 +6007,16 @@
     const renderExpenseCategoryChart = () => {
       try {
         destroyChart('expenseCategory');
-        const lines = getFilteredLines();
+        const { start, end } = getDateRange();
+        const allTime = isAllTimeRange(start, end);
         const categoryMap = {};
-        
-        lines.forEach(l => {
-          const acct = file.accounts.find(a => a.code === l.account_code);
-          if (!acct || acct.type !== 'expense') return;
-          const amount = (l.debit_cents || 0) - (l.credit_cents || 0);
-          if (amount > 0) {
-            categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
-          }
-        });
+        file.transactions.filter(t => t.type === 'expense' && t.status !== 'draft')
+          .filter(t => inDateRange(t.date, { start, end, allTime }))
+          .forEach(t => {
+            const name = accountNameForCategory(t.category, 'Uncategorized Expense');
+            const amount = Number(t.amount_cents) || 0;
+            if (amount > 0) categoryMap[name] = (categoryMap[name] || 0) + amount;
+          });
 
         const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
         const chartEl = document.getElementById('expense-category-chart');
@@ -5902,19 +6098,28 @@
     const renderIncomeCategoryChart = () => {
       try {
         destroyChart('incomeCategory');
-        const lines = getFilteredLines();
+        const { start, end } = getDateRange();
+        const allTime = isAllTimeRange(start, end);
+        const basis = (file?.settings?.accounting_basis || 'cash');
         const categoryMap = {};
-        
-        // Add income from ledger entries
-        lines.forEach(l => {
-          const entry = file.ledger_entries.find(e => e.ledger_entry_id === l.ledger_entry_id);
-          const acct = file.accounts.find(a => a.code === l.account_code);
-          if (!acct || acct.type !== 'income') return;
-          const amount = (l.credit_cents || 0) - (l.debit_cents || 0);
-          if (amount > 0) {
-            categoryMap[acct.name] = (categoryMap[acct.name] || 0) + amount;
-          }
-        });
+        if (basis === 'accrual') {
+          file.invoice_lines.forEach(line => {
+            const inv = file.invoices.find(i => i.invoice_id === line.invoice_id);
+            if (!inv || inv.status === 'void' || inv.status === 'draft') return;
+            if (!inDateRange(inv.issue_date, { start, end, allTime })) return;
+            const acct = file.accounts.find(a => a.code === line.income_account_code);
+            const name = acct ? acct.name : 'Uncategorized Income';
+            categoryMap[name] = (categoryMap[name] || 0) + (Number(line.line_total_cents) || 0);
+          });
+        } else {
+          file.transactions.filter(t => t.type === 'income' && t.status !== 'draft')
+            .filter(t => inDateRange(t.date, { start, end, allTime }))
+            .forEach(t => {
+              const name = accountNameForCategory(t.category, 'Uncategorized Income');
+              const amount = Number(t.amount_cents) || 0;
+              if (amount > 0) categoryMap[name] = (categoryMap[name] || 0) + amount;
+            });
+        }
 
         const entries = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
         const chartEl = document.getElementById('income-category-chart');
@@ -5997,17 +6202,31 @@
       try {
         destroyChart('clientRevenue');
         const clientMap = {};
-        
-        // Add revenue from invoices (based on invoice date, not payment date)
-        const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
-        invoices.forEach(inv => {
-          const party = file.parties.find(p => p.party_id === inv.party_id);
-          const name = party?.name || 'Unknown';
-          const invTotal = invoiceTotal(inv);
-          if (invTotal > 0) {
-            clientMap[name] = (clientMap[name] || 0) + invTotal;
-          }
-        });
+        const { start, end } = getDateRange();
+        const allTime = isAllTimeRange(start, end);
+        const basis = (file?.settings?.accounting_basis || 'cash');
+        if (basis === 'accrual') {
+          const invoices = file.invoices.filter(inv => inv.status !== 'void' && inv.status !== 'draft')
+            .filter(inv => inDateRange(inv.issue_date, { start, end, allTime }));
+          invoices.forEach(inv => {
+            const party = file.parties.find(p => p.party_id === inv.party_id);
+            const name = party?.name || 'Unknown';
+            const invTotal = invoiceTotal(inv);
+            if (invTotal > 0) {
+              clientMap[name] = (clientMap[name] || 0) + invTotal;
+            }
+          });
+        } else {
+          const payments = file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }));
+          payments.forEach(p => {
+            const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
+            if (!inv) return;
+            const party = file.parties.find(pt => pt.party_id === inv.party_id);
+            const name = party?.name || 'Unknown';
+            const amt = Number(p.amount_cents) || 0;
+            if (amt > 0) clientMap[name] = (clientMap[name] || 0) + amt;
+          });
+        }
 
         const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
         const chartEl = document.getElementById('client-revenue-chart');
