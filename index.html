@@ -4846,6 +4846,15 @@
         return inDateRange(inv.issue_date, { ...range, allTime });
       });
       invoicesInRange.forEach(inv => { invoiceIssuedTotal += invoiceTotal(inv); });
+      const appSum = (file.payment_applications || []).reduce((sum, app) => {
+        const pay = file.payments.find(p => p.payment_id === app.payment_id);
+        if (!pay) return sum;
+        if (!inDateRange(pay.payment_date, { ...range, allTime })) return sum;
+        return sum + (Number(app.amount_cents) || 0);
+      }, 0);
+      // #region agent log
+      logDebug('computeFinancialsInvoice:apps','Payment application sum',{invoiceIssuedTotal,invoicesInRange:invoicesInRange.length,appSum,appCount:(file.payment_applications||[]).length},'H11');
+      // #endregion
 
       let income = 0;
       let expense = 0;
