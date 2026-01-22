@@ -1682,8 +1682,7 @@
           <button id="import-json-btn">Import</button>
           <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
           <div id="integrity-output" class="stack space"></div>
-          <button id="run-diagnostics" class="ghost" style="margin-top:6px">Run Diagnostics</button>
-          <div id="diagnostics-output" class="stack space"></div>
+          <button id="run-diagnostics" class="ghost" style="margin-top:6px">Diagnostics</button>
           <div class="row" style="align-items:flex-start; gap:12px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
             <div style="flex:1">
               <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
@@ -1805,6 +1804,7 @@
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
     const nowIso = () => new Date().toISOString();
     const today = () => new Date().toISOString().slice(0,10);
+    const APP_VERSION = '5.0';
     const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
       const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
       return v.toString(16);
@@ -4987,6 +4987,103 @@
         <div class="row" style="justify-content:space-between"><span>${unbalancedLabel}</span><strong>${fin.unbalancedEntries.length}</strong></div>
       `;
     };
+    const formatBytes = (bytes) => {
+      if (!Number.isFinite(bytes)) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      const kb = bytes / 1024;
+      if (kb < 1024) return `${kb.toFixed(1)} KB`;
+      const mb = kb / 1024;
+      if (mb < 1024) return `${mb.toFixed(2)} MB`;
+      const gb = mb / 1024;
+      return `${gb.toFixed(2)} GB`;
+    };
+    const estimateLocalStorageBytes = () => {
+      let total = 0;
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i) || '';
+        const value = localStorage.getItem(key) || '';
+        total += (key.length + value.length) * 2;
+      }
+      return total;
+    };
+    const getActiveTabLabel = () => {
+      const active = document.querySelector('nav.tabs button.active');
+      if (!active) return 'Unknown';
+      return (active.textContent || active.dataset.tab || 'Unknown').trim();
+    };
+    const readDateRange = (startSel, endSel) => {
+      const start = $(startSel)?.value || '';
+      const end = $(endSel)?.value || '';
+      if (!start && !end) return null;
+      return {
+        start: start || '1900-01-01',
+        end: end || '2999-12-31'
+      };
+    };
+    const openDiagnosticsModal = () => {
+      if (!file) return;
+      const businessName = escapeHtml(file.business?.name || 'Unknown');
+      const businessId = escapeHtml(file.business?.business_id || activeId || 'Unknown');
+      const lastSaveIso = file.business?.updated_at || '';
+      const lastSaveLabel = lastSaveIso ? escapeHtml(lastSaveIso) : 'Unknown';
+      const storageBytes = estimateLocalStorageBytes();
+      const storageLabel = `${formatBytes(storageBytes)} (${storageBytes.toLocaleString()} bytes)`;
+      const counts = [
+        { label: 'Clients', value: file.parties?.length || 0 },
+        { label: 'Invoices', value: file.invoices?.length || 0 },
+        { label: 'Transactions', value: file.transactions?.length || 0 },
+        { label: 'Services', value: file.services?.length || 0 },
+        { label: 'Projects', value: file.projects?.length || 0 },
+        { label: 'Notes', value: file.notes?.length || 0 }
+      ];
+      if (Array.isArray(file.ledger_entries)) {
+        counts.push({ label: 'Ledger entries', value: file.ledger_entries.length });
+      }
+      const dateFilters = [
+        { label: 'Dashboard', range: getDashboardRange() },
+        { label: 'Analytics', range: getDateRange() },
+        { label: 'Reports', range: getReportsDateRange() }
+      ];
+      const invoicesRange = readDateRange('#invoices-start', '#invoices-end');
+      const transactionsRange = readDateRange('#transactions-start', '#transactions-end');
+      if (invoicesRange) dateFilters.push({ label: 'Invoices', range: invoicesRange });
+      if (transactionsRange) dateFilters.push({ label: 'Transactions', range: transactionsRange });
+      const countsHtml = counts
+        .map(item => `<div class="row" style="justify-content:space-between"><span>${item.label}</span><strong>${item.value}</strong></div>`)
+        .join('');
+      const filtersHtml = dateFilters
+        .map(filter => {
+          const start = escapeHtml(filter.range.start);
+          const end = escapeHtml(filter.range.end);
+          return `<div class="row" style="justify-content:space-between"><span>${filter.label}</span><span>${start} to ${end}</span></div>`;
+        })
+        .join('');
+      showModal(`
+        <div class="stack">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <h3 style="margin:0">Diagnostics</h3>
+            <button class="ghost" data-cancel>Close</button>
+          </div>
+          <div class="muted">Read-only snapshot of the current app state.</div>
+          <div class="stack space">
+            <div class="row" style="justify-content:space-between"><span>App version</span><strong>${APP_VERSION}</strong></div>
+            <div class="row" style="justify-content:space-between"><span>Active business</span><strong>${businessName}</strong></div>
+            <div class="row" style="justify-content:space-between"><span>Business ID</span><strong>${businessId}</strong></div>
+            <div class="row" style="justify-content:space-between"><span>Current tab</span><strong>${escapeHtml(getActiveTabLabel())}</strong></div>
+            <div class="row" style="justify-content:space-between"><span>Last save</span><strong>${lastSaveLabel}</strong></div>
+            <div class="row" style="justify-content:space-between"><span>LocalStorage usage</span><strong>${storageLabel}</strong></div>
+          </div>
+          <div class="stack space">
+            <h4 style="margin:0">Record counts</h4>
+            ${countsHtml}
+          </div>
+          <div class="stack space">
+            <h4 style="margin:0">Date filters</h4>
+            ${filtersHtml}
+          </div>
+        </div>
+      `, () => {});
+    };
     const postedLines = () => {
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
       const lines = file.ledger_lines.filter(l=>postedIds.includes(l.ledger_entry_id));
@@ -6323,7 +6420,7 @@
           });
         }
 
-        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]);
         const chartEl = document.getElementById('client-revenue-chart');
         if (!chartEl) return;
         
@@ -6350,7 +6447,7 @@
             labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
             datasets: [{
               data: entries.map(([, amount]) => amount / 100),
-              backgroundColor: pieColors.slice(0, entries.length),
+              backgroundColor: entries.map((_, i) => pieColors[i % pieColors.length]),
               borderWidth: 2,
               borderColor: isDarkMode() ? '#111624' : '#ffffff'
             }]
@@ -6585,17 +6682,40 @@
           });
         } else {
           const payments = file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }));
-          payments.forEach(p => {
-            const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
-            if (!inv) return;
+          const appsByPayment = {};
+          const paymentsWithApps = new Set();
+          (file.payment_applications || []).forEach(app => {
+            const payment = file.payments.find(p => p.payment_id === app.payment_id);
+            if (!payment || !inDateRange(payment.payment_date, { start, end, allTime })) return;
+            appsByPayment[app.payment_id] = (appsByPayment[app.payment_id] || 0) + (Number(app.amount_cents) || 0);
+            paymentsWithApps.add(app.payment_id);
+            const inv = file.invoices.find(i => i.invoice_id === app.invoice_id);
+            if (!inv || inv.status === 'void' || inv.status === 'draft') return;
             const party = file.parties.find(pt => pt.party_id === inv.party_id);
             const name = party?.name || 'Unknown';
-            const amt = Number(p.amount_cents) || 0;
+            const amt = Number(app.amount_cents) || 0;
             if (amt > 0) clientMap[name] = (clientMap[name] || 0) + amt;
+          });
+          payments.forEach(p => {
+            if (paymentsWithApps.has(p.payment_id)) return;
+            const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
+            if (inv) {
+              const party = file.parties.find(pt => pt.party_id === inv.party_id);
+              const name = party?.name || 'Unknown';
+              const amt = Number(p.amount_cents) || 0;
+              if (amt > 0) clientMap[name] = (clientMap[name] || 0) + amt;
+              return;
+            }
+            const applied = appsByPayment[p.payment_id] || 0;
+            const unapplied = (Number(p.amount_cents) || 0) - applied;
+            if (unapplied > 0) {
+              const name = 'Unknown';
+              clientMap[name] = (clientMap[name] || 0) + unapplied;
+            }
           });
         }
 
-        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const entries = Object.entries(clientMap).sort((a, b) => b[1] - a[1]);
         const container = document.getElementById('dashboard-client-revenue-container');
         if (!container) return;
         if (!container.querySelector('canvas')) {
@@ -6619,7 +6739,7 @@
             labels: entries.map(([name]) => name.length > 25 ? name.substring(0, 25) + '...' : name),
             datasets: [{
               data: entries.map(([, amount]) => amount / 100),
-              backgroundColor: pieColors.slice(0, entries.length),
+              backgroundColor: entries.map((_, i) => pieColors[i % pieColors.length]),
               borderWidth: 2,
               borderColor: isDarkMode() ? '#111624' : '#ffffff'
             }]
@@ -7798,8 +7918,7 @@
           }
         };
         const diagnosticsBtn = $('#run-diagnostics'); if (diagnosticsBtn) diagnosticsBtn.onclick = () => {
-          const { start, end } = getReportsDateRange();
-          renderDiagnostics({ start, end });
+          openDiagnosticsModal();
         };
         const resetAllData = $('#reset-all-data'); if (resetAllData) resetAllData.onclick = () => {
           showModal(`
