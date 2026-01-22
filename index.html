@@ -6291,18 +6291,21 @@
         } else {
           const payments = file.payments.filter(p => inDateRange(p.payment_date, { start, end, allTime }));
           const appsByPayment = {};
+          const paymentsWithApps = new Set();
           (file.payment_applications || []).forEach(app => {
             const payment = file.payments.find(p => p.payment_id === app.payment_id);
             if (!payment || !inDateRange(payment.payment_date, { start, end, allTime })) return;
             appsByPayment[app.payment_id] = (appsByPayment[app.payment_id] || 0) + (Number(app.amount_cents) || 0);
+            paymentsWithApps.add(app.payment_id);
             const inv = file.invoices.find(i => i.invoice_id === app.invoice_id);
-            if (!inv) return;
+            if (!inv || inv.status === 'void' || inv.status === 'draft') return;
             const party = file.parties.find(pt => pt.party_id === inv.party_id);
             const name = party?.name || 'Unknown';
             const amt = Number(app.amount_cents) || 0;
             if (amt > 0) clientMap[name] = (clientMap[name] || 0) + amt;
           });
           payments.forEach(p => {
+            if (paymentsWithApps.has(p.payment_id)) return;
             const inv = file.invoices.find(i => i.invoice_id === p.invoice_id);
             if (inv) {
               const party = file.parties.find(pt => pt.party_id === inv.party_id);
