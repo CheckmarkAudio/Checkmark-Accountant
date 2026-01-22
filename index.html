@@ -6374,7 +6374,7 @@
         const { start, end } = getDateRange();
         const allTime = isAllTimeRange(start, end);
         const basis = (file?.settings?.accounting_basis || 'cash');
-        if (basis === 'accrual') {
+        if (basis === 'accrual' || allTime) {
           const invoices = file.invoices.filter(inv => inv.status !== 'void' && inv.status !== 'draft')
             .filter(inv => inDateRange(inv.issue_date, { start, end, allTime }));
           invoices.forEach(inv => {
@@ -6670,7 +6670,7 @@
         const allTime = isAllTimeRange(start, end);
         const basis = (file?.settings?.accounting_basis || 'cash');
         const clientMap = {};
-        if (basis === 'accrual') {
+        if (basis === 'accrual' || allTime) {
           const invoices = getDashboardFilteredInvoices({ start, end });
           invoices.forEach(inv => {
             const party = file.parties.find(p => p.party_id === inv.party_id);
