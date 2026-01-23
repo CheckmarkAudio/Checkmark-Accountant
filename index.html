@@ -844,6 +844,13 @@
       border: 1px solid var(--border);
       box-shadow: var(--shadow);
     }
+    .modal.diagnostics-modal {
+      width: min(680px, 92vw);
+      max-height: min(80vh, 720px);
+      overflow: auto;
+      align-self: flex-start;
+      margin-top: 6vh;
+    }
     .recent-chip { 
       background: var(--surface-soft); 
       border: 1px solid var(--border); 
@@ -2482,14 +2489,19 @@
     const hideToast = () => $('#toast').classList.remove('show');
 
     const showModal = (html, onConfirm) => {
-      $('#modal-body').innerHTML = html;
+      const modalBody = $('#modal-body');
+      modalBody.className = 'modal';
+      modalBody.innerHTML = html;
       $('#modal-overlay').classList.add('show');
-      const confirmBtn = $('#modal-body').querySelector('[data-confirm]');
-      const cancelBtn = $('#modal-body').querySelector('[data-cancel]');
+      const confirmBtn = modalBody.querySelector('[data-confirm]');
+      const cancelBtn = modalBody.querySelector('[data-cancel]');
       if (cancelBtn) cancelBtn.onclick = closeModal;
       if (confirmBtn) confirmBtn.onclick = () => { onConfirm(); closeModal(); };
     };
-    const closeModal = () => $('#modal-overlay').classList.remove('show');
+    const closeModal = () => {
+      $('#modal-overlay').classList.remove('show');
+      $('#modal-body').className = 'modal';
+    };
 
     // ---------- Business selector ----------
     const renderBusinessSelector = () => {
@@ -5083,6 +5095,8 @@
           </div>
         </div>
       `, () => {});
+      const modalBody = $('#modal-body');
+      if (modalBody) modalBody.classList.add('diagnostics-modal');
     };
     const postedLines = () => {
       const postedIds = file.ledger_entries.filter(e=>e.status==='posted').map(e=>e.ledger_entry_id);
