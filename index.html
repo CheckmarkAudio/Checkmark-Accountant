@@ -2595,6 +2595,11 @@
       ensureFile();
       cleanOrphanLedgerEntries();
       if (renumberInvoices()) saveFile();
+      const autoFixed = autoFixPaidInvoicesWithoutApplications({ context: 'load' });
+      if (autoFixed) {
+        saveFile();
+        showToast(`Auto-fixed ${autoFixed} paid invoice${autoFixed===1?'':'s'} with missing payments.`);
+      }
       renderBusinessSelector();
       applyTheme();
       renderAll();
@@ -2656,6 +2661,53 @@
       const paidFromApps = appsByInvoice[inv.invoice_id] || 0;
       const paid = paidFromApps || (inv.status === 'paid' ? total : 0);
       return Math.max(0, total - paid);
+    };
+    const autoFixPaidInvoicesWithoutApplications = ({ context = 'load' } = {}) => {
+      if (!file) return 0;
+      if (!Array.isArray(file.payments)) file.payments = [];
+      if (!Array.isArray(file.payment_applications)) file.payment_applications = [];
+      const appsByInvoice = {};
+      file.payment_applications.forEach(app => {
+        if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
+        appsByInvoice[app.invoice_id] += app.amount_cents || 0;
+      });
+      const defaultDeposit = file.settings?.default_cash_account_code
+        || file.accounts?.find(a => a.type === 'asset')?.code
+        || '1010';
+      let fixed = 0;
+      file.invoices.forEach(inv => {
+        if (inv.status !== 'paid') return;
+        const total = invoiceTotal(inv);
+        if (!total) return;
+        const paidFromApps = appsByInvoice[inv.invoice_id] || 0;
+        if (paidFromApps > 0) return;
+        const pay = {
+          payment_id: uuid(),
+          invoice_id: inv.invoice_id,
+          deposit_account_code: defaultDeposit,
+          payment_date: inv.issue_date || today(),
+          amount_cents: total
+        };
+        file.payments.push(pay);
+        file.payment_applications.push({
+          payment_application_id: uuid(),
+          payment_id: pay.payment_id,
+          invoice_id: inv.invoice_id,
+          amount_cents: total
+        });
+        postInvoicePayment(inv, pay);
+        fixed += 1;
+      });
+      if (fixed) {
+        recordAudit({
+          type: 'autofix',
+          entity: 'invoices',
+          action: 'add-missing-payments',
+          context,
+          count: fixed
+        }, { save: false });
+      }
+      return fixed;
     };
     const getInvoiceStatusFilter = () => $('#invoice-status-filter')?.value || 'all';
     const setInvoiceStatusFilter = (value, { render = true } = {}) => {
@@ -4525,9 +4577,13 @@
       });
       recordAudit({ type:'import', entity:'invoices', format: source, imported, skipped }, { save:false });
       renumberInvoices();
+      const autoFixed = autoFixPaidInvoicesWithoutApplications({ context: 'import' });
       saveFile();
       renderInvoices();
       showToast(`Imported ${imported} invoice${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
+      if (autoFixed) {
+        showToast(`Auto-fixed ${autoFixed} paid invoice${autoFixed===1?'':'s'} with missing payments.`);
+      }
     };
 
     const importTransactionsData = (rawRecords, source='json') => {
