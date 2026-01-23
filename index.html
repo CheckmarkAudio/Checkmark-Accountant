@@ -1349,7 +1349,6 @@
             <button id="export-invoices-json" class="ghost">Export JSON</button>
             <button id="export-invoices-csv" class="ghost">Export CSV</button>
             <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
-            <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             <select id="invoice-status-filter" style="min-width:170px">
               <option value="all">All Statuses</option>
               <option value="open">Open (Balance Due)</option>
@@ -1357,6 +1356,7 @@
               <option value="draft">Draft</option>
               <option value="void">Void</option>
             </select>
+            <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px">
           </div>
           <div class="stack">
