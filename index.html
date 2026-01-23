@@ -1350,6 +1350,13 @@
             <button id="export-invoices-csv" class="ghost">Export CSV</button>
             <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            <select id="invoice-status-filter" style="min-width:170px">
+              <option value="all">All Statuses</option>
+              <option value="open">Open (Balance Due)</option>
+              <option value="paid">Paid</option>
+              <option value="draft">Draft</option>
+              <option value="void">Void</option>
+            </select>
             <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px">
           </div>
           <div class="stack">
@@ -2644,6 +2651,35 @@
     const matchesSearch = (value, query) => normalizeSearchValue(value).includes(query);
 
     // ---------- Invoices ----------
+    const getInvoiceBalanceCents = (inv, appsByInvoice) => {
+      const total = invoiceTotal(inv);
+      const paidFromApps = appsByInvoice[inv.invoice_id] || 0;
+      const paid = paidFromApps || (inv.status === 'paid' ? total : 0);
+      return Math.max(0, total - paid);
+    };
+    const getInvoiceStatusFilter = () => $('#invoice-status-filter')?.value || 'all';
+    const setInvoiceStatusFilter = (value, { render = true } = {}) => {
+      const select = $('#invoice-status-filter');
+      if (!select) return;
+      select.value = value;
+      if (render) renderInvoices();
+    };
+    const applyInvoiceRange = (range) => {
+      if (!range?.start || !range?.end) return;
+      const startInput = $('#invoices-start');
+      const endInput = $('#invoices-end');
+      if (startInput) startInput.value = range.start;
+      if (endInput) endInput.value = range.end;
+      $$('.date-preset-btn[data-for="invoices"]').forEach(b => b.classList.remove('active'));
+    };
+    const showOpenInvoicesFromDashboard = (range) => {
+      const invoiceSearch = $('#invoice-search');
+      if (invoiceSearch) invoiceSearch.value = '';
+      setInvoiceStatusFilter('open', { render: false });
+      applyInvoiceRange(range || getDashboardRange());
+      setTab('invoices');
+      renderInvoices();
+    };
     const getNextInvoiceNumber = () => {
       if (!file?.invoices?.length) return 1;
       const numbers = file.invoices
@@ -2689,12 +2725,26 @@
       const searchQuery = normalizeSearchValue($('#invoice-search')?.value).trim();
       const start = $('#invoices-start')?.value || '';
       const end = $('#invoices-end')?.value || '';
+      const statusFilter = getInvoiceStatusFilter();
+      const appsByInvoice = {};
+      (file.payment_applications || []).forEach(app => {
+        if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
+        appsByInvoice[app.invoice_id] += app.amount_cents || 0;
+      });
       const rows = file.invoices.filter(inv => {
         if (!searchQuery) return true;
         const party = file.parties.find(p => p.party_id === inv.party_id);
         return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
       });
-      const rangedRows = rows.filter(inv => {
+      const statusRows = rows.filter(inv => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'open') {
+          if (inv.status === 'void' || inv.status === 'draft') return false;
+          return getInvoiceBalanceCents(inv, appsByInvoice) > 0;
+        }
+        return inv.status === statusFilter;
+      });
+      const rangedRows = statusRows.filter(inv => {
         const date = inv.issue_date || '';
         if (!start && !end) return true;
         if (start && date && date < start) return false;
@@ -7488,13 +7538,25 @@
         { label:'Income', value:fmt(fin.income,file.business.base_currency) },
         { label:'Expenses', value:fmt(fin.expense,file.business.base_currency) },
         { label:'Net', value:fmt(fin.profit,file.business.base_currency) },
-        { label:'Open Invoices', value:fin.openInvoiceCount }
+        { label:'Open Invoices', value:fin.openInvoiceCount, onClick: () => showOpenInvoicesFromDashboard({ start, end }) }
       ];
       cards.forEach(c=>{
         const div = document.createElement('div');
         div.className = 'card';
         div.style.padding = '24px';
         div.innerHTML = `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;line-height:1.4">${c.label}</div><div style="font-size:1.85rem;font-weight:700;line-height:1.3;color:var(--text)">${c.value}</div>`;
+        if (c.onClick) {
+          div.style.cursor = 'pointer';
+          div.setAttribute('role', 'button');
+          div.tabIndex = 0;
+          div.onclick = c.onClick;
+          div.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              c.onClick();
+            }
+          };
+        }
         kpi.appendChild(div);
       });
       const activity = [];
@@ -7619,6 +7681,7 @@
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
         const importInvoicesFile = $('#import-invoices-file'); if (importInvoicesFile) importInvoicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importInvoicesData); e.target.value=''; } };
         const invoiceSearch = $('#invoice-search'); if (invoiceSearch) invoiceSearch.oninput = () => renderInvoices();
+        const invoiceStatusFilter = $('#invoice-status-filter'); if (invoiceStatusFilter) invoiceStatusFilter.onchange = () => renderInvoices();
         const exportTxnJsonBtn = $('#export-txn-json'); if (exportTxnJsonBtn) exportTxnJsonBtn.onclick = () => exportTransactionsData('json');
         const exportTxnCsvBtn = $('#export-txn-csv'); if (exportTxnCsvBtn) exportTxnCsvBtn.onclick = () => exportTransactionsData('csv');
         const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
