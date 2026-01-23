@@ -1345,19 +1345,21 @@
               <input type="date" id="invoices-end" style="flex: 1; min-width: 140px;">
             </div>
           </div>
-          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
-            <button id="export-invoices-json" class="ghost">Export JSON</button>
-            <button id="export-invoices-csv" class="ghost">Export CSV</button>
-            <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
-            <select id="invoice-status-filter" style="min-width:170px">
-              <option value="all">All Statuses</option>
-              <option value="open">Open (Balance Due)</option>
-              <option value="paid">Paid</option>
-              <option value="draft">Draft</option>
-              <option value="void">Void</option>
-            </select>
-            <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
-            <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px">
+          <div class="row" style="gap:12px; flex-wrap:wrap; align-items:center; margin:8px 0">
+            <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
+              <button id="export-invoices-json" class="ghost">Export JSON</button>
+              <button id="export-invoices-csv" class="ghost">Export CSV</button>
+              <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
+              <select id="invoice-status-filter" style="min-width:170px">
+                <option value="all">All Statuses</option>
+                <option value="open">Open (Balance Due)</option>
+                <option value="paid">Paid</option>
+                <option value="draft">Draft</option>
+                <option value="void">Void</option>
+              </select>
+              <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
+            </div>
+            <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px; margin-left:auto;">
           </div>
           <div class="stack">
             <table>
