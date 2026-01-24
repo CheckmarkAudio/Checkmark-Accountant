@@ -625,6 +625,11 @@
       flex-wrap: nowrap;
       overflow-x: auto;
     }
+    .invoice-form-actions button {
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+    }
     #invoice-form.stack { gap: 12px; }
     #invoice-form label { margin-bottom: 4px; }
     #invoice-form .row { gap: 12px; }
@@ -1507,7 +1512,7 @@
             <h3>Services Catalog</h3>
             <button id="add-service" class="primary" data-quickkey="S" title="Quick key: S">Add Service</button>
           </div>
-          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; justify-content:flex-end">
             <button id="export-services-json" class="ghost">Export JSON</button>
             <button id="export-services-csv" class="ghost">Export CSV</button>
             <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
