@@ -1364,7 +1364,11 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Invoices</h3>
-            <button id="add-invoice" class="primary" title="Quick key: Z">New Invoice</button>
+            <div class="row" style="gap:8px; align-items:center">
+              <button id="export-invoices-pdf" class="primary">Export PDF</button>
+              <button id="print-invoices">Print</button>
+              <button id="add-invoice" class="primary" title="Quick key: Z">New Invoice</button>
+            </div>
           </div>
           <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0;">
             <div class="row" style="gap: 8px; flex-wrap: wrap;">
@@ -1421,7 +1425,11 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Transactions</h3>
-            <button id="add-transaction" class="primary" title="Quick key: X">New Transaction</button>
+            <div class="row" style="gap:8px; align-items:center">
+              <button id="export-transactions-pdf" class="primary">Export PDF</button>
+              <button id="print-transactions">Print</button>
+              <button id="add-transaction" class="primary" title="Quick key: X">New Transaction</button>
+            </div>
           </div>
           <div class="row" style="flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0;">
             <div class="row" style="gap: 8px; flex-wrap: wrap;">
@@ -1468,7 +1476,11 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Clients / Parties</h3>
-            <button id="add-client" class="primary" data-quickkey="C" title="Quick key: C">New Client</button>
+            <div class="row" style="gap:8px; align-items:center">
+              <button id="export-clients-pdf" class="primary">Export PDF</button>
+              <button id="print-clients">Print</button>
+              <button id="add-client" class="primary" data-quickkey="C" title="Quick key: C">New Client</button>
+            </div>
           </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-clients-json" class="ghost">Export JSON</button>
@@ -1489,7 +1501,11 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Projects</h3>
-            <button id="add-project" class="primary" data-quickkey="V" title="Quick key: V">New Project</button>
+            <div class="row" style="gap:8px; align-items:center">
+              <button id="export-projects-pdf" class="primary">Export PDF</button>
+              <button id="print-projects">Print</button>
+              <button id="add-project" class="primary" data-quickkey="V" title="Quick key: V">New Project</button>
+            </div>
           </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-projects-json" class="ghost">Export JSON</button>
@@ -1513,7 +1529,11 @@
         <div class="card">
           <div class="row" style="justify-content:space-between; align-items:center">
             <h3>Services Catalog</h3>
-            <button id="add-service" class="primary" data-quickkey="S" title="Quick key: S">Add Service</button>
+            <div class="row" style="gap:8px; align-items:center">
+              <button id="export-services-pdf" class="primary">Export PDF</button>
+              <button id="print-services">Print</button>
+              <button id="add-service" class="primary" data-quickkey="S" title="Quick key: S">Add Service</button>
+            </div>
           </div>
           <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-services-json" class="ghost">Export JSON</button>
@@ -2881,6 +2901,53 @@
       });
     };
 
+    const getInvoiceReportRows = () => {
+      if (!file) return [];
+      const searchQuery = normalizeSearchValue($('#invoice-search')?.value).trim();
+      const start = $('#invoices-start')?.value || '';
+      const end = $('#invoices-end')?.value || '';
+      const statusFilter = getInvoiceStatusFilter();
+      const appsByInvoice = {};
+      (file.payment_applications || []).forEach(app => {
+        if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
+        appsByInvoice[app.invoice_id] += app.amount_cents || 0;
+      });
+      const rows = file.invoices.filter(inv => {
+        if (!searchQuery) return true;
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
+      });
+      const statusRows = rows.filter(inv => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'open') {
+          if (inv.status === 'void' || inv.status === 'draft') return false;
+          return getInvoiceBalanceCents(inv, appsByInvoice) > 0;
+        }
+        return inv.status === statusFilter;
+      });
+      const rangedRows = statusRows.filter(inv => {
+        const date = inv.issue_date || '';
+        if (!start && !end) return true;
+        if (start && date && date < start) return false;
+        if (end && date && date > end) return false;
+        return true;
+      });
+      const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+      const compareNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
+      return rangedRows.slice().sort((a, b) => {
+        let result = 0;
+        if (invoiceSort.key === 'number') result = compareNum(a.number, b.number);
+        else if (invoiceSort.key === 'client') {
+          const nameA = file.parties.find(p=>p.party_id===a.party_id)?.name || '';
+          const nameB = file.parties.find(p=>p.party_id===b.party_id)?.name || '';
+          result = compareText(nameA, nameB);
+        } else if (invoiceSort.key === 'date') result = compareText(a.issue_date, b.issue_date);
+        else if (invoiceSort.key === 'status') result = compareText(a.status, b.status);
+        else if (invoiceSort.key === 'total') result = compareNum(invoiceTotal(a), invoiceTotal(b));
+        return result * invoiceSort.dir;
+      });
+    };
+
     const duplicateInvoice = (inv) => {
       if (!file) return;
       const newId = uuid();
@@ -4101,6 +4168,38 @@
       });
     };
 
+    const getTransactionReportRows = () => {
+      if (!file) return [];
+      const list = [...file.transactions];
+      const searchQuery = normalizeSearchValue($('#txn-search')?.value).trim();
+      const start = $('#transactions-start')?.value || '';
+      const end = $('#transactions-end')?.value || '';
+      const rows = list.filter(t => {
+        if (!searchQuery) return true;
+        return matchesSearch(t.category, searchQuery)
+          || matchesSearch(t.memo, searchQuery)
+          || matchesSearch(t.type, searchQuery)
+          || matchesSearch(t.date, searchQuery);
+      });
+      const rangedRows = rows.filter(t => {
+        const date = t.date || '';
+        if (!start && !end) return true;
+        if (start && date && date < start) return false;
+        if (end && date && date > end) return false;
+        return true;
+      });
+      const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+      const compareNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
+      return rangedRows.slice().sort((a, b) => {
+        let result = 0;
+        if (txnSort.key === 'date') result = compareText(a.date, b.date);
+        else if (txnSort.key === 'type') result = compareText(a.type, b.type);
+        else if (txnSort.key === 'category') result = compareText(a.category, b.category);
+        else if (txnSort.key === 'amount') result = compareNum(a.amount_cents, b.amount_cents);
+        return result * txnSort.dir;
+      });
+    };
+
     const duplicateTxn = (t) => {
       if (!file) return;
       const draft = {
@@ -4411,6 +4510,46 @@
           file.services = file.services.filter(x=>x.service_id!==s.service_id); saveFile(); renderServices();
         };
         tbody.appendChild(tr);
+      });
+    };
+
+    const getClientReportRows = () => {
+      if (!file) return [];
+      const searchQuery = normalizeSearchValue($('#client-search')?.value).trim();
+      const list = sortPartiesByName(file.parties);
+      return list.filter(p => {
+        if (!searchQuery) return true;
+        return matchesSearch(p.name, searchQuery)
+          || matchesSearch(p.email, searchQuery)
+          || matchesSearch(p.phone, searchQuery)
+          || matchesSearch(p.address, searchQuery);
+      });
+    };
+
+    const getProjectReportRows = () => {
+      if (!file) return [];
+      const searchQuery = normalizeSearchValue($('#project-search')?.value).trim();
+      const list = file.projects.map(pr => {
+        const partyIds = pr.party_ids || (pr.party_id ? [pr.party_id] : []);
+        const parties = partyIds.map(id => file.parties.find(p=>p.party_id===id)).filter(p=>p);
+        const clientNames = parties.length > 0 ? parties.map(p=>p.name).join(', ') : '—';
+        return { pr, clientNames, partyIds };
+      });
+      return list.filter(({ pr, clientNames }) => {
+        if (!searchQuery) return true;
+        return matchesSearch(pr.name, searchQuery) || matchesSearch(clientNames, searchQuery);
+      });
+    };
+
+    const getServiceReportRows = () => {
+      if (!file) return [];
+      const searchQuery = normalizeSearchValue($('#service-search')?.value).trim();
+      const list = file.services;
+      return list.filter(s => {
+        if (!searchQuery) return true;
+        return matchesSearch(s.name, searchQuery)
+          || matchesSearch(s.billing_type, searchQuery)
+          || matchesSearch(s.default_description, searchQuery);
       });
     };
 
@@ -7086,6 +7225,72 @@
       return table;
     };
 
+    const formatDateRangeLabel = (start, end) => {
+      if (!start && !end) return 'All Dates';
+      if (start && end) return `Date Range: ${start} to ${end}`;
+      if (start) return `Date Range: ${start} to ...`;
+      return `Date Range: ... to ${end}`;
+    };
+
+    const buildDataTable = (headers, rows, { alignRight = [] } = {}) => {
+      const rightSet = new Set(alignRight);
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      const thead = document.createElement('thead');
+      const tr = document.createElement('tr');
+      headers.forEach((h, idx) => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        th.style.textAlign = rightSet.has(idx) ? 'right' : 'left';
+        th.style.padding = '6px 8px';
+        th.style.borderBottom = '1px solid #e5e7eb';
+        th.style.fontSize = '12px';
+        th.style.color = '#444';
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      rows.forEach(row => {
+        const r = document.createElement('tr');
+        row.forEach((cell, idx) => {
+          const td = document.createElement('td');
+          td.textContent = cell;
+          td.style.padding = '6px 8px';
+          td.style.borderBottom = '1px solid #f0f1f3';
+          td.style.textAlign = rightSet.has(idx) ? 'right' : 'left';
+          r.appendChild(td);
+        });
+        tbody.appendChild(r);
+      });
+      table.appendChild(tbody);
+      return table;
+    };
+
+    const buildKeyValueTable = (rows) => {
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      rows.forEach(([label, value], idx) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = idx === rows.length - 1 ? 'none' : '1px solid #f0f1f3';
+        const name = document.createElement('td');
+        name.textContent = label;
+        name.style.padding = '6px 8px';
+        name.style.color = '#444';
+        name.style.width = '35%';
+        const val = document.createElement('td');
+        val.textContent = value;
+        val.style.padding = '6px 8px';
+        val.style.textAlign = 'right';
+        tr.appendChild(name);
+        tr.appendChild(val);
+        table.appendChild(tr);
+      });
+      return table;
+    };
+
     const simpleNote = (text) => {
       const p = document.createElement('p');
       p.textContent = text;
@@ -7347,6 +7552,193 @@
       return wrapper;
     };
 
+    const buildPrintInvoicesReport = () => {
+      const start = $('#invoices-start')?.value || '';
+      const end = $('#invoices-end')?.value || '';
+      const wrapper = createPrintContainer('Invoices Report', formatDateRangeLabel(start, end));
+      const rows = getInvoiceReportRows();
+      if (!rows.length) {
+        const p = document.createElement('p');
+        p.textContent = 'No invoices found.';
+        p.style.margin = '0';
+        addSection(wrapper, 'Invoices', p);
+        return wrapper;
+      }
+      rows.forEach(inv => {
+        const party = file.parties.find(p => p.party_id === inv.party_id);
+        const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
+        const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
+        const taxPercentValue = (inv.tax_percent ?? invoiceTaxPercent(inv) ?? 0);
+        const infoRows = [
+          ['Invoice #', String(inv.number || '—')],
+          ['Status', String(inv.status || 'draft')],
+          ['Issue Date', String(inv.issue_date || '')],
+          ['Client', party?.name || '—'],
+          ['Client Email', party?.email || ''],
+          ['Project', project?.name || '—'],
+          ['Subtotal', fmt(inv.subtotal_cents ?? invoiceSubtotal(inv), file.business.base_currency)],
+          ['Tax %', String(taxPercentValue)],
+          ['Tax', fmt(inv.tax_cents ?? invoiceTax(inv), file.business.base_currency)],
+          ['Discount Type', String(inv.discount_type || 'amount')],
+          ['Discount Value', String(inv.discount_value ?? 0)],
+          ['Discount', fmt(inv.discount_cents ?? invoiceDiscount(inv), file.business.base_currency)],
+          ['Tip', fmt(inv.tip_cents ?? invoiceTip(inv), file.business.base_currency)],
+          ['Total', fmt(inv.total_cents ?? invoiceTotal(inv), file.business.base_currency)],
+          ['Created', String(inv.created_at || '')],
+          ['Updated', String(inv.updated_at || '')],
+          ['Invoice ID', String(inv.invoice_id || '')]
+        ];
+        const body = document.createElement('div');
+        body.appendChild(buildKeyValueTable(infoRows));
+        if (lines.length) {
+          const lineRows = lines.map(line => ([
+            line.service_name || line.name || '',
+            String(line.quantity ?? ''),
+            fmt(line.rate_cents || 0, file.business.base_currency),
+            fmt(line.line_total_cents || 0, file.business.base_currency),
+            line.billing_type || 'flat'
+          ]));
+          const table = buildDataTable(
+            ['Description', 'Qty', 'Rate', 'Amount', 'Billing'],
+            lineRows,
+            { alignRight: [1, 2, 3] }
+          );
+          const linesLabel = document.createElement('div');
+          linesLabel.textContent = 'Line Items';
+          linesLabel.style.margin = '12px 0 6px 0';
+          linesLabel.style.fontWeight = '600';
+          linesLabel.style.color = '#111';
+          body.appendChild(linesLabel);
+          body.appendChild(table);
+        } else {
+          const noLines = document.createElement('p');
+          noLines.textContent = 'No line items.';
+          noLines.style.margin = '8px 0 0 0';
+          noLines.style.color = '#555';
+          body.appendChild(noLines);
+        }
+        addSection(wrapper, `Invoice #${inv.number || '—'}`, body);
+      });
+      return wrapper;
+    };
+
+    const buildPrintTransactionsReport = () => {
+      const start = $('#transactions-start')?.value || '';
+      const end = $('#transactions-end')?.value || '';
+      const wrapper = createPrintContainer('Transactions Report', formatDateRangeLabel(start, end));
+      const rows = getTransactionReportRows();
+      if (!rows.length) {
+        const p = document.createElement('p');
+        p.textContent = 'No transactions found.';
+        p.style.margin = '0';
+        addSection(wrapper, 'Transactions', p);
+        return wrapper;
+      }
+      const tableRows = rows.map(t => {
+        const project = t.project_id ? file.projects.find(p => p.project_id === t.project_id) : null;
+        return [
+          String(t.date || ''),
+          String(t.type || ''),
+          String(t.category || ''),
+          fmt(t.amount_cents || 0, file.business.base_currency),
+          String(t.memo || ''),
+          project?.name || '—',
+          String(t.status || ''),
+          String(t.created_at || ''),
+          String(t.updated_at || ''),
+          String(t.transaction_id || '')
+        ];
+      });
+      const table = buildDataTable(
+        ['Date', 'Type', 'Category', 'Amount', 'Memo', 'Project', 'Status', 'Created', 'Updated', 'ID'],
+        tableRows,
+        { alignRight: [3] }
+      );
+      addSection(wrapper, 'Transactions', table);
+      return wrapper;
+    };
+
+    const buildPrintClientsReport = () => {
+      const wrapper = createPrintContainer('Clients / Parties Report', 'All Records');
+      const rows = getClientReportRows();
+      if (!rows.length) {
+        const p = document.createElement('p');
+        p.textContent = 'No clients found.';
+        p.style.margin = '0';
+        addSection(wrapper, 'Clients / Parties', p);
+        return wrapper;
+      }
+      const tableRows = rows.map(p => ([
+        String(p.name || ''),
+        String(p.email || ''),
+        String(p.phone || ''),
+        String(p.address || ''),
+        String(p.created_at || ''),
+        String(p.updated_at || ''),
+        String(p.party_id || '')
+      ]));
+      const table = buildDataTable(
+        ['Name', 'Email', 'Phone', 'Address', 'Created', 'Updated', 'ID'],
+        tableRows
+      );
+      addSection(wrapper, 'Clients / Parties', table);
+      return wrapper;
+    };
+
+    const buildPrintProjectsReport = () => {
+      const wrapper = createPrintContainer('Projects Report', 'All Records');
+      const rows = getProjectReportRows();
+      if (!rows.length) {
+        const p = document.createElement('p');
+        p.textContent = 'No projects found.';
+        p.style.margin = '0';
+        addSection(wrapper, 'Projects', p);
+        return wrapper;
+      }
+      const tableRows = rows.map(({ pr, clientNames, partyIds }) => ([
+        String(pr.name || ''),
+        String(clientNames || '—'),
+        String((partyIds || []).join(', ') || '—'),
+        String(pr.created_at || ''),
+        String(pr.updated_at || ''),
+        String(pr.project_id || '')
+      ]));
+      const table = buildDataTable(
+        ['Name', 'Clients', 'Client IDs', 'Created', 'Updated', 'ID'],
+        tableRows
+      );
+      addSection(wrapper, 'Projects', table);
+      return wrapper;
+    };
+
+    const buildPrintServicesReport = () => {
+      const wrapper = createPrintContainer('Services Report', 'All Records');
+      const rows = getServiceReportRows();
+      if (!rows.length) {
+        const p = document.createElement('p');
+        p.textContent = 'No services found.';
+        p.style.margin = '0';
+        addSection(wrapper, 'Services', p);
+        return wrapper;
+      }
+      const tableRows = rows.map(s => ([
+        String(s.name || ''),
+        fmt(s.default_rate_cents || 0, file.business.base_currency),
+        String(s.billing_type || ''),
+        String(s.default_description || ''),
+        String(s.created_at || ''),
+        String(s.updated_at || ''),
+        String(s.service_id || '')
+      ]));
+      const table = buildDataTable(
+        ['Name', 'Rate', 'Billing', 'Description', 'Created', 'Updated', 'ID'],
+        tableRows,
+        { alignRight: [1] }
+      );
+      addSection(wrapper, 'Services', table);
+      return wrapper;
+    };
+
     const addImageToPdf = (pdf, imgData, canvas, margin = 10) => {
       const pageWidth = 210;   // mm (A4)
       const pageHeight = 297;  // mm (A4)
@@ -7363,6 +7755,117 @@
       const y = (pageHeight - targetHeight) / 2;
       pdf.addImage(imgData, 'PNG', x, y, targetWidth, targetHeight, undefined, 'FAST');
     };
+
+    const exportCategoryPDF = async (buildFn, filename) => {
+      if (!window.jspdf || !window.html2canvas) {
+        alert('PDF export libraries not loaded. Please refresh the page.');
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const printable = buildFn();
+      if (!printable) {
+        alert('No data to export');
+        return;
+      }
+      showToast('Generating PDF...');
+      printable.style.position = 'absolute';
+      printable.style.left = '-9999px';
+      printable.style.width = '210mm';
+      printable.style.padding = '20px';
+      document.body.appendChild(printable);
+      try {
+        const canvas = await html2canvas(printable, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: printable.scrollWidth,
+          height: printable.scrollHeight,
+          windowWidth: printable.scrollWidth,
+          windowHeight: printable.scrollHeight
+        });
+        document.body.removeChild(printable);
+        const imgData = canvas.toDataURL('image/png', 0.95);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        addImageToPdf(pdf, imgData, canvas);
+        pdf.save(filename);
+        setTimeout(() => showToast('PDF exported successfully!'), 500);
+      } catch (error) {
+        console.error('PDF export error:', error);
+        document.body.removeChild(printable);
+        alert('Error generating PDF: ' + (error.message || 'Unknown error'));
+      }
+    };
+
+    const printCategoryReport = (buildFn, title) => {
+      const printable = buildFn();
+      if (!printable) {
+        alert('No data to print');
+        return;
+      }
+      printable.style.width = '210mm';
+      printable.style.margin = '0 auto';
+      printable.style.padding = '20mm';
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert('Please allow popups to print');
+        return;
+      }
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${title}</title>
+          <meta charset="utf-8">
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            body { font-family: system-ui, sans-serif; padding: 0; background: #ffffff; color: #111; }
+            img { max-width: 100%; }
+            table { border-collapse: collapse; }
+          </style>
+        </head>
+        <body>
+          ${printable.outerHTML}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      };
+    };
+
+    const exportInvoicesPDF = () => {
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportCategoryPDF(buildPrintInvoicesReport, `Invoices_Report_${dateStr}.pdf`);
+    };
+    const printInvoicesReport = () => printCategoryReport(buildPrintInvoicesReport, 'Invoices Report');
+
+    const exportTransactionsPDF = () => {
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportCategoryPDF(buildPrintTransactionsReport, `Transactions_Report_${dateStr}.pdf`);
+    };
+    const printTransactionsReport = () => printCategoryReport(buildPrintTransactionsReport, 'Transactions Report');
+
+    const exportClientsPDF = () => {
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportCategoryPDF(buildPrintClientsReport, `Clients_Report_${dateStr}.pdf`);
+    };
+    const printClientsReport = () => printCategoryReport(buildPrintClientsReport, 'Clients / Parties Report');
+
+    const exportProjectsPDF = () => {
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportCategoryPDF(buildPrintProjectsReport, `Projects_Report_${dateStr}.pdf`);
+    };
+    const printProjectsReport = () => printCategoryReport(buildPrintProjectsReport, 'Projects Report');
+
+    const exportServicesPDF = () => {
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportCategoryPDF(buildPrintServicesReport, `Services_Report_${dateStr}.pdf`);
+    };
+    const printServicesReport = () => printCategoryReport(buildPrintServicesReport, 'Services Report');
 
     const exportAnalyticsPDF = async () => {
       if (!window.jspdf || !window.html2canvas) {
@@ -7810,6 +8313,8 @@
         const quickAddProject = $('#quick-add-project'); if (quickAddProject) quickAddProject.onclick = () => togglePanelFor('Project', () => editProject({}));
         const exportInvoicesJsonBtn = $('#export-invoices-json'); if (exportInvoicesJsonBtn) exportInvoicesJsonBtn.onclick = () => exportInvoicesData('json');
         const exportInvoicesCsvBtn = $('#export-invoices-csv'); if (exportInvoicesCsvBtn) exportInvoicesCsvBtn.onclick = () => exportInvoicesData('csv');
+        const exportInvoicesPdfBtn = $('#export-invoices-pdf'); if (exportInvoicesPdfBtn) exportInvoicesPdfBtn.onclick = exportInvoicesPDF;
+        const printInvoicesBtn = $('#print-invoices'); if (printInvoicesBtn) printInvoicesBtn.onclick = printInvoicesReport;
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
         const importInvoicesFile = $('#import-invoices-file'); if (importInvoicesFile) importInvoicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importInvoicesData); e.target.value=''; } };
         const invoiceSearch = $('#invoice-search'); if (invoiceSearch) invoiceSearch.oninput = () => renderInvoices();
@@ -7820,6 +8325,8 @@
         }
         const exportTxnJsonBtn = $('#export-txn-json'); if (exportTxnJsonBtn) exportTxnJsonBtn.onclick = () => exportTransactionsData('json');
         const exportTxnCsvBtn = $('#export-txn-csv'); if (exportTxnCsvBtn) exportTxnCsvBtn.onclick = () => exportTransactionsData('csv');
+        const exportTxnPdfBtn = $('#export-transactions-pdf'); if (exportTxnPdfBtn) exportTxnPdfBtn.onclick = exportTransactionsPDF;
+        const printTxnBtn = $('#print-transactions'); if (printTxnBtn) printTxnBtn.onclick = printTransactionsReport;
         const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
         const importTxnFile = $('#import-txn-file'); if (importTxnFile) importTxnFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importTransactionsData); e.target.value=''; } };
         const txnSearch = $('#txn-search'); if (txnSearch) txnSearch.oninput = () => renderTransactions();
@@ -7838,15 +8345,21 @@
         const txnAmount = $('#sort-txn-amount'); if (txnAmount) txnAmount.onclick = () => { setSort(txnSort, 'amount'); renderTransactions(); };
         const exportClientsJsonBtn = $('#export-clients-json'); if (exportClientsJsonBtn) exportClientsJsonBtn.onclick = () => exportClientsData('json');
         const exportClientsCsvBtn = $('#export-clients-csv'); if (exportClientsCsvBtn) exportClientsCsvBtn.onclick = () => exportClientsData('csv');
+        const exportClientsPdfBtn = $('#export-clients-pdf'); if (exportClientsPdfBtn) exportClientsPdfBtn.onclick = exportClientsPDF;
+        const printClientsBtn = $('#print-clients'); if (printClientsBtn) printClientsBtn.onclick = printClientsReport;
         const importClientsBtn = $('#import-clients-btn'); if (importClientsBtn) importClientsBtn.onclick = () => { const inp = $('#import-clients-file'); if (inp) inp.click(); };
         const importClientsFile = $('#import-clients-file'); if (importClientsFile) importClientsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importClientsData); e.target.value=''; } };
         const clientSearch = $('#client-search'); if (clientSearch) clientSearch.oninput = () => renderClients();
         const exportProjectsJsonBtn = $('#export-projects-json'); if (exportProjectsJsonBtn) exportProjectsJsonBtn.onclick = () => exportProjectsData('json');
         const exportProjectsCsvBtn = $('#export-projects-csv'); if (exportProjectsCsvBtn) exportProjectsCsvBtn.onclick = () => exportProjectsData('csv');
+        const exportProjectsPdfBtn = $('#export-projects-pdf'); if (exportProjectsPdfBtn) exportProjectsPdfBtn.onclick = exportProjectsPDF;
+        const printProjectsBtn = $('#print-projects'); if (printProjectsBtn) printProjectsBtn.onclick = printProjectsReport;
         const importProjectsBtn = $('#import-projects-btn'); if (importProjectsBtn) importProjectsBtn.onclick = () => { const inp = $('#import-projects-file'); if (inp) inp.click(); };
         const importProjectsFile = $('#import-projects-file'); if (importProjectsFile) importProjectsFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importProjectsData); e.target.value=''; } };
         const exportServicesJsonBtn = $('#export-services-json'); if (exportServicesJsonBtn) exportServicesJsonBtn.onclick = () => exportServicesData('json');
         const exportServicesCsvBtn = $('#export-services-csv'); if (exportServicesCsvBtn) exportServicesCsvBtn.onclick = () => exportServicesData('csv');
+        const exportServicesPdfBtn = $('#export-services-pdf'); if (exportServicesPdfBtn) exportServicesPdfBtn.onclick = exportServicesPDF;
+        const printServicesBtn = $('#print-services'); if (printServicesBtn) printServicesBtn.onclick = printServicesReport;
         const importServicesBtn = $('#import-services-btn'); if (importServicesBtn) importServicesBtn.onclick = () => { const inp = $('#import-services-file'); if (inp) inp.click(); };
         const importServicesFile = $('#import-services-file'); if (importServicesFile) importServicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importServicesData); e.target.value=''; } };
         const projectSearch = $('#project-search'); if (projectSearch) projectSearch.oninput = () => renderProjects();
