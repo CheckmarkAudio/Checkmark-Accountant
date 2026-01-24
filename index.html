@@ -621,6 +621,14 @@
       gap: 12px;
       justify-content: flex-end;
     }
+    .invoice-form-actions {
+      gap: 6px;
+      flex-wrap: nowrap;
+    }
+    .invoice-form-actions button {
+      padding: 10px 14px;
+      font-size: 0.9rem;
+    }
     .invoice-footer {
       display: flex;
       justify-content: flex-end;
@@ -1769,8 +1777,8 @@
     <div class="calculator-header" id="calculator-header">
       <span>Calculator</span>
       <div class="calculator-controls">
-        <button class="calculator-btn-close" id="calculator-close" title="Close">×</button>
         <button class="calculator-btn-minimize" id="calculator-minimize" title="Minimize">−</button>
+        <button class="calculator-btn-close" id="calculator-close" title="Close">×</button>
       </div>
     </div>
     <div class="calculator-body" id="calculator-body">
@@ -1810,8 +1818,8 @@
     <div class="note-header" id="note-header">
       <span>Notes</span>
       <div class="note-controls">
-        <button class="calculator-btn-close" id="note-close" title="Close">×</button>
         <button class="calculator-btn-minimize" id="note-minimize" title="Minimize">−</button>
+        <button class="calculator-btn-close" id="note-close" title="Close">×</button>
       </div>
     </div>
     <div class="note-body">
@@ -2995,7 +3003,7 @@
             </div>
           </div>
           <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
-          <div class="row" style="gap:8px">
+          <div class="row invoice-form-actions">
             <button type="button" id="mark-invoice-paid">Mark Paid</button>
             <button class="primary" type="submit">Save</button>
             <button type="button" id="save-invoice-draft">Save Draft</button>
@@ -3254,8 +3262,13 @@
         else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
         file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
         pushRecent('party', saved.party_id);
+        const shouldMarkPaid = form.dataset.markPaid === '1';
+        if (shouldMarkPaid) delete form.dataset.markPaid;
         saveFile();
         renderInvoices();
+        if (shouldMarkPaid) {
+          promptMarkPaid(saved);
+        }
         closePanel();
       };
       const saveDraftBtn = $('#save-invoice-draft');
