@@ -587,8 +587,23 @@
     .pill { padding: 8px 14px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
     .stack { display: flex; flex-direction: column; gap: 16px; }
     .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .settings-stack { max-width: 1100px; margin: 0 auto; width: 100%; }
-    .settings-card { width: 100%; }
+    .settings-stack { max-width: 980px; margin: 0 auto; width: 100%; gap: 12px; }
+    .settings-card { width: 100%; padding: 18px; }
+    .settings-accordion summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 1.05rem;
+      cursor: pointer;
+    }
+    .settings-accordion summary::-webkit-details-marker { display: none; }
+    .settings-accordion summary::marker { content: ''; }
+    .settings-accordion[open] summary { margin-bottom: 12px; }
+    .settings-body { display: flex; flex-direction: column; gap: 12px; }
+    .settings-body .row { gap: 12px; }
+    .settings-help { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
     .settings-toggle { display: inline-flex; align-items: center; gap: 10px; }
     .settings-toggle input[type="checkbox"] { width: 18px; height: 18px; }
     details.danger-zone summary { cursor: pointer; font-weight: 700; }
@@ -1676,127 +1691,135 @@
       </section>
 
       <section data-section="settings" class="stack settings-stack hidden">
-        <div class="card settings-card">
-          <h3>Appearance</h3>
-          <div class="row" style="align-items:center; justify-content:space-between; gap:16px">
-            <div class="stack" style="gap:6px">
-              <label for="splash-video-toggle" style="margin:0">Intro Video on Startup</label>
-              <p style="margin:0; font-size:0.85rem; color:var(--muted)">Shows the brand intro each time the app opens.</p>
+        <details class="card settings-card settings-accordion" open>
+          <summary>Appearance</summary>
+          <div class="settings-body">
+            <div class="row" style="align-items:center; justify-content:space-between">
+              <div class="stack" style="gap:4px">
+                <label for="splash-video-toggle" style="margin:0">Intro Video on Startup</label>
+                <p class="settings-help">Shows the brand intro each time the app opens.</p>
+              </div>
+              <div class="settings-toggle">
+                <input type="checkbox" id="splash-video-toggle">
+                <span id="splash-video-state" class="pill">On</span>
+              </div>
             </div>
-            <div class="settings-toggle">
-              <input type="checkbox" id="splash-video-toggle">
-              <span id="splash-video-state" class="pill">On</span>
+            <label>Theme</label>
+            <select id="theme-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+            <div class="row logo-input-row" style="align-items:flex-end">
+              <div>
+                <label>Logo (Light)</label>
+                <input type="file" id="logo-light" accept="image/*">
+              </div>
+              <div>
+                <label>Logo (Dark)</label>
+                <input type="file" id="logo-dark" accept="image/*">
+              </div>
             </div>
+            <label>Custom Header Image (Optional)</label>
+            <input type="file" id="header-image" accept="image/*">
+            <div class="header-image-preview-row">
+              <div id="header-image-preview" class="header-image-preview"></div>
+              <div class="header-image-opacity">
+                <label>Opacity</label>
+                <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
+                <div class="header-opacity-scale">
+                  <span>0%</span>
+                  <span id="header-opacity-value">10%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </div>
+            <label>Header Image Fit</label>
+            <select id="header-image-fit">
+              <option value="off">No Header</option>
+              <option value="cover">Cover (Fill)</option>
+              <option value="contain">Contain (Fit)</option>
+              <option value="fill">Fill (Stretch)</option>
+              <option value="none">None (Original)</option>
+            </select>
           </div>
-          <label style="margin-top:16px">Theme</label>
-          <select id="theme-select">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-          <div class="row logo-input-row" style="align-items:flex-end; margin-bottom:12px">
-            <div>
-              <label>Logo (Light)</label>
-              <input type="file" id="logo-light" accept="image/*">
-            </div>
-            <div>
-              <label>Logo (Dark)</label>
-              <input type="file" id="logo-dark" accept="image/*">
-            </div>
+        </details>
+        <details class="card settings-card settings-accordion">
+          <summary>Invoicing</summary>
+          <div class="settings-body">
+            <label>Default Tax % (optional)</label>
+            <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
+            <p class="settings-help">Applied to new invoices; you can override per invoice.</p>
+            <label>Accounting Basis</label>
+            <select id="accounting-basis">
+              <option value="cash">Cash (payments/transactions)</option>
+              <option value="accrual">Accrual (invoices issued)</option>
+            </select>
+            <p class="settings-help">Cash uses payments + income transactions. Accrual uses invoices for income.</p>
+            <label>Gross Receipts Tax (GRT) % (optional)</label>
+            <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
+            <p class="settings-help">Used by the GRT calculator and tax summary reports.</p>
+            <label>GRT Basis</label>
+            <select id="grt-basis">
+              <option value="invoices">Invoices issued</option>
+              <option value="payments">Payments received</option>
+              <option value="both">Both</option>
+            </select>
+            <p class="settings-help">Invoices use totals (including tax/tip). Both can double-count if invoices were paid.</p>
+            <label>GRT Filing Frequency</label>
+            <select id="grt-filing-frequency">
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="semiannual">Semi-annual</option>
+            </select>
+            <p class="settings-help">Used by the GRT calculator in Reports.</p>
           </div>
-          <label>Custom Header Image (Optional)</label>
-          <input type="file" id="header-image" accept="image/*">
-          <div class="header-image-preview-row">
-            <div id="header-image-preview" class="header-image-preview"></div>
-            <div class="header-image-opacity">
-              <label>Opacity</label>
-              <input type="range" id="header-image-opacity" min="0" max="100" value="10" step="5">
-              <div class="header-opacity-scale">
-                <span>0%</span>
-                <span id="header-opacity-value">10%</span>
-                <span>100%</span>
+        </details>
+        <details class="card settings-card settings-accordion">
+          <summary>Business</summary>
+          <div class="settings-body">
+            <label>Selected Business</label>
+            <select id="business-selector"></select>
+            <div id="business-info" class="stack"></div>
+            <button id="edit-business-info" class="ghost" style="width:100%">Edit Business Info</button>
+            <div class="row" style="align-items:center; padding-top:12px; border-top:1px solid var(--border)">
+              <div style="flex:1; min-width:240px">
+                <button id="new-business" class="primary" style="width:100%">+ New Business</button>
               </div>
             </div>
           </div>
-          <label style="margin-top:16px">Header Image Fit</label>
-          <select id="header-image-fit">
-            <option value="off">No Header</option>
-            <option value="cover">Cover (Fill)</option>
-            <option value="contain">Contain (Fit)</option>
-            <option value="fill">Fill (Stretch)</option>
-            <option value="none">None (Original)</option>
-          </select>
-        </div>
-        <div class="card settings-card">
-          <h3>Invoicing</h3>
-          <label>Default Tax % (optional)</label>
-          <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Applied to new invoices; you can override per invoice.</p>
-          <label style="margin-top:16px">Accounting Basis</label>
-          <select id="accounting-basis">
-            <option value="cash">Cash (payments/transactions)</option>
-            <option value="accrual">Accrual (invoices issued)</option>
-          </select>
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Cash uses payments + income transactions. Accrual uses invoices for income.</p>
-          <label style="margin-top:16px">Gross Receipts Tax (GRT) % (optional)</label>
-          <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Used by the GRT calculator and tax summary reports.</p>
-          <label style="margin-top:16px">GRT Basis</label>
-          <select id="grt-basis">
-            <option value="invoices">Invoices issued</option>
-            <option value="payments">Payments received</option>
-            <option value="both">Both</option>
-          </select>
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Invoices use totals (including tax/tip). Both can double-count if invoices were paid.</p>
-          <label style="margin-top:16px">GRT Filing Frequency</label>
-          <select id="grt-filing-frequency">
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="semiannual">Semi-annual</option>
-          </select>
-          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Used by the GRT calculator in Reports.</p>
-        </div>
-        <div class="card settings-card">
-          <h3>Business</h3>
-          <label>Selected Business</label>
-          <select id="business-selector"></select>
-          <div id="business-info" class="stack"></div>
-          <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
-          <div class="row" style="align-items:center; gap:12px; margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
-            <div style="flex:1; min-width:240px">
-              <button id="new-business" class="primary" style="width:100%">+ New Business</button>
+        </details>
+        <details class="card settings-card settings-accordion">
+          <summary>Data</summary>
+          <div class="settings-body">
+            <div class="row" style="align-items:center; gap:8px">
+              <span>Save Status:</span>
+              <span class="saved-flag" id="saved-flag">Saved</span>
+            </div>
+            <button id="export-json">Backup / Export</button>
+            <button id="export-audit-log" class="ghost">Export Audit Log</button>
+            <input type="file" id="import-json" class="hidden" accept="application/json">
+            <button id="import-json-btn">Import</button>
+            <div class="muted">Integrity runs automatically.</div>
+            <div id="integrity-output" class="stack space"></div>
+            <button id="run-diagnostics" class="ghost">Diagnostics</button>
+            <div style="padding-top:12px; border-top:1px solid var(--border)">
+              <h4 style="margin-bottom:6px; font-size:1rem; font-weight:600">Migration</h4>
+              <div id="migration-block" class="stack"></div>
             </div>
           </div>
-        </div>
-        <div class="card settings-card">
-          <h3>Data</h3>
-          <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
-            <span>Save Status:</span>
-            <span class="saved-flag" id="saved-flag">Saved</span>
-          </div>
-          <button id="export-json">Backup / Export</button>
-          <button id="export-audit-log" class="ghost" style="margin-top:6px">Export Audit Log</button>
-          <input type="file" id="import-json" class="hidden" accept="application/json">
-          <button id="import-json-btn">Import</button>
-          <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
-          <div id="integrity-output" class="stack space"></div>
-          <button id="run-diagnostics" class="ghost" style="margin-top:6px">Diagnostics</button>
-          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
-            <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
-            <div id="migration-block" class="stack"></div>
-          </div>
-        </div>
-        <details class="card danger-zone">
+        </details>
+        <details class="card settings-card settings-accordion danger-zone">
           <summary>Danger Zone</summary>
-          <div class="danger-zone-body">
-            <div class="row" style="align-items:flex-start; gap:16px">
+          <div class="settings-body danger-zone-body">
+            <div class="row" style="align-items:flex-start">
               <div style="flex:1; min-width:240px">
                 <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none; width:100%">Reset All Data</button>
-                <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+                <p class="settings-help">This will permanently delete all businesses and data. This cannot be undone.</p>
               </div>
               <div style="flex:1; min-width:240px">
                 <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
-                <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+                <p class="settings-help">This will permanently delete the current business and all its data. This cannot be undone.</p>
               </div>
             </div>
           </div>
@@ -8621,6 +8644,18 @@
               applyTheme();
             }
           };
+        }
+        const settingsSection = $('section[data-section="settings"]');
+        if (settingsSection) {
+          const accordions = Array.from(settingsSection.querySelectorAll('details.settings-accordion'));
+          accordions.forEach((details) => {
+            details.addEventListener('toggle', () => {
+              if (!details.open) return;
+              accordions.forEach((other) => {
+                if (other !== details) other.open = false;
+              });
+            });
+          });
         }
         const exportJson = $('#export-json'); if (exportJson) exportJson.onclick = () => {
           if (!file) {
