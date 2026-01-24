@@ -2995,6 +2995,7 @@
           </div>
           <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
           <div class="row" style="gap:8px">
+            <button type="button" id="mark-invoice-paid">Mark Paid</button>
             <button class="primary" type="submit">Save</button>
             <button type="button" id="save-invoice-draft">Save Draft</button>
             <button type="button" id="cancel-invoice">Cancel</button>
@@ -3256,6 +3257,13 @@
         const canDraft = !file.invoices.find(i=>i.invoice_id===invoice.invoice_id) || invoice.status === 'draft';
         saveDraftBtn.style.display = canDraft ? 'inline-flex' : 'none';
         saveDraftBtn.onclick = saveInvoiceDraft;
+      }
+      const markPaidBtn = $('#mark-invoice-paid');
+      if (markPaidBtn) {
+        const exists = !!file.invoices.find(i=>i.invoice_id===invoice.invoice_id);
+        const canMarkPaid = exists && invoice.status !== 'paid' && invoice.status !== 'void' && invoice.status !== 'draft';
+        markPaidBtn.style.display = canMarkPaid ? 'inline-flex' : 'none';
+        markPaidBtn.onclick = () => promptMarkPaid(invoice);
       }
       $('#cancel-invoice').onclick = () => {
         closePanel();
@@ -8917,13 +8925,10 @@
     const updateCalculatorCompactState = () => {
       const calcWindow = $('#calculator-window');
       if (!calcWindow) return;
-      const minHeight = getCalculatorMinHeight();
+      const fullHeight = getCalculatorContentHeight();
       const currentHeight = calcWindow.getBoundingClientRect().height;
-      if (currentHeight <= minHeight + 2) {
-        calcWindow.classList.add('compact');
-      } else {
-        calcWindow.classList.remove('compact');
-      }
+      const shouldCompact = currentHeight < fullHeight - 1;
+      calcWindow.classList.toggle('compact', shouldCompact);
     };
 
     const onResize = (e) => {
