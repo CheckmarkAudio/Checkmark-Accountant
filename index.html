@@ -587,6 +587,13 @@
     .pill { padding: 8px 14px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
     .stack { display: flex; flex-direction: column; gap: 16px; }
     .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .settings-stack { max-width: 1100px; margin: 0 auto; width: 100%; }
+    .settings-card { width: 100%; }
+    .settings-toggle { display: inline-flex; align-items: center; gap: 10px; }
+    .settings-toggle input[type="checkbox"] { width: 18px; height: 18px; }
+    details.danger-zone summary { cursor: pointer; font-weight: 700; }
+    details.danger-zone summary::marker { color: var(--muted); }
+    details.danger-zone .danger-zone-body { margin-top: 12px; display: flex; flex-direction: column; gap: 16px; }
     .actions {
       flex-wrap: nowrap;
       gap: 8px;
@@ -1668,12 +1675,18 @@
         </div>
       </section>
 
-      <section data-section="settings" class="grid cols-4 hidden">
-        <div class="card" style="grid-column:1">
+      <section data-section="settings" class="stack settings-stack hidden">
+        <div class="card settings-card">
           <h3>Appearance</h3>
-          <div class="row" style="align-items:center; justify-content:space-between; gap:10px">
-            <label style="margin:0">Intro Video on Startup</label>
-            <button id="splash-video-toggle" class="ghost" style="width:auto; padding:6px 12px; font-size:0.85rem">On</button>
+          <div class="row" style="align-items:center; justify-content:space-between; gap:16px">
+            <div class="stack" style="gap:6px">
+              <label for="splash-video-toggle" style="margin:0">Intro Video on Startup</label>
+              <p style="margin:0; font-size:0.85rem; color:var(--muted)">Shows the brand intro each time the app opens.</p>
+            </div>
+            <div class="settings-toggle">
+              <input type="checkbox" id="splash-video-toggle">
+              <span id="splash-video-state" class="pill">On</span>
+            </div>
           </div>
           <label style="margin-top:16px">Theme</label>
           <select id="theme-select">
@@ -1714,7 +1727,7 @@
             <option value="none">None (Original)</option>
           </select>
         </div>
-        <div class="card" style="grid-column:2">
+        <div class="card settings-card">
           <h3>Invoicing</h3>
           <label>Default Tax % (optional)</label>
           <input type="number" id="default-tax-percent" step="0.01" min="0" placeholder="0.00">
@@ -1725,8 +1738,9 @@
             <option value="accrual">Accrual (invoices issued)</option>
           </select>
           <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Cash uses payments + income transactions. Accrual uses invoices for income.</p>
-          <label style="margin-top:16px">GRT % (optional)</label>
+          <label style="margin-top:16px">Gross Receipts Tax (GRT) % (optional)</label>
           <input type="number" id="grt-percent" step="0.01" min="0" placeholder="0.00">
+          <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Used by the GRT calculator and tax summary reports.</p>
           <label style="margin-top:16px">GRT Basis</label>
           <select id="grt-basis">
             <option value="invoices">Invoices issued</option>
@@ -1742,7 +1756,19 @@
           </select>
           <p style="font-size:0.9rem; color:var(--muted); margin-top:8px">Used by the GRT calculator in Reports.</p>
         </div>
-        <div class="card" style="grid-column:3">
+        <div class="card settings-card">
+          <h3>Business</h3>
+          <label>Selected Business</label>
+          <select id="business-selector"></select>
+          <div id="business-info" class="stack"></div>
+          <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
+          <div class="row" style="align-items:center; gap:12px; margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
+            <div style="flex:1; min-width:240px">
+              <button id="new-business" class="primary" style="width:100%">+ New Business</button>
+            </div>
+          </div>
+        </div>
+        <div class="card settings-card">
           <h3>Data</h3>
           <div class="row" style="align-items:center; gap:8px; margin-bottom:12px">
             <span>Save Status:</span>
@@ -1755,33 +1781,26 @@
           <div class="muted" style="margin-top:8px">Integrity runs automatically.</div>
           <div id="integrity-output" class="stack space"></div>
           <button id="run-diagnostics" class="ghost" style="margin-top:6px">Diagnostics</button>
-          <div class="row" style="align-items:flex-start; gap:12px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
-            <div style="flex:1">
-              <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
-              <div id="migration-block" class="stack"></div>
-            </div>
-            <div style="flex:1">
-              <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none">Reset All Data</button>
-              <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
-            </div>
+          <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+            <h4 style="margin-bottom:10px; font-size:1rem; font-weight:600">Migration</h4>
+            <div id="migration-block" class="stack"></div>
           </div>
         </div>
-        <div class="card" style="grid-column:4">
-          <h3>Business</h3>
-          <label>Selected Business</label>
-          <select id="business-selector"></select>
-          <div id="business-info" class="stack"></div>
-          <button id="edit-business-info" class="ghost" style="width:100%; margin-top:12px">Edit Business Info</button>
-          <div class="row" style="align-items:flex-start; gap:12px; margin-top:20px; padding-top:20px; border-top:1px solid var(--border)">
-            <div style="flex:1">
-              <button id="new-business" class="primary" style="width:100%">+ New Business</button>
-            </div>
-            <div style="flex:1">
-              <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
-              <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+        <details class="card danger-zone">
+          <summary>Danger Zone</summary>
+          <div class="danger-zone-body">
+            <div class="row" style="align-items:flex-start; gap:16px">
+              <div style="flex:1; min-width:240px">
+                <button id="reset-all-data" style="background:var(--danger); color:#fff; border:none; width:100%">Reset All Data</button>
+                <p style="margin-top:8px; font-size:0.875rem; color:var(--muted)">This will permanently delete all businesses and data. This cannot be undone.</p>
+              </div>
+              <div style="flex:1; min-width:240px">
+                <button id="delete-business" style="background:var(--danger); color:#fff; border:none; width:100%">Delete Current Business</button>
+                <p style="margin-top:10px; font-size:0.875rem; color:var(--muted)">This will permanently delete the current business and all its data. This cannot be undone.</p>
+              </div>
             </div>
           </div>
-        </div>
+        </details>
       </section>
     </main>
   </div>
@@ -8553,11 +8572,13 @@
         };
         const businessNameChip = $('#business-name-chip'); if (businessNameChip) businessNameChip.onclick = () => setTab('settings');
         const themeSelect = $('#theme-select'); if (themeSelect) themeSelect.onchange = (e)=>{ if(file) { file.settings.theme = e.target.value; saveFile(); applyTheme(); const dashboardSection = $$('section[data-section="dashboard"]')[0]; if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard(); const analyticsSection = $$('section[data-section="analytics"]')[0]; if (analyticsSection && !analyticsSection.classList.contains('hidden')) renderAnalytics(); const reportsSection = $$('section[data-section="reports"]')[0]; if (reportsSection && !reportsSection.classList.contains('hidden')) refreshReports(); } };
-        const splashVideoToggle = $('#splash-video-toggle'); if (splashVideoToggle) splashVideoToggle.onclick = () => {
+        const splashVideoToggle = $('#splash-video-toggle');
+        const splashVideoState = $('#splash-video-state');
+        if (splashVideoToggle) splashVideoToggle.onchange = (e) => {
           if (!file) return;
-          const next = !(file.settings.show_splash_video !== false);
+          const next = Boolean(e.target.checked);
           file.settings.show_splash_video = next;
-          splashVideoToggle.textContent = next ? 'On' : 'Off';
+          if (splashVideoState) splashVideoState.textContent = next ? 'On' : 'Off';
           saveFile();
         };
 
@@ -9165,13 +9186,15 @@
       }
       const themeSelect = $('#theme-select');
       const splashVideoToggle = $('#splash-video-toggle');
+      const splashVideoState = $('#splash-video-state');
       const defaultTaxPercent = $('#default-tax-percent');
       const accountingBasis = $('#accounting-basis');
       const grtPercent = $('#grt-percent');
       const grtBasis = $('#grt-basis');
       const grtFilingFrequency = $('#grt-filing-frequency');
       if (themeSelect) themeSelect.value = file.settings.theme;
-      if (splashVideoToggle) splashVideoToggle.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
+      if (splashVideoToggle) splashVideoToggle.checked = file.settings.show_splash_video !== false;
+      if (splashVideoState) splashVideoState.textContent = file.settings.show_splash_video !== false ? 'On' : 'Off';
       if (defaultTaxPercent) defaultTaxPercent.value = file.settings.default_tax_percent ?? 0;
       if (accountingBasis) accountingBasis.value = file.settings.accounting_basis || 'cash';
       if (grtPercent) grtPercent.value = file.settings.grt_percent ?? 0;
