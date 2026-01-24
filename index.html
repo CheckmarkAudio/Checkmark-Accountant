@@ -960,7 +960,8 @@
       min-height: 0;
     }
     .calculator-window.compact .calculator-body {
-      overflow-y: auto;
+      padding: 10px 12px;
+      overflow: hidden;
     }
     .calculator-window[style*="height"] .calculator-body {
       min-height: 0;
@@ -1030,7 +1031,7 @@
       padding-bottom: 4px;
     }
     .calculator-window.compact .calculator-buttons {
-      display: grid;
+      display: none;
     }
     .calc-btn {
       border: 1px solid var(--border);
@@ -3190,8 +3191,13 @@
         else file.invoices = file.invoices.map(i=>i.invoice_id===saved.invoice_id ? saved : i);
         file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==saved.invoice_id).concat(lines);
         pushRecent('party', saved.party_id);
+        const shouldMarkPaid = form.dataset.markPaid === '1';
+        if (shouldMarkPaid) delete form.dataset.markPaid;
         saveFile();
         renderInvoices();
+        if (shouldMarkPaid) {
+          promptMarkPaid(saved);
+        }
         closePanel();
       };
       form.onsubmit = (e) => {
@@ -3260,10 +3266,16 @@
       }
       const markPaidBtn = $('#mark-invoice-paid');
       if (markPaidBtn) {
-        const exists = !!file.invoices.find(i=>i.invoice_id===invoice.invoice_id);
-        const canMarkPaid = exists && invoice.status !== 'paid' && invoice.status !== 'void' && invoice.status !== 'draft';
-        markPaidBtn.style.display = canMarkPaid ? 'inline-flex' : 'none';
-        markPaidBtn.onclick = () => promptMarkPaid(invoice);
+        const isBlocked = invoice.status === 'paid' || invoice.status === 'void';
+        markPaidBtn.style.display = 'inline-flex';
+        markPaidBtn.disabled = isBlocked;
+        markPaidBtn.title = isBlocked ? 'Invoice is already paid or void' : '';
+        markPaidBtn.onclick = () => {
+          if (isBlocked) return;
+          form.dataset.markPaid = '1';
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+          else form.querySelector('[type="submit"]')?.click();
+        };
       }
       $('#cancel-invoice').onclick = () => {
         closePanel();
@@ -8873,6 +8885,7 @@
     };
 
     const getCalculatorMinHeight = () => {
+      const calcWindow = $('#calculator-window');
       const header = $('#calculator-header');
       const body = $('#calculator-body');
       const display = $('#calculator-window .calculator-display');
@@ -8880,6 +8893,8 @@
       const displayHeight = display ? display.offsetHeight : 0;
       let bodyPadding = 0;
       let displayMargin = 0;
+      const wasCompact = calcWindow && calcWindow.classList.contains('compact');
+      if (calcWindow && !wasCompact) calcWindow.classList.add('compact');
       if (body) {
         const bodyStyles = getComputedStyle(body);
         bodyPadding = parseFloat(bodyStyles.paddingTop) + parseFloat(bodyStyles.paddingBottom);
@@ -8888,6 +8903,7 @@
         const displayStyles = getComputedStyle(display);
         displayMargin = parseFloat(displayStyles.marginTop) + parseFloat(displayStyles.marginBottom);
       }
+      if (calcWindow && !wasCompact) calcWindow.classList.remove('compact');
       return Math.max(120, Math.ceil(headerHeight + displayHeight + bodyPadding + displayMargin));
     };
 
@@ -8925,10 +8941,13 @@
     const updateCalculatorCompactState = () => {
       const calcWindow = $('#calculator-window');
       if (!calcWindow) return;
-      const fullHeight = getCalculatorContentHeight();
+      const minHeight = getCalculatorMinHeight();
       const currentHeight = calcWindow.getBoundingClientRect().height;
-      const shouldCompact = currentHeight < fullHeight - 1;
-      calcWindow.classList.toggle('compact', shouldCompact);
+      if (currentHeight <= minHeight + 2) {
+        calcWindow.classList.add('compact');
+      } else {
+        calcWindow.classList.remove('compact');
+      }
     };
 
     const onResize = (e) => {
