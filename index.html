@@ -630,6 +630,9 @@
       display: inline-flex;
       align-items: center;
     }
+    .service-actions {
+      justify-content: flex-end;
+    }
     #invoice-form.stack { gap: 12px; }
     #invoice-form label { margin-bottom: 4px; }
     #invoice-form .row { gap: 12px; }
@@ -1512,7 +1515,7 @@
             <h3>Services Catalog</h3>
             <button id="add-service" class="primary" data-quickkey="S" title="Quick key: S">Add Service</button>
           </div>
-          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; justify-content:flex-end">
+          <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0">
             <button id="export-services-json" class="ghost">Export JSON</button>
             <button id="export-services-csv" class="ghost">Export CSV</button>
             <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
@@ -4401,7 +4404,7 @@
       rows.forEach(s => {
         const tr = document.createElement('tr');
         const billing = s.billing_type === 'hourly' ? 'Hourly' : 'Flat';
-        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row"><button data-use>Use on Invoice</button><button data-edit>Edit</button><button data-del>Delete</button></td>`;
+        tr.innerHTML = `<td>${escapeHtml(s.name)}</td><td>${fmt(s.default_rate_cents,file.business.base_currency)}</td><td>${escapeHtml(billing)}</td><td class="row service-actions"><button data-use>Use on Invoice</button><button data-edit>Edit</button><button data-del>Delete</button></td>`;
         tr.querySelector('[data-use]').onclick = () => useServiceOnInvoice(s);
         tr.querySelector('[data-edit]').onclick = () => editService(s);
         tr.querySelector('[data-del]').onclick = () => {
