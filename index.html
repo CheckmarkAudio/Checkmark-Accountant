@@ -7244,9 +7244,11 @@
         th.textContent = h;
         th.style.textAlign = rightSet.has(idx) ? 'right' : 'left';
         th.style.padding = '6px 8px';
+        th.style.background = '#f3f4f6';
+        th.style.color = '#111';
         th.style.borderBottom = '1px solid #e5e7eb';
         th.style.fontSize = '12px';
-        th.style.color = '#444';
+        th.style.fontWeight = '700';
         tr.appendChild(th);
       });
       thead.appendChild(tr);
@@ -7564,61 +7566,41 @@
         addSection(wrapper, 'Invoices', p);
         return wrapper;
       }
-      rows.forEach(inv => {
+      const appsByInvoice = {};
+      (file.payment_applications || []).forEach(app => {
+        if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
+        appsByInvoice[app.invoice_id] += app.amount_cents || 0;
+      });
+      const totals = rows.reduce((acc, inv) => {
+        acc.total += invoiceTotal(inv);
+        acc.balance += getInvoiceBalanceCents(inv, appsByInvoice);
+        return acc;
+      }, { total: 0, balance: 0 });
+      const summary = buildKeyValueTable([
+        ['Invoices', String(rows.length)],
+        ['Total', fmt(totals.total, file.business.base_currency)],
+        ['Balance Due', fmt(totals.balance, file.business.base_currency)]
+      ]);
+      addSection(wrapper, 'Summary', summary);
+      const tableRows = rows.map(inv => {
         const party = file.parties.find(p => p.party_id === inv.party_id);
         const project = inv.project_id ? file.projects.find(p => p.project_id === inv.project_id) : null;
-        const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
-        const taxPercentValue = (inv.tax_percent ?? invoiceTaxPercent(inv) ?? 0);
-        const infoRows = [
-          ['Invoice #', String(inv.number || '—')],
-          ['Status', String(inv.status || 'draft')],
-          ['Issue Date', String(inv.issue_date || '')],
-          ['Client', party?.name || '—'],
-          ['Client Email', party?.email || ''],
-          ['Project', project?.name || '—'],
-          ['Subtotal', fmt(inv.subtotal_cents ?? invoiceSubtotal(inv), file.business.base_currency)],
-          ['Tax %', String(taxPercentValue)],
-          ['Tax', fmt(inv.tax_cents ?? invoiceTax(inv), file.business.base_currency)],
-          ['Discount Type', String(inv.discount_type || 'amount')],
-          ['Discount Value', String(inv.discount_value ?? 0)],
-          ['Discount', fmt(inv.discount_cents ?? invoiceDiscount(inv), file.business.base_currency)],
-          ['Tip', fmt(inv.tip_cents ?? invoiceTip(inv), file.business.base_currency)],
-          ['Total', fmt(inv.total_cents ?? invoiceTotal(inv), file.business.base_currency)],
-          ['Created', String(inv.created_at || '')],
-          ['Updated', String(inv.updated_at || '')],
-          ['Invoice ID', String(inv.invoice_id || '')]
+        return [
+          String(inv.issue_date || ''),
+          String(inv.number || '—'),
+          String(party?.name || '—'),
+          String(inv.status || 'draft'),
+          fmt(invoiceTotal(inv), file.business.base_currency),
+          fmt(getInvoiceBalanceCents(inv, appsByInvoice), file.business.base_currency),
+          String(project?.name || '—')
         ];
-        const body = document.createElement('div');
-        body.appendChild(buildKeyValueTable(infoRows));
-        if (lines.length) {
-          const lineRows = lines.map(line => ([
-            line.service_name || line.name || '',
-            String(line.quantity ?? ''),
-            fmt(line.rate_cents || 0, file.business.base_currency),
-            fmt(line.line_total_cents || 0, file.business.base_currency),
-            line.billing_type || 'flat'
-          ]));
-          const table = buildDataTable(
-            ['Description', 'Qty', 'Rate', 'Amount', 'Billing'],
-            lineRows,
-            { alignRight: [1, 2, 3] }
-          );
-          const linesLabel = document.createElement('div');
-          linesLabel.textContent = 'Line Items';
-          linesLabel.style.margin = '12px 0 6px 0';
-          linesLabel.style.fontWeight = '600';
-          linesLabel.style.color = '#111';
-          body.appendChild(linesLabel);
-          body.appendChild(table);
-        } else {
-          const noLines = document.createElement('p');
-          noLines.textContent = 'No line items.';
-          noLines.style.margin = '8px 0 0 0';
-          noLines.style.color = '#555';
-          body.appendChild(noLines);
-        }
-        addSection(wrapper, `Invoice #${inv.number || '—'}`, body);
       });
+      const table = buildDataTable(
+        ['Date', 'Invoice #', 'Client', 'Status', 'Total', 'Balance', 'Project'],
+        tableRows,
+        { alignRight: [4, 5] }
+      );
+      addSection(wrapper, 'Invoices', table);
       return wrapper;
     };
 
