@@ -129,6 +129,22 @@
     button.date-preset-btn.active:hover {
       background: var(--accent);
     }
+    button.filter-chip {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      border-radius: 999px;
+    }
+    button.filter-chip:hover {
+      background: var(--border);
+    }
+    button.filter-chip.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
     .type-toggle-group {
       display: flex;
       gap: 8px;
@@ -603,6 +619,10 @@
     .invoice-actions {
       display: flex;
       gap: 12px;
+      justify-content: flex-end;
+    }
+    .invoice-footer {
+      display: flex;
       justify-content: flex-end;
     }
     .invoice-content {
@@ -1350,13 +1370,13 @@
               <button id="export-invoices-json" class="ghost">Export JSON</button>
               <button id="export-invoices-csv" class="ghost">Export CSV</button>
               <button id="import-invoices-btn" class="ghost">Import CSV/JSON</button>
-              <select id="invoice-status-filter" style="min-width:170px">
-                <option value="all">All Statuses</option>
-                <option value="open">Open (Balance Due)</option>
-                <option value="paid">Paid</option>
-                <option value="draft">Draft</option>
-                <option value="void">Void</option>
-              </select>
+              <div class="row" style="gap:6px; flex-wrap:wrap; align-items:center;">
+                <button class="filter-chip invoice-status-chip active" data-status="all">All</button>
+                <button class="filter-chip invoice-status-chip" data-status="open">Open</button>
+                <button class="filter-chip invoice-status-chip" data-status="paid">Paid</button>
+                <button class="filter-chip invoice-status-chip" data-status="draft">Draft</button>
+                <button class="filter-chip invoice-status-chip" data-status="void">Void</button>
+              </div>
               <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             </div>
             <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px; margin-left:auto;">
@@ -2711,11 +2731,11 @@
       }
       return fixed;
     };
-    const getInvoiceStatusFilter = () => $('#invoice-status-filter')?.value || 'all';
+    const getInvoiceStatusFilter = () => $('.invoice-status-chip.active')?.dataset?.status || 'all';
     const setInvoiceStatusFilter = (value, { render = true } = {}) => {
-      const select = $('#invoice-status-filter');
-      if (!select) return;
-      select.value = value;
+      const chips = $$('.invoice-status-chip');
+      if (!chips.length) return;
+      chips.forEach(chip => chip.classList.toggle('active', chip.dataset.status === value));
       if (render) renderInvoices();
     };
     const applyInvoiceRange = (range) => {
@@ -3406,6 +3426,7 @@
       const darkLogo = settings.logoDarkDataUrl;
       let logoUrl = '';
       logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      const canMarkPaid = inv.status !== 'paid' && inv.status !== 'void' && inv.status !== 'draft';
       
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
@@ -3508,6 +3529,13 @@
               </tfoot>
             </table>
           </div>
+          ${canMarkPaid ? `
+          <div class="invoice-footer">
+            <div class="invoice-actions">
+              <button id="quick-mark-paid" class="primary">Mark Paid</button>
+            </div>
+          </div>
+          ` : ''}
         </div>
       `;
       
@@ -3516,6 +3544,7 @@
       // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
       const printBtn = $('#print-invoice');
       const pdfBtn = $('#export-pdf-invoice');
+      const quickMarkPaidBtn = $('#quick-mark-paid');
       
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
@@ -3526,6 +3555,11 @@
         e.preventDefault();
         e.stopPropagation();
         exportInvoiceAsPDF(inv);
+      };
+      if (quickMarkPaidBtn) quickMarkPaidBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        promptMarkPaid(inv);
       };
     };
 
@@ -7739,7 +7773,11 @@
         const importInvoicesBtn = $('#import-invoices-btn'); if (importInvoicesBtn) importInvoicesBtn.onclick = () => { const inp = $('#import-invoices-file'); if (inp) inp.click(); };
         const importInvoicesFile = $('#import-invoices-file'); if (importInvoicesFile) importInvoicesFile.onchange = (e)=>{ if (e.target.files?.[0]) { handleEntityImportFile(e.target.files[0], importInvoicesData); e.target.value=''; } };
         const invoiceSearch = $('#invoice-search'); if (invoiceSearch) invoiceSearch.oninput = () => renderInvoices();
-        const invoiceStatusFilter = $('#invoice-status-filter'); if (invoiceStatusFilter) invoiceStatusFilter.onchange = () => renderInvoices();
+        const invoiceStatusChips = $$('.invoice-status-chip');
+        if (invoiceStatusChips.length) {
+          invoiceStatusChips.forEach(chip => chip.onclick = () => setInvoiceStatusFilter(chip.dataset.status));
+          if (!$('.invoice-status-chip.active')) setInvoiceStatusFilter('all', { render: false });
+        }
         const exportTxnJsonBtn = $('#export-txn-json'); if (exportTxnJsonBtn) exportTxnJsonBtn.onclick = () => exportTransactionsData('json');
         const exportTxnCsvBtn = $('#export-txn-csv'); if (exportTxnCsvBtn) exportTxnCsvBtn.onclick = () => exportTransactionsData('csv');
         const importTxnBtn = $('#import-txn-btn'); if (importTxnBtn) importTxnBtn.onclick = () => { const inp = $('#import-txn-file'); if (inp) inp.click(); };
