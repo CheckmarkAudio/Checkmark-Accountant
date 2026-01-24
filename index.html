@@ -7756,6 +7756,31 @@
       pdf.addImage(imgData, 'PNG', x, y, targetWidth, targetHeight, undefined, 'FAST');
     };
 
+    const addCanvasToPdfMultipage = (pdf, canvas, margin = 10) => {
+      const pageWidth = 210;   // mm (A4)
+      const pageHeight = 297;  // mm (A4)
+      const maxWidth = pageWidth - margin * 2;
+      const maxHeight = pageHeight - margin * 2;
+      const mmPerPx = maxWidth / canvas.width;
+      const sliceHeightPx = Math.floor(maxHeight / mmPerPx);
+      const totalSlices = Math.max(1, Math.ceil(canvas.height / sliceHeightPx));
+      const temp = document.createElement('canvas');
+      temp.width = canvas.width;
+      temp.height = sliceHeightPx;
+      const ctx = temp.getContext('2d');
+      for (let i = 0; i < totalSlices; i++) {
+        const sy = i * sliceHeightPx;
+        const sHeight = Math.min(sliceHeightPx, canvas.height - sy);
+        temp.height = sHeight;
+        ctx.clearRect(0, 0, temp.width, temp.height);
+        ctx.drawImage(canvas, 0, sy, canvas.width, sHeight, 0, 0, canvas.width, sHeight);
+        const imgData = temp.toDataURL('image/png', 0.95);
+        if (i > 0) pdf.addPage();
+        const targetHeight = sHeight * mmPerPx;
+        pdf.addImage(imgData, 'PNG', margin, margin, maxWidth, targetHeight, undefined, 'FAST');
+      }
+    };
+
     const exportCategoryPDF = async (buildFn, filename) => {
       if (!window.jspdf || !window.html2canvas) {
         alert('PDF export libraries not loaded. Please refresh the page.');
@@ -7785,9 +7810,8 @@
           windowHeight: printable.scrollHeight
         });
         document.body.removeChild(printable);
-        const imgData = canvas.toDataURL('image/png', 0.95);
         const pdf = new jsPDF('p', 'mm', 'a4');
-        addImageToPdf(pdf, imgData, canvas);
+        addCanvasToPdfMultipage(pdf, canvas);
         pdf.save(filename);
         setTimeout(() => showToast('PDF exported successfully!'), 500);
       } catch (error) {
