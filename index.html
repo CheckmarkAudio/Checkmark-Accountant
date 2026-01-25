@@ -5331,6 +5331,19 @@
         invoiceMonthly[month].income += invoiceTotal(inv);
       });
       invoicesInRange.forEach(inv => { invoiceIssuedTotal += invoiceTotal(inv); });
+      
+      // Only paid invoices should be counted as income
+      const paidInvoicesInRange = invoicesInRange.filter(inv => inv.status === 'paid');
+      let paidInvoiceTotal = 0;
+      const paidInvoiceMonthly = {};
+      paidInvoicesInRange.forEach(inv => {
+        if (!inv.issue_date) return;
+        const month = inv.issue_date.substring(0, 7);
+        if (!paidInvoiceMonthly[month]) paidInvoiceMonthly[month] = { income: 0, expense: 0, profit: 0 };
+        paidInvoiceMonthly[month].income += invoiceTotal(inv);
+      });
+      paidInvoicesInRange.forEach(inv => { paidInvoiceTotal += invoiceTotal(inv); });
+      
       const appSum = (file.payment_applications || []).reduce((sum, app) => {
         const pay = file.payments.find(p => p.payment_id === app.payment_id);
         if (!pay) return sum;
@@ -5341,9 +5354,9 @@
       let income = 0;
       let expense = 0;
       if (basis === 'accrual') {
-        income = invoiceIssuedTotal;
+        income = paidInvoiceTotal;
         expense = txnExpense;
-        invoicesInRange.forEach(inv => {
+        paidInvoicesInRange.forEach(inv => {
           if (!inv.issue_date) return;
           const month = inv.issue_date.substring(0, 7);
           if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
@@ -6448,7 +6461,7 @@
 
     const isAccrualBasis = () => (file?.settings?.accounting_basis || 'cash') === 'accrual';
     const getInvoiceIncome = () => {
-      const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
+      const invoices = getFilteredInvoices().filter(inv => inv.status === 'paid');
       const monthlyData = {};
       invoices.forEach(inv => {
         if (!inv.issue_date) return;
@@ -6460,7 +6473,7 @@
     };
 
     const getInvoiceIncomeByCategory = () => {
-      const invoices = getFilteredInvoices().filter(inv => inv.status !== 'void');
+      const invoices = getFilteredInvoices().filter(inv => inv.status === 'paid');
       const categoryMap = {};
       invoices.forEach(inv => {
         const lines = file.invoice_lines.filter(l => l.invoice_id === inv.invoice_id);
