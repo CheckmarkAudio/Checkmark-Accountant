@@ -2883,12 +2883,16 @@
       if (!file) { file = newBusinessFile('New Business'); saveFile(); }
       ensureFile();
       cleanOrphanLedgerEntries();
+      const orphanPays = removeOrphanPayments({ context: 'load' });
       if (renumberInvoices()) saveFile();
       const autoFixed = autoFixPaidInvoicesWithoutApplications({ context: 'load' });
+      const tipFixed = autoFixOverpaidInvoices({ context: 'load' });
       if (autoFixed) {
         saveFile();
         showToast(`Auto-fixed ${autoFixed} paid invoice${autoFixed===1?'':'s'} with missing payments.`);
       }
+      if (orphanPays) saveFile();
+      if (tipFixed) saveFile();
       renderBusinessSelector();
       applyTheme();
       renderAll();
@@ -2997,6 +3001,69 @@
         }, { save: false });
       }
       return fixed;
+    };
+    const removeOrphanPayments = ({ context = 'load' } = {}) => {
+      if (!file) return 0;
+      if (!Array.isArray(file.payments)) file.payments = [];
+      if (!Array.isArray(file.payment_applications)) file.payment_applications = [];
+      const invoiceIds = new Set(file.invoices.map(inv => inv.invoice_id));
+      const keepPayments = [];
+      const removedPayments = [];
+      file.payments.forEach(p => {
+        if (p.invoice_id && invoiceIds.has(p.invoice_id)) {
+          keepPayments.push(p);
+        } else {
+          removedPayments.push(p);
+        }
+      });
+      if (!removedPayments.length) return 0;
+      const removedPaymentIds = new Set(removedPayments.map(p => p.payment_id));
+      removedPayments.forEach(p => removeLinkedEntries({ payment_id: p.payment_id }));
+      file.payments = keepPayments;
+      file.payment_applications = file.payment_applications.filter(app => (
+        app.invoice_id && invoiceIds.has(app.invoice_id) && !removedPaymentIds.has(app.payment_id)
+      ));
+      recordAudit({
+        type: 'autofix',
+        entity: 'payments',
+        action: 'remove-orphan-payments',
+        context,
+        count: removedPayments.length
+      }, { save: false });
+      return removedPayments.length;
+    };
+    const autoFixOverpaidInvoices = ({ context = 'load' } = {}) => {
+      if (!file) return 0;
+      if (!Array.isArray(file.payment_applications)) file.payment_applications = [];
+      const appsByInvoice = {};
+      file.payment_applications.forEach(app => {
+        if (!appsByInvoice[app.invoice_id]) appsByInvoice[app.invoice_id] = 0;
+        appsByInvoice[app.invoice_id] += app.amount_cents || 0;
+      });
+      let adjusted = 0;
+      file.invoices.forEach(inv => {
+        if (inv.status === 'void' || inv.status === 'draft') return;
+        const total = invoiceTotal(inv);
+        const paidFromApps = appsByInvoice[inv.invoice_id] || 0;
+        if (!paidFromApps || paidFromApps <= total) return;
+        const extra = paidFromApps - total;
+        inv.tip_cents = (Number(inv.tip_cents) || 0) + extra;
+        if (inv.total_cents !== undefined && inv.total_cents !== null) {
+          inv.total_cents = Number(inv.total_cents) + extra;
+        }
+        inv.updated_at = nowIso();
+        adjusted += 1;
+      });
+      if (adjusted) {
+        recordAudit({
+          type: 'autofix',
+          entity: 'invoices',
+          action: 'convert-overpay-to-tip',
+          context,
+          count: adjusted
+        }, { save: false });
+      }
+      return adjusted;
     };
     const getInvoiceStatusFilter = () => $('.invoice-status-chip.active')?.dataset?.status || 'all';
     const setInvoiceStatusFilter = (value, { render = true } = {}) => {
@@ -3727,13 +3794,26 @@
 
     const deleteInvoice = (inv) => {
       const removedLines = file.invoice_lines.filter(l=>l.invoice_id===inv.invoice_id);
+      const removedPayments = file.payments.filter(p => p.invoice_id === inv.invoice_id);
+      const removedPaymentIds = new Set(removedPayments.map(p => p.payment_id));
+      const removedApps = file.payment_applications.filter(app => (
+        app.invoice_id === inv.invoice_id || removedPaymentIds.has(app.payment_id)
+      ));
+      removedPayments.forEach(p => removeLinkedEntries({ payment_id: p.payment_id }));
       file.invoices = file.invoices.filter(i=>i.invoice_id!==inv.invoice_id);
       file.invoice_lines = file.invoice_lines.filter(l=>l.invoice_id!==inv.invoice_id);
+      file.payments = file.payments.filter(p => p.invoice_id !== inv.invoice_id);
+      file.payment_applications = file.payment_applications.filter(app => (
+        app.invoice_id !== inv.invoice_id && !removedPaymentIds.has(app.payment_id)
+      ));
       renumberInvoices();
       saveFile(); renderInvoices();
       showToast('Invoice deleted', () => {
         file.invoices.push(inv);
         file.invoice_lines = file.invoice_lines.concat(removedLines);
+        file.payments = file.payments.concat(removedPayments);
+        file.payment_applications = file.payment_applications.concat(removedApps);
+        removedPayments.forEach(p => postInvoicePayment(inv, p));
         renumberInvoices();
         saveFile(); renderInvoices();
       });
@@ -4347,7 +4427,11 @@
         file.payment_applications.push({ payment_application_id: uuid(), payment_id: pay.payment_id, invoice_id: inv.invoice_id, amount_cents: invoiceTotal(inv) });
         postInvoicePayment(inv, pay);
         inv.status = 'paid';
+        const tipFixed = autoFixOverpaidInvoices({ context: 'payment' });
         saveFile(); renderInvoices();
+        if (tipFixed) {
+          showToast('Extra payment applied as tip.');
+        }
       });
       $('#modal-body').querySelectorAll('[data-dep]').forEach(btn=>btn.onclick=()=>{$('#deposit').value=btn.dataset.dep;});
     };
@@ -5024,11 +5108,19 @@
       recordAudit({ type:'import', entity:'invoices', format: source, imported, skipped }, { save:false });
       renumberInvoices();
       const autoFixed = autoFixPaidInvoicesWithoutApplications({ context: 'import' });
+      const orphanPays = removeOrphanPayments({ context: 'import' });
+      const tipFixed = autoFixOverpaidInvoices({ context: 'import' });
       saveFile();
       renderInvoices();
       showToast(`Imported ${imported} invoice${imported===1?'':'s'}${skipped?`, skipped ${skipped} duplicate${skipped===1?'':'s'}`:''}`);
       if (autoFixed) {
         showToast(`Auto-fixed ${autoFixed} paid invoice${autoFixed===1?'':'s'} with missing payments.`);
+      }
+      if (orphanPays) {
+        showToast(`Removed ${orphanPays} payment${orphanPays===1?'':'s'} with missing invoices.`);
+      }
+      if (tipFixed) {
+        showToast(`Converted overpayments to tips on ${tipFixed} invoice${tipFixed===1?'':'s'}.`);
       }
     };
 
