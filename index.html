@@ -5467,10 +5467,7 @@
       const hasLedger = (file?.ledger_entries?.length || 0) > 0 && (file?.ledger_lines?.length || 0) > 0;
       const invoiceIncome = invoiceFin?.invoiceIssuedTotal || 0;
       const cashIncome = invoiceFin?.paymentsIncome || 0;
-      const useInvoiceOverride = basis === 'cash'
-        && invoiceIncome > 0
-        && (invoiceFin?.txnIncome || 0) === 0
-        && Math.abs(cashIncome - invoiceIncome) > 0;
+      const useInvoiceOverride = false; // Disabled - cash basis should use actual payments, not all invoices
       const useLedger = !useInvoiceOverride
         && basis === 'cash'
         && hasLedger
