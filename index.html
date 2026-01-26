@@ -194,14 +194,13 @@
         justify-content: flex-start;
       }
       nav.tabs {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        flex-wrap: wrap;
         row-gap: 10px;
-        gap: 12px;
       }
       nav.tabs .top-actions {
-        grid-column: span 4;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
       }
     }
     @media (max-width: 1024px) {
@@ -213,6 +212,19 @@
       }
     }
     @media (max-width: 900px) {
+      nav.tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+      nav.tabs .top-actions {
+        grid-column: span 4;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-left: 0;
+        width: 100%;
+      }
       table {
         display: block;
         overflow-x: auto;
@@ -421,8 +433,7 @@
       background: rgba(13, 17, 28, 0.75);
     }
     nav.tabs {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      display: flex;
       gap: 16px;
       padding: 16px 28px;
       background: var(--surface);
@@ -431,13 +442,12 @@
       top: var(--topbar-height, 76px);
       z-index: 30;
       overflow: visible;
+      flex-wrap: wrap;
     }
     nav.tabs .top-actions {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      display: flex;
       gap: 16px;
-      min-width: 0;
-      grid-column: span 4;
+      margin-left: auto;
     }
     nav.tabs .top-actions button {
       min-width: 0;
