@@ -5368,14 +5368,8 @@
           monthly[month].expense += Number(t.amount_cents) || 0;
         });
       } else {
-        income = paidInvoiceTotal + txnIncome + paymentsIncome;
+        income = txnIncome + paymentsIncome;
         expense = txnExpense;
-        paidInvoicesInRange.forEach(inv => {
-          if (!inv.issue_date) return;
-          const month = inv.issue_date.substring(0, 7);
-          if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
-          monthly[month].income += invoiceTotal(inv);
-        });
         txnsInRange.filter(t => t.date).forEach(t => {
           const month = t.date.substring(0, 7);
           if (!monthly[month]) monthly[month] = { income: 0, expense: 0, profit: 0 };
