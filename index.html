@@ -499,17 +499,26 @@
     nav.tabs .top-actions {
       display: flex;
       gap: 16px;
-      margin-left: auto;
+      margin-left: 0;
       flex-shrink: 1;
       min-width: 0;
+    }
+    /* Only align right when window is very large */
+    @media (min-width: 2000px) {
+      nav.tabs .top-actions {
+        margin-left: auto;
+      }
+      nav.tabs .top-actions[style] {
+        margin-left: auto !important;
+      }
     }
     nav.tabs .top-actions button {
       flex: 1 1 0;
       min-width: 0;
       white-space: nowrap;
     }
-    /* Snap to left when window shrinks */
-    @media (max-width: 1500px) {
+    /* Snap to left immediately when window shrinks - use a larger breakpoint */
+    @media (max-width: 1800px) {
       nav.tabs .top-actions {
         margin-left: 0 !important;
       }
