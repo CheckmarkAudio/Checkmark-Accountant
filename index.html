@@ -507,80 +507,60 @@
       flex: 1 1 0;
       min-width: 0;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
-    /* Progressive shrinking for all buttons starting from large screens */
-    @media (max-width: 1600px) {
-      nav.tabs button {
-        padding: 12px 18px;
-        font-size: 0.93rem;
-      }
-      nav.tabs .top-actions {
-        margin-left: 0 !important;
-      }
-      nav.tabs .top-actions[style] {
-        margin-left: 0 !important;
-      }
-      nav.tabs .top-actions button {
-        padding: 12px 18px;
-        font-size: 0.93rem;
-      }
-    }
+    /* Snap to left when window shrinks */
     @media (max-width: 1500px) {
-      nav.tabs button {
-        padding: 12px 16px;
-        font-size: 0.91rem;
-      }
       nav.tabs .top-actions {
         margin-left: 0 !important;
       }
       nav.tabs .top-actions[style] {
         margin-left: 0 !important;
       }
-      nav.tabs .top-actions button {
-        padding: 12px 16px;
-        font-size: 0.91rem;
-      }
     }
-    @media (max-width: 1400px) {
-      nav.tabs button {
-        padding: 12px 14px;
-        font-size: 0.89rem;
-      }
-      nav.tabs .top-actions button {
-        padding: 12px 14px;
-        font-size: 0.89rem;
-      }
-    }
-    @media (max-width: 1300px) {
-      nav.tabs button {
-        padding: 12px 12px;
-        font-size: 0.87rem;
-      }
-      nav.tabs .top-actions button {
-        padding: 12px 12px;
-        font-size: 0.87rem;
-      }
-    }
+    /* Start shrinking buttons to stay on one row */
     @media (max-width: 1200px) {
       nav.tabs button {
-        padding: 11px 10px;
-        font-size: 0.85rem;
+        padding: 12px 16px;
+        font-size: 0.9rem;
       }
       nav.tabs .top-actions button {
-        padding: 11px 10px;
-        font-size: 0.85rem;
+        padding: 12px 16px;
+        font-size: 0.9rem;
       }
     }
     @media (max-width: 1100px) {
       nav.tabs button {
-        padding: 10px 8px;
-        font-size: 0.83rem;
+        padding: 12px 14px;
+        font-size: 0.88rem;
       }
       nav.tabs .top-actions button {
-        padding: 10px 8px;
-        font-size: 0.83rem;
+        padding: 12px 14px;
+        font-size: 0.88rem;
+      }
+    }
+    @media (max-width: 1000px) {
+      nav.tabs button {
+        padding: 12px 12px;
+        font-size: 0.86rem;
+      }
+      nav.tabs .top-actions button {
+        padding: 12px 12px;
+        font-size: 0.86rem;
+      }
+    }
+    /* Only truncate text when very small */
+    @media (max-width: 900px) {
+      nav.tabs .top-actions button {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      nav.tabs button {
+        padding: 11px 10px;
+        font-size: 0.84rem;
+      }
+      nav.tabs .top-actions button {
+        padding: 11px 10px;
+        font-size: 0.84rem;
       }
     }
     nav.tabs button {
