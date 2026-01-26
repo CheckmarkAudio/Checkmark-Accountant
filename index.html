@@ -193,20 +193,30 @@
         width: 100%;
         justify-content: flex-start;
       }
+      nav.tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
       nav.tabs button {
-        flex: 0 0 calc(25% - 12px);
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
       }
       nav.tabs .top-actions {
-        flex: 0 0 100%;
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
         margin-left: 0;
         width: 100%;
       }
       nav.tabs .top-actions button {
-        flex: 0 0 calc(25% - 12px);
         min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
     @media (max-width: 1024px) {
@@ -238,18 +248,24 @@
         font-size: 1.1rem;
         margin-bottom: 16px;
       }
+      nav.tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
       nav.tabs button {
-        flex: 0 0 calc(25% - 9px);
-        white-space: nowrap;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 10px 12px;
+        font-size: 0.875rem;
       }
       nav.tabs .top-actions {
-        flex: 0 0 100%;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
       }
       nav.tabs .top-actions button {
-        flex: 0 0 calc(25% - 9px);
         min-width: 0;
         padding: 10px 12px;
         font-size: 0.875rem;
@@ -285,19 +301,19 @@
         padding: 6px 10px;
       }
       nav.tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
       nav.tabs button {
-        flex: 0 0 calc(25% - 6px);
         font-size: 0.8rem;
         padding: 10px 8px;
       }
       nav.tabs .top-actions {
-        flex: 0 0 100%;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
       nav.tabs .top-actions button {
-        flex: 0 0 calc(25% - 6px);
         padding: 10px 8px;
         font-size: 0.8rem;
       }
@@ -435,15 +451,18 @@
       overflow: visible;
     }
     nav.tabs button {
-      flex: 0 1 auto;
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     nav.tabs .top-actions {
       display: flex;
       gap: 16px;
       margin-left: auto;
+      flex-shrink: 0;
     }
     nav.tabs .top-actions button {
-      flex: 0 1 auto;
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     nav.tabs button {
       background: transparent;
