@@ -193,6 +193,8 @@
         width: 100%;
         justify-content: flex-start;
       }
+    }
+    @media (max-width: 1000px) {
       nav.tabs {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -206,6 +208,7 @@
       }
       nav.tabs .top-actions {
         grid-column: 1 / -1;
+        grid-row: 3;
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
@@ -262,6 +265,7 @@
       }
       nav.tabs .top-actions {
         grid-column: 1 / -1;
+        grid-row: 3;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
       }
@@ -310,6 +314,7 @@
       }
       nav.tabs .top-actions {
         grid-column: 1 / -1;
+        grid-row: 3;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
@@ -451,8 +456,9 @@
       overflow: visible;
     }
     nav.tabs button {
-      flex: 0 0 auto;
+      flex: 0 1 auto;
       white-space: nowrap;
+      min-width: 0;
     }
     nav.tabs .top-actions {
       display: flex;
@@ -463,31 +469,40 @@
     }
     nav.tabs .top-actions button {
       flex: 1 1 0;
-      min-width: 0;
+      min-width: 100px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    @media (max-width: 1300px) {
+    @media (max-width: 1400px) {
       nav.tabs .top-actions {
         margin-left: 0;
-        gap: 12px;
       }
+      nav.tabs .top-actions button {
+        padding: 12px 18px;
+        font-size: 0.95rem;
+        min-width: 90px;
+      }
+    }
+    @media (max-width: 1300px) {
       nav.tabs .top-actions button {
         padding: 12px 16px;
         font-size: 0.9rem;
+        min-width: 80px;
       }
     }
     @media (max-width: 1200px) {
       nav.tabs .top-actions button {
         padding: 12px 12px;
         font-size: 0.85rem;
+        min-width: 70px;
       }
     }
     @media (max-width: 1100px) {
       nav.tabs .top-actions button {
         padding: 10px 10px;
         font-size: 0.8rem;
+        min-width: 60px;
       }
     }
     nav.tabs button {
