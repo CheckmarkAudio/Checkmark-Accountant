@@ -2733,17 +2733,17 @@
       closeNote();
     };
 
-    const showSplashVideo = () => {
+    const showSplashVideo = (onClose) => {
       const overlay = $('#splash-overlay');
       const video = $('#splash-video');
       if (!overlay || !video) return;
       const markAsShown = () => {
         // Mark splash video as shown and disable it for future launches
+        localStorage.setItem('ck5_splash_video_shown', 'true');
         if (file) {
           file.settings.show_splash_video = false;
           saveFile();
         }
-        localStorage.setItem('ck5_splash_video_shown', 'true');
       };
       const close = () => {
         overlay.classList.add('fade-out');
@@ -2753,6 +2753,10 @@
           video.pause();
           video.currentTime = 0;
           markAsShown();
+          // Continue with the init flow after splash closes
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
         }, 220);
       };
       overlay.classList.remove('hidden');
@@ -10335,19 +10339,34 @@
         initCalculatorWindow();
         initNoteWindow();
         loadList();
-        if (!businessList.length && detectV4()) {
-          renderMigrationBlock();
-          setTab('settings');
-        } else {
-          loadActive(); // This will prompt to create a business if none exists
-        }
-        // Show splash video only on first time, then set to off by default
+        
+        // Show splash video only for new users (no businesses) on first time, before business creation
         const hasShownSplashBefore = localStorage.getItem('ck5_splash_video_shown') === 'true';
-        if (!hasShownSplashBefore) {
-          showSplashVideo();
-        } else if (file?.settings?.show_splash_video === true) {
-          // Only show if user explicitly enabled it in settings
-          showSplashVideo();
+        const isNewUser = businessList.length === 0;
+        
+        if (!hasShownSplashBefore && isNewUser) {
+          // Show splash video first, then continue with normal init flow
+          showSplashVideo(() => {
+            // Continue init flow after splash closes
+            if (!businessList.length && detectV4()) {
+              renderMigrationBlock();
+              setTab('settings');
+            } else {
+              loadActive(); // This will prompt to create a business if none exists
+            }
+          });
+        } else {
+          // Normal init flow (splash already shown or user has businesses)
+          if (!businessList.length && detectV4()) {
+            renderMigrationBlock();
+            setTab('settings');
+          } else {
+            loadActive(); // This will prompt to create a business if none exists
+          }
+          // Only show splash if user explicitly enabled it in settings (for existing users)
+          if (file?.settings?.show_splash_video === true) {
+            showSplashVideo();
+          }
         }
       } catch(e) {
         console.error('Init error:', e);
