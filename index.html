@@ -193,11 +193,23 @@
         width: 100%;
         justify-content: flex-start;
       }
-      nav.tabs .top-actions {
-        margin-left: 0;
-        width: 100%;
+      nav.tabs {
+        display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
+      }
+      nav.tabs .top-actions {
+        grid-column: span 4;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-left: 0;
+        width: 100%;
+      }
+      nav.tabs button {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
     @media (max-width: 1024px) {
@@ -229,12 +241,21 @@
         font-size: 1.1rem;
         margin-bottom: 16px;
       }
+      nav.tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+      nav.tabs .top-actions {
+        grid-column: span 4;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
       nav.tabs button {
         white-space: nowrap;
-        flex-shrink: 0;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       nav.tabs .top-actions button {
-        flex-shrink: 1;
         min-width: 0;
         padding: 10px 12px;
         font-size: 0.875rem;
@@ -269,8 +290,17 @@
         font-size: 0.8rem;
         padding: 6px 10px;
       }
-      nav.tabs .top-actions {
+      nav.tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
+      }
+      nav.tabs .top-actions {
+        grid-column: span 4;
+        gap: 8px;
+      }
+      nav.tabs button {
+        font-size: 0.8rem;
+        padding: 10px 8px;
       }
       nav.tabs .top-actions button {
         padding: 10px 8px;
