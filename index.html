@@ -2315,7 +2315,7 @@
     const defaultSettings = () => ({
       accounting_basis: 'cash',
       theme: 'system',
-      show_splash_video: true,
+      show_splash_video: false,
       logoVariant: 'auto',
       logoLightDataUrl: DEFAULT_LOGO_LIGHT_URL,
       logoDarkDataUrl: DEFAULT_LOGO_DARK_URL,
@@ -2737,6 +2737,14 @@
       const overlay = $('#splash-overlay');
       const video = $('#splash-video');
       if (!overlay || !video) return;
+      const markAsShown = () => {
+        // Mark splash video as shown and disable it for future launches
+        if (file) {
+          file.settings.show_splash_video = false;
+          saveFile();
+        }
+        localStorage.setItem('ck5_splash_video_shown', 'true');
+      };
       const close = () => {
         overlay.classList.add('fade-out');
         setTimeout(() => {
@@ -2744,6 +2752,7 @@
           overlay.classList.remove('fade-out');
           video.pause();
           video.currentTime = 0;
+          markAsShown();
         }, 220);
       };
       overlay.classList.remove('hidden');
@@ -10332,7 +10341,12 @@
         } else {
           loadActive(); // This will prompt to create a business if none exists
         }
-        if (file?.settings?.show_splash_video !== false) {
+        // Show splash video only on first time, then set to off by default
+        const hasShownSplashBefore = localStorage.getItem('ck5_splash_video_shown') === 'true';
+        if (!hasShownSplashBefore) {
+          showSplashVideo();
+        } else if (file?.settings?.show_splash_video === true) {
+          // Only show if user explicitly enabled it in settings
           showSplashVideo();
         }
       } catch(e) {
