@@ -201,6 +201,8 @@
         margin-left: 0;
         width: 100%;
         justify-content: flex-start;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
       }
     }
     @media (max-width: 1024px) {
@@ -241,6 +243,12 @@
         white-space: nowrap;
         flex-shrink: 0;
       }
+      nav.tabs .top-actions button {
+        flex-shrink: 1;
+        min-width: 0;
+        padding: 10px 12px;
+        font-size: 0.875rem;
+      }
       .date-preset-btn {
         font-size: 0.85rem;
         padding: 8px 12px;
@@ -270,6 +278,13 @@
       .date-preset-btn {
         font-size: 0.8rem;
         padding: 6px 10px;
+      }
+      nav.tabs .top-actions {
+        gap: 8px;
+      }
+      nav.tabs .top-actions button {
+        padding: 10px 8px;
+        font-size: 0.8rem;
       }
     }
     canvas {
@@ -402,6 +417,20 @@
       top: var(--topbar-height, 76px);
       z-index: 30;
       overflow: visible;
+    }
+    nav.tabs .top-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      min-width: 0;
+    }
+    nav.tabs .top-actions button {
+      min-width: 0;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
     }
     nav.tabs button {
       background: transparent;
