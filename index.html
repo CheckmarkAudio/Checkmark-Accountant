@@ -198,7 +198,23 @@
       nav.tabs {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-rows: auto;
         gap: 12px;
+        align-items: start;
+      }
+      /* Explicitly place first 4 nav buttons in row 1 */
+      nav.tabs button:nth-child(1),
+      nav.tabs button:nth-child(2),
+      nav.tabs button:nth-child(3),
+      nav.tabs button:nth-child(4) {
+        grid-row: 1;
+      }
+      /* Explicitly place next 4 nav buttons in row 2 */
+      nav.tabs button:nth-child(5),
+      nav.tabs button:nth-child(6),
+      nav.tabs button:nth-child(7),
+      nav.tabs button:nth-child(8) {
+        grid-row: 2;
       }
       nav.tabs button {
         min-width: 0;
@@ -306,7 +322,20 @@
       }
       nav.tabs {
         grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-rows: auto;
         gap: 8px;
+      }
+      nav.tabs button:nth-child(1),
+      nav.tabs button:nth-child(2),
+      nav.tabs button:nth-child(3),
+      nav.tabs button:nth-child(4) {
+        grid-row: 1;
+      }
+      nav.tabs button:nth-child(5),
+      nav.tabs button:nth-child(6),
+      nav.tabs button:nth-child(7),
+      nav.tabs button:nth-child(8) {
+        grid-row: 2;
       }
       nav.tabs button {
         font-size: 0.8rem;
@@ -469,40 +498,73 @@
     }
     nav.tabs .top-actions button {
       flex: 1 1 0;
-      min-width: 100px;
+      min-width: 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    @media (max-width: 1400px) {
+    /* Progressive shrinking for all buttons starting from large screens */
+    @media (max-width: 1600px) {
+      nav.tabs button {
+        padding: 12px 18px;
+        font-size: 0.93rem;
+      }
+      nav.tabs .top-actions button {
+        padding: 12px 18px;
+        font-size: 0.93rem;
+      }
+    }
+    @media (max-width: 1500px) {
+      nav.tabs button {
+        padding: 12px 16px;
+        font-size: 0.91rem;
+      }
       nav.tabs .top-actions {
         margin-left: 0;
       }
       nav.tabs .top-actions button {
-        padding: 12px 18px;
-        font-size: 0.95rem;
-        min-width: 90px;
+        padding: 12px 16px;
+        font-size: 0.91rem;
+      }
+    }
+    @media (max-width: 1400px) {
+      nav.tabs button {
+        padding: 12px 14px;
+        font-size: 0.89rem;
+      }
+      nav.tabs .top-actions button {
+        padding: 12px 14px;
+        font-size: 0.89rem;
       }
     }
     @media (max-width: 1300px) {
+      nav.tabs button {
+        padding: 12px 12px;
+        font-size: 0.87rem;
+      }
       nav.tabs .top-actions button {
-        padding: 12px 16px;
-        font-size: 0.9rem;
-        min-width: 80px;
+        padding: 12px 12px;
+        font-size: 0.87rem;
       }
     }
     @media (max-width: 1200px) {
-      nav.tabs .top-actions button {
-        padding: 12px 12px;
+      nav.tabs button {
+        padding: 11px 10px;
         font-size: 0.85rem;
-        min-width: 70px;
+      }
+      nav.tabs .top-actions button {
+        padding: 11px 10px;
+        font-size: 0.85rem;
       }
     }
     @media (max-width: 1100px) {
+      nav.tabs button {
+        padding: 10px 8px;
+        font-size: 0.83rem;
+      }
       nav.tabs .top-actions button {
-        padding: 10px 10px;
-        font-size: 0.8rem;
-        min-width: 60px;
+        padding: 10px 8px;
+        font-size: 0.83rem;
       }
     }
     nav.tabs button {
