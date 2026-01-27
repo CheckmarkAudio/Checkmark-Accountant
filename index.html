@@ -9780,6 +9780,7 @@
       if (value === null || value === undefined) return '';
       const trimmed = String(value).trim();
       if (!trimmed) return '';
+      if (trimmed === 'Shift' || trimmed === 'CapsLock') return '';
       const char = trimmed[0];
       if (char === ' ') return '';
       return char.toLowerCase();
