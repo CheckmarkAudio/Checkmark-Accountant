@@ -625,32 +625,6 @@
       color: var(--text);
       border-color: var(--border);
     }
-    nav.tabs .top-actions button.quick-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-    }
-    nav.tabs .top-actions button.quick-btn .quick-icon {
-      width: 20px;
-      height: 20px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: inherit;
-      flex: 0 0 auto;
-    }
-    nav.tabs .top-actions button.quick-btn .quick-icon svg {
-      width: 12px;
-      height: 12px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
     .dark nav.tabs .top-actions button {
       color: #fff;
     }
@@ -658,11 +632,6 @@
       background: var(--accent);
       color: #fff;
       border-color: transparent;
-    }
-    nav.tabs .top-actions button.primary .quick-icon {
-      background: rgba(255,255,255,0.2);
-      border-color: rgba(255,255,255,0.35);
-      color: #fff;
     }
     main { padding: 28px; }
     section[data-section] {
@@ -1722,41 +1691,15 @@
       </button>
       <div class="row top-actions" style="margin-left:auto; gap:16px">
         <button id="quick-add-invoice" class="primary quick-btn" data-quickkey="Z" title="Quick key: Z">
-          <span class="quick-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M6 3h9l3 3v15H6z"></path>
-              <path d="M9 9h6M9 13h6M9 17h3"></path>
-            </svg>
-          </span>
           <span class="quick-label">Invoice</span>
         </button>
         <button id="quick-add-transaction" class="quick-btn" data-quickkey="X" title="Quick key: X">
-          <span class="quick-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M7 7h10"></path>
-              <path d="M13 3l4 4-4 4"></path>
-              <path d="M17 17H7"></path>
-              <path d="M11 21l-4-4 4-4"></path>
-            </svg>
-          </span>
           <span class="quick-label">Txn</span>
         </button>
         <button id="quick-add-client" class="quick-btn" data-quickkey="C" title="Quick key: C">
-          <span class="quick-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="8" r="3"></circle>
-              <path d="M5 20c1.6-3 5-5 7-5s5.4 2 7 5"></path>
-            </svg>
-          </span>
           <span class="quick-label">Client</span>
         </button>
         <button id="quick-add-project" class="quick-btn" data-quickkey="V" title="Quick key: V">
-          <span class="quick-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M4 7h6l2 2h8v10H4z"></path>
-              <path d="M4 7v10"></path>
-            </svg>
-          </span>
           <span class="quick-label">Project</span>
         </button>
       </div>
@@ -1829,7 +1772,7 @@
               </div>
               <input type="file" id="import-invoices-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             </div>
-            <input type="search" id="invoice-search" placeholder="Search by client or date" style="min-width:220px; margin-left:auto;">
+            <input type="search" id="invoice-search" placeholder="Search by client, number, date, amount" style="min-width:220px; margin-left:auto;">
           </div>
           <div class="stack">
             <table>
@@ -1882,7 +1825,7 @@
               <button id="export-txn-csv" class="ghost">Export CSV</button>
               <button id="import-txn-btn" class="ghost">Import CSV/JSON</button>
               <input type="file" id="import-txn-file" class="hidden" accept=".json,application/json,.csv,text/csv">
-              <input type="search" id="txn-search" placeholder="Search by name or date" style="min-width:220px">
+              <input type="search" id="txn-search" placeholder="Search by category, memo, date, amount" style="min-width:220px">
             </div>
             <table>
               <thead>
@@ -1970,7 +1913,7 @@
             <button id="export-services-csv" class="ghost">Export CSV</button>
             <button id="import-services-btn" class="ghost">Import CSV/JSON</button>
             <input type="file" id="import-services-file" class="hidden" accept=".json,application/json,.csv,text/csv">
-            <input type="search" id="service-search" placeholder="Search services" style="min-width:220px">
+            <input type="search" id="service-search" placeholder="Search services or rates" style="min-width:220px">
           </div>
           <table>
             <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
@@ -3294,7 +3237,15 @@
     };
 
     const normalizeSearchValue = (value) => String(value || '').toLowerCase();
-    const matchesSearch = (value, query) => normalizeSearchValue(value).includes(query);
+    const normalizeSearchNumber = (value) => String(value || '').replace(/[^0-9]/g, '');
+    const matchesSearch = (value, query) => {
+      const normalized = normalizeSearchValue(value);
+      if (normalized.includes(query)) return true;
+      const queryNumber = normalizeSearchNumber(query);
+      if (!queryNumber) return false;
+      const valueNumber = normalizeSearchNumber(value);
+      return valueNumber.includes(queryNumber);
+    };
 
     // ---------- Invoices ----------
     const getInvoiceBalanceCents = (inv, appsByInvoice) => {
@@ -3490,7 +3441,11 @@
       const rows = file.invoices.filter(inv => {
         if (!searchQuery) return true;
         const party = file.parties.find(p => p.party_id === inv.party_id);
-        return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
+        return matchesSearch(party?.name, searchQuery)
+          || matchesSearch(inv.issue_date, searchQuery)
+          || matchesSearch(inv.number, searchQuery)
+          || matchesSearch(invoiceTotal(inv), searchQuery)
+          || matchesSearch(getInvoiceBalanceCents(inv, appsByInvoice), searchQuery);
       });
       const statusRows = rows.filter(inv => {
         if (statusFilter === 'all') return true;
@@ -3561,7 +3516,11 @@
       const rows = file.invoices.filter(inv => {
         if (!searchQuery) return true;
         const party = file.parties.find(p => p.party_id === inv.party_id);
-        return matchesSearch(party?.name, searchQuery) || matchesSearch(inv.issue_date, searchQuery);
+        return matchesSearch(party?.name, searchQuery)
+          || matchesSearch(inv.issue_date, searchQuery)
+          || matchesSearch(inv.number, searchQuery)
+          || matchesSearch(invoiceTotal(inv), searchQuery)
+          || matchesSearch(getInvoiceBalanceCents(inv, appsByInvoice), searchQuery);
       });
       const statusRows = rows.filter(inv => {
         if (statusFilter === 'all') return true;
@@ -4797,7 +4756,8 @@
         return matchesSearch(t.category, searchQuery)
           || matchesSearch(t.memo, searchQuery)
           || matchesSearch(t.type, searchQuery)
-          || matchesSearch(t.date, searchQuery);
+          || matchesSearch(t.date, searchQuery)
+          || matchesSearch(t.amount_cents, searchQuery);
       });
       const rangedRows = rows.filter(t => {
         const date = t.date || '';
@@ -4842,7 +4802,8 @@
         return matchesSearch(t.category, searchQuery)
           || matchesSearch(t.memo, searchQuery)
           || matchesSearch(t.type, searchQuery)
-          || matchesSearch(t.date, searchQuery);
+          || matchesSearch(t.date, searchQuery)
+          || matchesSearch(t.amount_cents, searchQuery);
       });
       const rangedRows = rows.filter(t => {
         const date = t.date || '';
@@ -5159,7 +5120,8 @@
         if (!searchQuery) return true;
         return matchesSearch(s.name, searchQuery)
           || matchesSearch(s.billing_type, searchQuery)
-          || matchesSearch(s.default_description, searchQuery);
+          || matchesSearch(s.default_description, searchQuery)
+          || matchesSearch(s.default_rate_cents, searchQuery);
       });
       if (!list.length) $('#service-empty').classList.remove('hidden'); else $('#service-empty').classList.add('hidden');
       if (list.length && !rows.length) $('#service-empty-filter')?.classList.remove('hidden'); else $('#service-empty-filter')?.classList.add('hidden');
@@ -5212,7 +5174,8 @@
         if (!searchQuery) return true;
         return matchesSearch(s.name, searchQuery)
           || matchesSearch(s.billing_type, searchQuery)
-          || matchesSearch(s.default_description, searchQuery);
+          || matchesSearch(s.default_description, searchQuery)
+          || matchesSearch(s.default_rate_cents, searchQuery);
       });
     };
 
