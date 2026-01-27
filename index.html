@@ -5442,7 +5442,8 @@
         const typeLabel = `${escapeHtml(t.type || 'draft')}${isDraft ? ' <span class="saved-flag">Draft</span>' : ''}`;
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(t.date)}</td><td>${typeLabel}</td><td>${escapeHtml(t.category||'—')}</td><td>${fmt(t.amount_cents,file.business.base_currency)}</td>
-        <td class="row actions">${isDraft ? '<button data-edit>Resume</button><button data-dup>Add similar</button><button data-del>Delete</button>' : '<button data-edit>Edit</button><button data-dup>Add similar</button><button data-del>Delete</button>'}</td>`;
+        <td class="row actions">${isDraft ? '<button data-view>View</button><button data-edit>Resume</button><button data-dup>Add similar</button><button data-del>Delete</button>' : '<button data-view>View</button><button data-edit>Edit</button><button data-dup>Add similar</button><button data-del>Delete</button>'}</td>`;
+        tr.querySelector('[data-view]').onclick = () => viewTransaction(t);
         tr.querySelector('[data-edit]').onclick = () => editTxn(t, isDraft);
         tr.querySelector('[data-dup]').onclick = () => duplicateTxn(t);
         tr.querySelector('[data-del]').onclick = () => delTxn(t);
@@ -5694,6 +5695,11 @@
               <button id="export-pdf-transaction" class="primary">Export PDF</button>
             </div>
           </div>
+          <div class="row" style="gap:10px; justify-content:flex-end;">
+            <button id="transaction-view-edit">Edit</button>
+            <button id="transaction-view-dup">Add similar</button>
+            <button id="transaction-view-del">Delete</button>
+          </div>
           <div class="row" style="gap:12px; flex-wrap:wrap;">
             <span style="padding:6px 12px; border-radius:999px; background:var(--card); border:1px solid var(--border); font-weight:600;">${escapeHtml(statusLabel)}</span>
             ${t.date ? `<span style="padding:6px 12px; border-radius:999px; background:var(--card); border:1px solid var(--border);">Date: ${escapeHtml(t.date)}</span>` : ''}
@@ -5723,6 +5729,9 @@
       openPanel('Transaction', viewHtml);
       const printBtn = $('#print-transaction');
       const pdfBtn = $('#export-pdf-transaction');
+      const editBtn = $('#transaction-view-edit');
+      const dupBtn = $('#transaction-view-dup');
+      const delBtn = $('#transaction-view-del');
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -5732,6 +5741,22 @@
         e.preventDefault();
         e.stopPropagation();
         exportTransactionAsPDF(t);
+      };
+      if (editBtn) editBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        editTxn(t, t.status === 'draft');
+      };
+      if (dupBtn) dupBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        duplicateTxn(t);
+      };
+      if (delBtn) delBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        delTxn(t);
+        closePanel();
       };
     };
 
