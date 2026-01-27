@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkmark Accountant V5</title>
+  <link id="favicon" rel="icon" href="">
   <script>
     // Apply saved/system theme ASAP to avoid light flash on dark mode
     (() => {
@@ -2887,12 +2888,21 @@
       const chip = $('#logo-chip');
       chip.style.background = 'var(--logo-bg)';
       const useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
+      const faviconEl = document.querySelector('#favicon') || (() => {
+        const link = document.createElement('link');
+        link.id = 'favicon';
+        link.rel = 'icon';
+        document.head.appendChild(link);
+        return link;
+      })();
       if (!useLogo) {
         logoEl.src = '';
         logoEl.alt = 'CK';
         logoEl.textContent = 'CK';
+        faviconEl.href = '';
       } else {
         logoEl.src = useLogo;
+        faviconEl.href = useLogo;
       }
       // Apply custom header image
       const headerImage = file?.settings?.headerImageDataUrl;
@@ -5522,6 +5532,195 @@
       const arr = recentSelections(key);
       if (!arr.includes(val)) arr.push(val);
       localStorage.setItem('ck5_recent_'+key, JSON.stringify(arr.slice(-6)));
+    };
+
+    const buildTransactionPrintableMarkup = (t) => {
+      if (!file) return '';
+      const business = file.business || {};
+      const project = t.project_id ? file.projects.find(p => p.project_id === t.project_id) : null;
+      const statusLabel = t.status === 'draft' ? 'Draft' : 'Posted';
+      return `
+        <div class="transaction-print">
+          <div class="transaction-print-header">
+            <div>
+              <div style="font-size:1.2em; font-weight:700; margin-bottom:6px;">${escapeHtml(business.name || 'Business')}</div>
+              ${business.address ? `<div>${escapeHtml(business.address)}</div>` : ''}
+              ${business.city && business.state ? `<div>${escapeHtml(business.city)}, ${escapeHtml(business.state)} ${escapeHtml(business.zip || '')}</div>` : ''}
+              ${business.phone ? `<div>${escapeHtml(business.phone)}</div>` : ''}
+              ${business.email ? `<div>${escapeHtml(business.email)}</div>` : ''}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:2em; font-weight:800; letter-spacing:1px;">TRANSACTION</div>
+              <div style="color:#6b7080; font-weight:600;">${escapeHtml(t.date || '—')}</div>
+              <div style="margin-top:8px; font-weight:600; color:#1c1e26;">${statusLabel}</div>
+            </div>
+          </div>
+          <div class="transaction-print-grid">
+            <div>
+              <div style="font-weight:600; margin-bottom:6px;">Type</div>
+              <div>${escapeHtml(t.type || '—')}</div>
+            </div>
+            <div>
+              <div style="font-weight:600; margin-bottom:6px;">Category</div>
+              <div>${escapeHtml(t.category || '—')}</div>
+            </div>
+            <div>
+              <div style="font-weight:600; margin-bottom:6px;">Project</div>
+              <div>${escapeHtml(project?.name || '—')}</div>
+            </div>
+          </div>
+          <div style="margin-top:18px; padding:18px; border:1px solid #e3e5eb; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:600;">Amount</div>
+            <div style="font-size:1.4em; font-weight:800;">${fmt(t.amount_cents, business.base_currency)}</div>
+          </div>
+          ${t.memo ? `
+          <div style="margin-top:18px;">
+            <div style="font-weight:600; margin-bottom:6px;">Memo</div>
+            <div>${escapeHtml(t.memo)}</div>
+          </div>
+          ` : ''}
+        </div>
+      `;
+    };
+
+    const printTransaction = (t) => {
+      if (!file) return;
+      const printWindow = window.open('', '_blank');
+      const markup = buildTransactionPrintableMarkup(t);
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Transaction ${escapeHtml(t.date || '')}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+              padding: 40px;
+              color: #1c1e26;
+              line-height: 1.6;
+              background: #fff;
+            }
+            .transaction-print { max-width: 800px; margin: 0 auto; }
+            .transaction-print-header {
+              display: flex;
+              justify-content: space-between;
+              padding-bottom: 20px;
+              border-bottom: 2px solid #e3e5eb;
+              margin-bottom: 24px;
+              gap: 24px;
+            }
+            .transaction-print-grid {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 16px;
+              margin-top: 12px;
+            }
+          </style>
+        </head>
+        <body>${markup}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 250);
+    };
+
+    const exportTransactionAsPDF = async (t) => {
+      if (!file) return;
+      if (!window.jspdf || !window.html2canvas) {
+        alert('PDF export libraries not loaded. Please refresh the page.');
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const markup = buildTransactionPrintableMarkup(t);
+      const temp = document.createElement('div');
+      temp.style.position = 'absolute';
+      temp.style.left = '-9999px';
+      temp.style.top = '0';
+      temp.style.width = '900px';
+      temp.style.background = '#fff';
+      temp.style.padding = '24px';
+      temp.innerHTML = `
+        <style>
+          .transaction-print { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color:#1c1e26; line-height:1.6; }
+          .transaction-print-header { display:flex; justify-content:space-between; padding-bottom:20px; border-bottom:2px solid #e3e5eb; margin-bottom:24px; gap:24px; }
+          .transaction-print-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:12px; }
+        </style>
+        ${markup}
+      `;
+      document.body.appendChild(temp);
+      try {
+        showToast('Generating PDF...');
+        const canvas = await window.html2canvas(temp, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        addCanvasToPdfMultipage(pdf, canvas);
+        const fileName = `Transaction_${t.date || t.transaction_id || 'draft'}.pdf`;
+        pdf.save(fileName);
+        setTimeout(() => showToast('PDF exported successfully'), 500);
+      } catch (error) {
+        console.error('PDF export error:', error);
+        showToast('Error exporting PDF: ' + error.message, null);
+      } finally {
+        if (temp.parentNode) temp.parentNode.removeChild(temp);
+      }
+    };
+
+    const viewTransaction = (t) => {
+      if (!file) return;
+      const project = t.project_id ? file.projects.find(p => p.project_id === t.project_id) : null;
+      const statusLabel = t.status === 'draft' ? 'Draft' : 'Posted';
+      const viewHtml = `
+        <div class="transaction-view" style="display:flex; flex-direction:column; gap:20px;">
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:0.8rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Transaction</div>
+              <div style="font-size:1.4rem; font-weight:700; margin-top:6px;">${fmt(t.amount_cents, file.business.base_currency)}</div>
+            </div>
+            <div class="row" style="gap:10px;">
+              <button id="print-transaction" class="primary">Print</button>
+              <button id="export-pdf-transaction" class="primary">Export PDF</button>
+            </div>
+          </div>
+          <div class="row" style="gap:12px; flex-wrap:wrap;">
+            <span style="padding:6px 12px; border-radius:999px; background:var(--card); border:1px solid var(--border); font-weight:600;">${escapeHtml(statusLabel)}</span>
+            ${t.date ? `<span style="padding:6px 12px; border-radius:999px; background:var(--card); border:1px solid var(--border);">Date: ${escapeHtml(t.date)}</span>` : ''}
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px;">
+            <div>
+              <div style="font-size:0.8rem; color:var(--muted); margin-bottom:6px;">Type</div>
+              <div style="font-weight:600;">${escapeHtml(t.type || '—')}</div>
+            </div>
+            <div>
+              <div style="font-size:0.8rem; color:var(--muted); margin-bottom:6px;">Category</div>
+              <div style="font-weight:600;">${escapeHtml(t.category || '—')}</div>
+            </div>
+            <div>
+              <div style="font-size:0.8rem; color:var(--muted); margin-bottom:6px;">Project</div>
+              <div style="font-weight:600;">${escapeHtml(project?.name || '—')}</div>
+            </div>
+          </div>
+          ${t.memo ? `
+          <div style="padding:16px; border:1px solid var(--border); border-radius:16px; background:var(--card);">
+            <div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px;">Memo</div>
+            <div>${escapeHtml(t.memo)}</div>
+          </div>
+          ` : ''}
+        </div>
+      `;
+      openPanel('Transaction', viewHtml);
+      const printBtn = $('#print-transaction');
+      const pdfBtn = $('#export-pdf-transaction');
+      if (printBtn) printBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        printTransaction(t);
+      };
+      if (pdfBtn) pdfBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        exportTransactionAsPDF(t);
+      };
     };
 
     const editTxn = (t, isDraft=false) => {
@@ -9524,7 +9723,7 @@
         text: `Txn ${t.type}`,
         amount: t.amount_cents,
         onClick: () => {
-          editTxn(t, t.status === 'draft');
+          viewTransaction(t);
         }
       }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
