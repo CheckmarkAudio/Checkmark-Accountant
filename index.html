@@ -9415,7 +9415,16 @@
       row.innerHTML = `<span style="color:var(--text);font-size:0.95rem;line-height:1.6">${statusDot}${activityItem.text}</span><span style="font-weight:600;color:var(--text);line-height:1.6">${fmt(activityItem.amount,file.business.base_currency)}</span>`;
       if (activityItem.onClick) {
         row.style.cursor = 'pointer';
+        row.setAttribute('role', 'button');
+        row.setAttribute('data-interactive', 'true');
+        row.tabIndex = 0;
         row.onclick = activityItem.onClick;
+        row.onkeydown = (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            activityItem.onClick();
+          }
+        };
       }
       return row;
     };
@@ -10187,6 +10196,7 @@
                                 target.closest('select') ||
                                 target.closest('textarea') ||
                                 target.closest('[onclick]') ||
+                                target.closest('[data-interactive]') ||
                                 target.closest('.modal') ||
                                 target.closest('#modal-overlay');
           
