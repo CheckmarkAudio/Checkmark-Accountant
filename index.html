@@ -625,6 +625,32 @@
       color: var(--text);
       border-color: var(--border);
     }
+    nav.tabs .top-actions button.quick-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    nav.tabs .top-actions button.quick-btn .quick-icon {
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: inherit;
+      flex: 0 0 auto;
+    }
+    nav.tabs .top-actions button.quick-btn .quick-icon svg {
+      width: 12px;
+      height: 12px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .dark nav.tabs .top-actions button {
       color: #fff;
     }
@@ -632,6 +658,11 @@
       background: var(--accent);
       color: #fff;
       border-color: transparent;
+    }
+    nav.tabs .top-actions button.primary .quick-icon {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.35);
+      color: #fff;
     }
     main { padding: 28px; }
     section[data-section] {
@@ -1690,10 +1721,44 @@
         <span class="tab-label">Settings</span>
       </button>
       <div class="row top-actions" style="margin-left:auto; gap:16px">
-        <button id="quick-add-invoice" class="primary" data-quickkey="Z" title="Quick key: Z">Quick Invoice</button>
-        <button id="quick-add-transaction" data-quickkey="X" title="Quick key: X">Quick Txn</button>
-        <button id="quick-add-client" data-quickkey="C" title="Quick key: C">Quick Client</button>
-        <button id="quick-add-project" data-quickkey="V" title="Quick key: V">Quick Project</button>
+        <button id="quick-add-invoice" class="primary quick-btn" data-quickkey="Z" title="Quick key: Z">
+          <span class="quick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6 3h9l3 3v15H6z"></path>
+              <path d="M9 9h6M9 13h6M9 17h3"></path>
+            </svg>
+          </span>
+          <span class="quick-label">Invoice</span>
+        </button>
+        <button id="quick-add-transaction" class="quick-btn" data-quickkey="X" title="Quick key: X">
+          <span class="quick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M7 7h10"></path>
+              <path d="M13 3l4 4-4 4"></path>
+              <path d="M17 17H7"></path>
+              <path d="M11 21l-4-4 4-4"></path>
+            </svg>
+          </span>
+          <span class="quick-label">Txn</span>
+        </button>
+        <button id="quick-add-client" class="quick-btn" data-quickkey="C" title="Quick key: C">
+          <span class="quick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="8" r="3"></circle>
+              <path d="M5 20c1.6-3 5-5 7-5s5.4 2 7 5"></path>
+            </svg>
+          </span>
+          <span class="quick-label">Client</span>
+        </button>
+        <button id="quick-add-project" class="quick-btn" data-quickkey="V" title="Quick key: V">
+          <span class="quick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 7h6l2 2h8v10H4z"></path>
+              <path d="M4 7v10"></path>
+            </svg>
+          </span>
+          <span class="quick-label">Project</span>
+        </button>
       </div>
     </nav>
     <main>
