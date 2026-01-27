@@ -3764,6 +3764,10 @@
         return 'done';
       }
       if (file?.parties?.length && stage === 'client') {
+        setOnboardingStage('service');
+        return 'service';
+      }
+      if (file?.services?.length && stage === 'service') {
         setOnboardingStage('invoice');
         return 'invoice';
       }
@@ -3778,6 +3782,8 @@
       const stage = advanceOnboardingStage();
       if (stage === 'client' && !file.parties.length) {
         showOnboardingClientPrompt();
+      } else if (stage === 'service' && file.parties.length && !file.services.length) {
+        showOnboardingServicePrompt();
       } else if (stage === 'invoice' && file.parties.length && !file.invoices.length) {
         showOnboardingInvoicePrompt();
       }
@@ -3799,6 +3805,33 @@
           closeModal();
           setTab('clients');
           togglePanelFor('Client', () => editClient({}));
+        };
+      }
+      const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          setOnboardingStage('service');
+          closeModal();
+        };
+      }
+    }
+    function showOnboardingServicePrompt() {
+      showModal(`
+        <div class="stack">
+          <h3>Add your first service</h3>
+          <p>Services let you reuse common items and rates on invoices.</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Skip for now</button>
+            <button id="onboard-add-service" class="primary">Create Service</button>
+          </div>
+        </div>
+      `, () => {});
+      const addBtn = $('#onboard-add-service');
+      if (addBtn) {
+        addBtn.onclick = () => {
+          closeModal();
+          setTab('services');
+          togglePanelFor('Service', () => editService({}));
         };
       }
       const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
@@ -5650,7 +5683,7 @@
         else file.parties = file.parties.map(x=>x.party_id===saved.party_id?saved:x);
         saveFile(); renderClients(); closePanel();
         if (wasEmpty) {
-          if (getOnboardingStage() === 'client') setOnboardingStage('invoice');
+          if (getOnboardingStage() === 'client') setOnboardingStage('service');
           scheduleOnboardingCheck();
         }
       };
@@ -5799,6 +5832,7 @@
 
     const editService = (s={}) => {
       if (!file) return;
+      const wasEmpty = file.services.length === 0 && !s.service_id;
       openPanel('Service', `
         <form id="service-form" class="stack">
           <label>Name</label><input name="name" value="${escapeHtml(s.name||'')}">
@@ -5828,6 +5862,10 @@
         if (!file.services.find(x=>x.service_id===saved.service_id)) file.services.push(saved);
         else file.services = file.services.map(x=>x.service_id===saved.service_id?saved:x);
         saveFile(); renderServices(); closePanel();
+        if (wasEmpty) {
+          if (getOnboardingStage() === 'service') setOnboardingStage('invoice');
+          scheduleOnboardingCheck();
+        }
       };
       $('#cancel-service').onclick = closePanel;
     };
