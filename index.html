@@ -9506,7 +9506,6 @@
           amount: invoiceTotal(i),
           status: i.status,
           onClick: () => {
-            setTab('invoices');
             viewInvoice(i);
           }
         });
@@ -9516,7 +9515,6 @@
         text: `Txn ${t.type}`,
         amount: t.amount_cents,
         onClick: () => {
-          setTab('transactions');
           editTxn(t, t.status === 'draft');
         }
       }));
