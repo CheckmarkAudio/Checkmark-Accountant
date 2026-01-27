@@ -2690,7 +2690,9 @@
       v4Active: 'checkmark_active_account',
       v4Data: (id) => `checkmark_account_data_${id}`,
       draftInvoice: (id) => `ck5_draft_invoice_${id}`,
-      draftTxn: (id) => `ck5_draft_txn_${id}`
+      draftTxn: (id) => `ck5_draft_txn_${id}`,
+      onboardingStage: 'ck5_onboarding_stage',
+      onboardingSource: 'ck5_onboarding_source'
     };
 
     const seedAccounts = () => ([
@@ -3042,6 +3044,7 @@
       });
       saveList();
       localStorage.removeItem(STORAGE.v4Active);
+      markOnboardingDone('migrated');
       alert('Migration complete. Select a migrated business to continue.');
       renderBusinessSelector();
       renderMigrationBlock();
@@ -3601,13 +3604,18 @@
       if (businessName) businessName.textContent = activeId ? (businessList.find(b=>b.id===activeId)?.name || 'Business') : 'Checkmark Accountant V5';
     };
 
-    const createBusiness = (name) => {
+    const createBusiness = (name, { onboarding=false } = {}) => {
       const id = uuid();
       businessList.push({ id, name });
       saveList();
       localStorage.setItem(STORAGE.v5Data(id), JSON.stringify(newBusinessFile(name)));
       activeId = id; saveActive();
       loadActive();
+      if (onboarding) {
+        localStorage.setItem(STORAGE.onboardingSource, 'fresh');
+        localStorage.setItem(STORAGE.onboardingStage, 'client');
+        scheduleOnboardingCheck();
+      }
     };
 
     const deleteBusiness = (id) => {
@@ -3679,6 +3687,7 @@
       applyTheme();
       renderAll();
       setTab('dashboard');
+      scheduleOnboardingCheck();
     };
 
     const promptCreateBusinessIfNeeded = () => {
@@ -3687,11 +3696,11 @@
       showModal(`
         <div class="stack">
           <h3>Welcome to Checkmark Accountant V5</h3>
-          <p>You don't have any businesses yet. Import a backup or create a new business to get started.</p>
+          <p>Create your first business or import data to get started.</p>
           <label>Business Name</label>
           <input type="text" id="new-business-name" placeholder="My Business" value="My Business" autofocus>
           <div class="row" style="justify-content:flex-end; gap:8px; margin-top:16px">
-            <button data-cancel>Cancel</button>
+            <button data-cancel>Skip for now</button>
             <button id="import-first-business" type="button">Import Data</button>
             <button data-confirm class="primary">Create Business</button>
           </div>
@@ -3699,7 +3708,7 @@
       `, () => {
         const nameInput = $('#new-business-name');
         const name = nameInput?.value?.trim() || 'My Business';
-        createBusiness(name);
+        createBusiness(name, { onboarding: true });
         closeModal();
       });
       
@@ -3707,6 +3716,14 @@
       setTimeout(() => {
         const nameInput = $('#new-business-name');
         const importBtn = $('#import-first-business');
+        const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
+        if (cancelBtn) {
+          cancelBtn.onclick = () => {
+            localStorage.setItem(STORAGE.onboardingSource, 'skipped');
+            localStorage.setItem(STORAGE.onboardingStage, 'done');
+            closeModal();
+          };
+        }
         if (importBtn) {
           importBtn.onclick = () => {
             closeModal();
@@ -3726,6 +3743,99 @@
         }
       }, 100);
     };
+
+    const getOnboardingStage = () => localStorage.getItem(STORAGE.onboardingStage) || '';
+    const getOnboardingSource = () => localStorage.getItem(STORAGE.onboardingSource) || '';
+    const setOnboardingStage = (stage) => localStorage.setItem(STORAGE.onboardingStage, stage);
+    const setOnboardingSource = (source) => localStorage.setItem(STORAGE.onboardingSource, source);
+    const markOnboardingDone = (source=null) => {
+      if (source) setOnboardingSource(source);
+      setOnboardingStage('done');
+    };
+    const advanceOnboardingStage = () => {
+      const stage = getOnboardingStage();
+      if (!stage || stage === 'done') return stage;
+      if (getOnboardingSource() !== 'fresh') {
+        setOnboardingStage('done');
+        return 'done';
+      }
+      if (file?.invoices?.length) {
+        setOnboardingStage('done');
+        return 'done';
+      }
+      if (file?.parties?.length && stage === 'client') {
+        setOnboardingStage('invoice');
+        return 'invoice';
+      }
+      return stage;
+    };
+    function scheduleOnboardingCheck(delay=80) {
+      setTimeout(() => runOnboardingFlow(), delay);
+    }
+    function runOnboardingFlow() {
+      if (!file || !file.business) return;
+      if ($('#modal-overlay')?.classList.contains('show')) return;
+      const stage = advanceOnboardingStage();
+      if (stage === 'client' && !file.parties.length) {
+        showOnboardingClientPrompt();
+      } else if (stage === 'invoice' && file.parties.length && !file.invoices.length) {
+        showOnboardingInvoicePrompt();
+      }
+    }
+    function showOnboardingClientPrompt() {
+      showModal(`
+        <div class="stack">
+          <h3>Add your first client</h3>
+          <p>Clients let you track who you bill and keep invoices organized.</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Skip for now</button>
+            <button id="onboard-add-client" class="primary">Create Client</button>
+          </div>
+        </div>
+      `, () => {});
+      const addBtn = $('#onboard-add-client');
+      if (addBtn) {
+        addBtn.onclick = () => {
+          closeModal();
+          setTab('clients');
+          togglePanelFor('Client', () => editClient({}));
+        };
+      }
+      const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          setOnboardingStage('invoice');
+          closeModal();
+        };
+      }
+    }
+    function showOnboardingInvoicePrompt() {
+      showModal(`
+        <div class="stack">
+          <h3>Create your first invoice</h3>
+          <p>Invoices help you bill clients and track income.</p>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            <button data-cancel>Skip for now</button>
+            <button id="onboard-add-invoice" class="primary">Create Invoice</button>
+          </div>
+        </div>
+      `, () => {});
+      const addBtn = $('#onboard-add-invoice');
+      if (addBtn) {
+        addBtn.onclick = () => {
+          closeModal();
+          setTab('invoices');
+          togglePanelFor('Invoice', () => editInvoice({}));
+        };
+      }
+      const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          setOnboardingStage('done');
+          closeModal();
+        };
+      }
+    }
 
     const normalizeSearchValue = (value) => String(value || '').toLowerCase();
     const normalizeSearchNumber = (value) => String(value || '').replace(/[^0-9]/g, '');
@@ -4207,6 +4317,7 @@
 
     const editInvoice = (inv, isDraft=false) => {
       if (!file) return;
+      const wasEmpty = file.invoices.length === 0;
       const lastPartyId = recentSelections('party')[0];
       const partyDefault = inv.party_id || lastPartyId || (file.parties[0]?.party_id || null);
       const invoice = isDraft ? inv : {
@@ -4377,6 +4488,7 @@
           promptMarkPaid(saved);
         }
         closePanel();
+        if (wasEmpty && getOnboardingStage() === 'invoice') setOnboardingStage('done');
       };
       form.onsubmit = (e) => {
         e.preventDefault();
@@ -4440,6 +4552,7 @@
           promptMarkPaid(saved);
         }
         closePanel();
+        if (wasEmpty && getOnboardingStage() === 'invoice') setOnboardingStage('done');
       };
       const saveDraftBtn = $('#save-invoice-draft');
       if (saveDraftBtn) {
@@ -5511,6 +5624,7 @@
 
     const editClient = (p={}) => {
       if (!file) return;
+      const wasEmpty = file.parties.length === 0 && !p.party_id;
       openPanel('Client', `
         <form id="client-form" class="stack">
           <label>Name</label><input name="name" value="${escapeHtml(p.name||'')}">
@@ -5535,6 +5649,10 @@
         if (!file.parties.find(x=>x.party_id===saved.party_id)) file.parties.push(saved);
         else file.parties = file.parties.map(x=>x.party_id===saved.party_id?saved:x);
         saveFile(); renderClients(); closePanel();
+        if (wasEmpty) {
+          if (getOnboardingStage() === 'client') setOnboardingStage('invoice');
+          scheduleOnboardingCheck();
+        }
       };
       $('#cancel-client').onclick = closePanel;
     };
@@ -6865,6 +6983,7 @@
                 imported++;
               });
               saveList();
+              markOnboardingDone('imported');
               loadActive();
               showToast(`Imported ${imported} business(es)${skipped > 0 ? `, skipped ${skipped}` : ''}`);
             });
@@ -6929,6 +7048,7 @@
                 activeId = importedId;
                 saveActive();
                 localStorage.setItem(STORAGE.v5Data(activeId), JSON.stringify(data));
+                markOnboardingDone('imported');
                 loadActive();
                 showToast('Business data imported successfully');
                 closeModal();
@@ -6942,6 +7062,7 @@
                 localStorage.setItem(STORAGE.v5Data(newId), JSON.stringify(data));
                 activeId = newId;
                 saveActive();
+                markOnboardingDone('imported');
                 loadActive();
                 showToast('Business imported as new business');
                 closeModal();
@@ -6958,6 +7079,7 @@
                 saveActive();
               }
               localStorage.setItem(STORAGE.v5Data(activeId), JSON.stringify(data));
+              markOnboardingDone('imported');
               loadActive();
               showToast('Business data imported successfully');
             }
