@@ -2048,6 +2048,18 @@
         <aside class="settings-sidebar">
           <h3>Settings</h3>
           <div class="settings-nav">
+            <button class="settings-nav-item" data-settings-target="business">
+              <span class="settings-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+                  <path d="M4 8h16v10H4z"></path>
+                  <path d="M9 8V6a3 3 0 0 1 6 0v2"></path>
+                </svg>
+              </span>
+              <span>
+                <span class="settings-nav-title">Business</span>
+                <span class="settings-nav-subtitle">Company details</span>
+              </span>
+            </button>
             <button class="settings-nav-item active" data-settings-target="theme">
               <span class="settings-nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
@@ -2072,18 +2084,6 @@
                 <span class="settings-nav-subtitle">Logos and header</span>
               </span>
             </button>
-            <button class="settings-nav-item" data-settings-target="invoices">
-              <span class="settings-nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-                  <path d="M6 3h9l3 3v15H6z"></path>
-                  <path d="M9 9h6M9 13h6M9 17h3"></path>
-                </svg>
-              </span>
-              <span>
-                <span class="settings-nav-title">Invoices</span>
-                <span class="settings-nav-subtitle">Defaults and basis</span>
-              </span>
-            </button>
             <button class="settings-nav-item" data-settings-target="quickkeys">
               <span class="settings-nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
@@ -2095,6 +2095,18 @@
               <span>
                 <span class="settings-nav-title">Quick Keys</span>
                 <span class="settings-nav-subtitle">Keyboard shortcuts</span>
+              </span>
+            </button>
+            <button class="settings-nav-item" data-settings-target="invoices">
+              <span class="settings-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+                  <path d="M6 3h9l3 3v15H6z"></path>
+                  <path d="M9 9h6M9 13h6M9 17h3"></path>
+                </svg>
+              </span>
+              <span>
+                <span class="settings-nav-title">Invoices</span>
+                <span class="settings-nav-subtitle">Defaults and basis</span>
               </span>
             </button>
             <button class="settings-nav-item" data-settings-target="tax">
@@ -2109,16 +2121,15 @@
                 <span class="settings-nav-subtitle">GRT settings</span>
               </span>
             </button>
-            <button class="settings-nav-item" data-settings-target="business">
+            <button class="settings-nav-item" data-settings-target="diagnostics">
               <span class="settings-nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-                  <path d="M4 8h16v10H4z"></path>
-                  <path d="M9 8V6a3 3 0 0 1 6 0v2"></path>
+                  <path d="M4 19V5M8 19V9M12 19V3M16 19v-6M20 19v-4"></path>
                 </svg>
               </span>
               <span>
-                <span class="settings-nav-title">Business</span>
-                <span class="settings-nav-subtitle">Company details</span>
+                <span class="settings-nav-title">Diagnostics & Migration</span>
+                <span class="settings-nav-subtitle">Integrity checks</span>
               </span>
             </button>
             <button class="settings-nav-item" data-settings-target="backup">
@@ -2130,17 +2141,6 @@
               <span>
                 <span class="settings-nav-title">Backup & Import</span>
                 <span class="settings-nav-subtitle">Export and restore</span>
-              </span>
-            </button>
-            <button class="settings-nav-item" data-settings-target="diagnostics">
-              <span class="settings-nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-                  <path d="M4 19V5M8 19V9M12 19V3M16 19v-6M20 19v-4"></path>
-                </svg>
-              </span>
-              <span>
-                <span class="settings-nav-title">Diagnostics & Migration</span>
-                <span class="settings-nav-subtitle">Integrity checks</span>
               </span>
             </button>
             <button class="settings-nav-item" data-settings-target="danger">
@@ -3032,6 +3032,17 @@
       if (tab === 'dashboard' && file) {
         cleanOrphanLedgerEntries();
         renderDashboard();
+      }
+      if (tab === 'invoices' && file) {
+        setTimeout(() => {
+          const startInput = $('#invoices-start');
+          const endInput = $('#invoices-end');
+          const hasActivePreset = !!$('.date-preset-btn[data-for="invoices"].active');
+          if (!hasActivePreset && !startInput?.value && !endInput?.value) {
+            setDatePreset('month', 'invoices');
+          }
+          renderInvoices();
+        }, 100);
       }
       if (tab === 'analytics' && file) {
         setTimeout(() => {
