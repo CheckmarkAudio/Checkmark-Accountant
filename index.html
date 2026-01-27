@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkmark Accountant V5</title>
-  <link id="favicon" rel="icon" href="">
+  <link id="favicon-light" rel="icon" media="(prefers-color-scheme: light)" href="">
+  <link id="favicon-dark" rel="icon" media="(prefers-color-scheme: dark)" href="">
   <script>
     // Apply saved/system theme ASAP to avoid light flash on dark mode
     (() => {
@@ -2888,10 +2889,19 @@
       const chip = $('#logo-chip');
       chip.style.background = 'var(--logo-bg)';
       const useLogo = dark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
-      const faviconEl = document.querySelector('#favicon') || (() => {
+      const faviconLightEl = document.querySelector('#favicon-light') || (() => {
         const link = document.createElement('link');
-        link.id = 'favicon';
+        link.id = 'favicon-light';
         link.rel = 'icon';
+        link.media = '(prefers-color-scheme: light)';
+        document.head.appendChild(link);
+        return link;
+      })();
+      const faviconDarkEl = document.querySelector('#favicon-dark') || (() => {
+        const link = document.createElement('link');
+        link.id = 'favicon-dark';
+        link.rel = 'icon';
+        link.media = '(prefers-color-scheme: dark)';
         document.head.appendChild(link);
         return link;
       })();
@@ -2899,10 +2909,12 @@
         logoEl.src = '';
         logoEl.alt = 'CK';
         logoEl.textContent = 'CK';
-        faviconEl.href = '';
+        faviconLightEl.href = '';
+        faviconDarkEl.href = '';
       } else {
         logoEl.src = useLogo;
-        faviconEl.href = useLogo;
+        faviconLightEl.href = lightLogo || '';
+        faviconDarkEl.href = darkLogo || lightLogo || '';
       }
       // Apply custom header image
       const headerImage = file?.settings?.headerImageDataUrl;
@@ -9714,7 +9726,7 @@
           amount: invoiceTotal(i),
           status: i.status,
           onClick: () => {
-            viewInvoice(i);
+            togglePanelFor('Invoice', () => viewInvoice(i));
           }
         });
       });
@@ -9723,7 +9735,7 @@
         text: `Txn ${t.type}`,
         amount: t.amount_cents,
         onClick: () => {
-          viewTransaction(t);
+          togglePanelFor('Transaction', () => viewTransaction(t));
         }
       }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
