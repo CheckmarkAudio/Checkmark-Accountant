@@ -1182,6 +1182,117 @@
       align-self: flex-start;
       margin-top: 6vh;
     }
+    .modal.manual-modal {
+      width: min(1100px, 96vw);
+      max-height: min(84vh, 860px);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .manual-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 0;
+    }
+    .manual-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .manual-title {
+      margin: 0;
+      font-size: 1.35rem;
+    }
+    .manual-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      gap: 16px;
+      min-height: 0;
+    }
+    .manual-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+    .manual-search input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--text);
+      font: inherit;
+    }
+    .manual-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .manual-chapter {
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      font-weight: 600;
+    }
+    .manual-chapter:hover {
+      background: var(--surface-soft);
+      border-color: var(--border);
+    }
+    .manual-chapter.active {
+      background: rgba(58,127,245,0.12);
+      border-color: rgba(58,127,245,0.3);
+      color: var(--text);
+    }
+    .manual-empty {
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 8px;
+    }
+    .manual-content {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      border-radius: 14px;
+      padding: 16px 18px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .manual-content h3 {
+      margin-top: 0;
+    }
+    .manual-content h4 {
+      margin-bottom: 6px;
+      margin-top: 18px;
+    }
+    .manual-content ul {
+      padding-left: 20px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      border: 0;
+    }
+    @media (max-width: 820px) {
+      .modal.manual-modal { max-height: 90vh; }
+      .manual-layout {
+        grid-template-columns: 1fr;
+      }
+      .manual-list {
+        max-height: 160px;
+      }
+    }
     .recent-chip { 
       background: var(--surface-soft); 
       border: 1px solid var(--border); 
@@ -1607,6 +1718,13 @@
             <path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 1-1.5Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
             <path d="M14 3.5V8h4" fill="none" stroke="currentColor" stroke-width="1.6"/>
             <path d="M8 12h8M8 15h8M8 18h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button id="open-manual" class="icon-btn" title="Help / Manual" aria-label="Help manual">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="12" cy="17" r="1" fill="currentColor"/>
           </svg>
         </button>
       </div>
@@ -3143,6 +3261,324 @@
     const closeModal = () => {
       $('#modal-overlay').classList.remove('show');
       $('#modal-body').className = 'modal';
+    };
+
+    const manualChapters = [
+      {
+        id: 'welcome',
+        title: 'Welcome & Accounting Fundamentals',
+        keywords: ['basics', 'bookkeeping', 'accountant', 'fundamentals'],
+        bodyHtml: `
+          <p>Checkmark Accountant V5 is built for solo business owners who want clarity without wrestling spreadsheets. This manual walks through accounting basics, daily workflows, and reporting so you can stay organized and confident.</p>
+          <h4>What does an accountant do?</h4>
+          <p>An accountant organizes and records every dollar your business earns and spends. The goal is to know whether you are making money, breaking even, or losing money, and to stay compliant with taxes and regulations.</p>
+          <h4>Why bookkeeping matters</h4>
+          <ul>
+            <li><strong>Legal and tax compliance:</strong> Accurate records support your tax filings and deductions.</li>
+            <li><strong>Financial clarity:</strong> Organized books show where money comes from and where it goes.</li>
+            <li><strong>Decision making:</strong> Up-to-date data answers questions like "Can I afford new equipment?"</li>
+            <li><strong>Budgeting and planning:</strong> Trends help you forecast and plan for slower seasons.</li>
+            <li><strong>Peace of mind:</strong> You avoid last-minute scrambles when tax season arrives.</li>
+          </ul>
+          <p>Checkmark automates the heavy lifting, but consistent input keeps the system accurate and useful.</p>
+        `
+      },
+      {
+        id: 'coa',
+        title: 'Chart of Accounts Basics',
+        keywords: ['chart of accounts', 'categories', 'accounts'],
+        bodyHtml: `
+          <p>The Chart of Accounts (COA) is the list of financial categories your business uses to organize transactions. It is the filing system behind reports.</p>
+          <ul>
+            <li><strong>Assets:</strong> What you own, like cash, bank balances, equipment, or money owed to you.</li>
+            <li><strong>Liabilities:</strong> Debts you owe, like credit cards or taxes payable.</li>
+            <li><strong>Equity:</strong> Your ownership stake, including owner contributions and draws.</li>
+            <li><strong>Income:</strong> Money earned from services or sales.</li>
+            <li><strong>Expenses:</strong> Costs to run the business, like rent, software, travel, or marketing.</li>
+          </ul>
+          <p>Each transaction is categorized into one of these accounts so reports like Profit &amp; Loss can summarize totals by category.</p>
+        `
+      },
+      {
+        id: 'cash-accrual',
+        title: 'Cash vs Accrual Accounting',
+        keywords: ['cash basis', 'accrual basis', 'settings'],
+        bodyHtml: `
+          <p>Checkmark supports both cash and accrual accounting. The choice changes when income and expenses are recognized.</p>
+          <ul>
+            <li><strong>Cash basis:</strong> Record income when money is received and expenses when paid.</li>
+            <li><strong>Accrual basis:</strong> Record income when earned and expenses when incurred, even if payment happens later.</li>
+          </ul>
+          <p>Cash basis is simpler and matches cash flow. Accrual provides a clearer picture of performance when invoices and unpaid bills are involved. You can choose the basis during setup or in Settings &gt; Invoices.</p>
+          <p>Consistency matters. Switching mid-year without adjustments can double-count or omit income.</p>
+        `
+      },
+      {
+        id: 'getting-started',
+        title: 'Getting Started & Interface Tour',
+        keywords: ['setup', 'tabs', 'shortcuts', 'dashboard'],
+        bodyHtml: `
+          <p>Install and launch Checkmark Accountant V5, then create your business file. Your data is stored locally, so remember to back up regularly.</p>
+          <h4>Initial setup</h4>
+          <ul>
+            <li>Enter your business name for invoices and reports.</li>
+            <li>Select your fiscal year start date.</li>
+            <li>Choose cash or accrual accounting.</li>
+            <li>Set a default tax rate if needed.</li>
+          </ul>
+          <h4>Main sections</h4>
+          <ul>
+            <li><strong>Dashboard:</strong> Overview of activity and totals.</li>
+            <li><strong>Invoices:</strong> Create and track invoices.</li>
+            <li><strong>Transactions:</strong> Record expenses, income, and transfers.</li>
+            <li><strong>Clients/Projects:</strong> Manage clients and project tracking.</li>
+            <li><strong>Services:</strong> Save reusable service items.</li>
+            <li><strong>Analytics:</strong> Visual insights and charts.</li>
+            <li><strong>Reports:</strong> Profit &amp; Loss and tax summaries.</li>
+            <li><strong>Settings:</strong> Business preferences, tax, and backups.</li>
+          </ul>
+          <h4>Keyboard shortcuts</h4>
+          <ul>
+            <li>A: Dashboard, S: Invoices, D: Transactions, F: Clients</li>
+            <li>J: Services, K: Analytics, L: Reports, ;: Settings</li>
+            <li>Z: New Invoice, X: New Transaction, C: New Client, V: New Project</li>
+            <li>B: Close panels, M: Calculator, N: Notes</li>
+          </ul>
+        `
+      },
+      {
+        id: 'settings',
+        title: 'Settings & Business Setup',
+        keywords: ['business details', 'branding', 'tax', 'diagnostics', 'defaults'],
+        bodyHtml: `
+          <p>Settings is where you configure your business profile, invoice defaults, tax rates, and backups.</p>
+          <ul>
+            <li><strong>Business details:</strong> Name, address, phone, and email for invoices.</li>
+            <li><strong>Branding:</strong> Upload logo and optional header images.</li>
+            <li><strong>Invoice defaults:</strong> Due terms, numbering, and default tax percent.</li>
+            <li><strong>Tax &amp; reporting:</strong> Gross receipts tax rate and filing frequency.</li>
+            <li><strong>Backup &amp; import:</strong> Export and restore your data file.</li>
+            <li><strong>Diagnostics:</strong> Run checks to catch inconsistencies.</li>
+          </ul>
+          <p>The default Chart of Accounts is designed for solo business owners, so most users can start without adding new categories.</p>
+        `
+      },
+      {
+        id: 'invoices',
+        title: 'Invoicing Clients & Income',
+        keywords: ['invoice', 'payments', 'income', 'tax'],
+        bodyHtml: `
+          <p>Invoices are how you bill clients and track income. Keep them accurate so reports remain reliable.</p>
+          <h4>Create a new invoice</h4>
+          <ul>
+            <li>Go to Invoices and click New Invoice (or press Z).</li>
+            <li>Select or add a client.</li>
+            <li>Confirm invoice date, number, and payment terms.</li>
+            <li>Add line items with description, quantity, and rate.</li>
+            <li>Apply discounts or tax if needed.</li>
+            <li>Review totals and add notes.</li>
+            <li>Save the invoice and mark it as sent.</li>
+          </ul>
+          <h4>Send and collect payment</h4>
+          <ul>
+            <li>Export or print the invoice as a PDF and email it to clients.</li>
+            <li>When paid, use the Mark Paid workflow or record an income transaction.</li>
+            <li>Partial payments can be recorded until the balance reaches zero.</li>
+          </ul>
+          <h4>Additional tips</h4>
+          <ul>
+            <li>Duplicate recurring invoices to save time.</li>
+            <li>Void incorrect invoices instead of deleting for audit clarity.</li>
+            <li>Use Services to keep descriptions and pricing consistent.</li>
+          </ul>
+        `
+      },
+      {
+        id: 'expenses',
+        title: 'Transactions & Expense Tracking',
+        keywords: ['expenses', 'transactions', 'categories', 'receipts'],
+        bodyHtml: `
+          <p>Every business expense should be recorded in Transactions so your reports and tax totals are accurate.</p>
+          <h4>Record an expense</h4>
+          <ul>
+            <li>Go to Transactions and click New Transaction (or press X).</li>
+            <li>Choose Type: Expense and enter the date and amount.</li>
+            <li>Select the correct expense category.</li>
+            <li>Add payee and description for clarity.</li>
+            <li>Assign a project if the expense is project-specific.</li>
+            <li>Save the transaction to add it to the ledger.</li>
+          </ul>
+          <h4>Ongoing expenses and best practices</h4>
+          <ul>
+            <li>Enter recurring expenses on a consistent schedule.</li>
+            <li>Keep and organize receipts for audit support.</li>
+            <li>Review bank statements monthly to catch missing entries.</li>
+            <li>Do not categorize owner draws or personal spending as expenses.</li>
+          </ul>
+          <p>If a transaction spans multiple categories, either split it into multiple entries or choose the main category and document the split in the description.</p>
+        `
+      },
+      {
+        id: 'projects',
+        title: 'Projects & Profitability',
+        keywords: ['projects', 'profitability', 'clients'],
+        bodyHtml: `
+          <p>Projects group related income and expenses so you can measure profitability per client or job.</p>
+          <h4>Create a project</h4>
+          <ul>
+            <li>Go to Clients/Projects and click New Project (or press V).</li>
+            <li>Name the project clearly and link the relevant client.</li>
+            <li>Add notes or dates if helpful, then save.</li>
+          </ul>
+          <h4>Tag transactions</h4>
+          <ul>
+            <li>Select the project on invoices and expense transactions.</li>
+            <li>Edit transactions later if you forgot to assign a project.</li>
+          </ul>
+          <p>Run the Project Profitability report in Reports to see income, expenses, and net profit per project.</p>
+        `
+      },
+      {
+        id: 'reports',
+        title: 'Reports & Taxes',
+        keywords: ['reports', 'profit and loss', 'tax', 'grt'],
+        bodyHtml: `
+          <p>Reports summarize your financial activity and are essential for planning and taxes.</p>
+          <h4>Profit &amp; Loss</h4>
+          <p>Choose a date range, then review income, expenses, and net profit for that period. Compare months or quarters to track trends.</p>
+          <h4>Tax and summaries</h4>
+          <ul>
+            <li>Gross Receipts Tax (GRT) reports calculate tax owed on revenue.</li>
+            <li>Expense by Category highlights where money is being spent.</li>
+            <li>Client Revenue and Project Profitability show income breakdowns.</li>
+          </ul>
+          <p>You can export or print reports as PDFs and export transaction data as CSV for your accountant.</p>
+        `
+      },
+      {
+        id: 'backups',
+        title: 'Backups & Data Management',
+        keywords: ['backup', 'export', 'import', 'audit log'],
+        bodyHtml: `
+          <p>Use Settings &gt; Backup &amp; Import to export your full data file as JSON. Store backups in a safe location like cloud storage or an external drive.</p>
+          <p>Export the audit log if you need a detailed history for a CPA or internal review.</p>
+          <p>Back up regularly, especially before large changes or at year-end.</p>
+        `
+      },
+      {
+        id: 'best-practices',
+        title: 'Best Practices & Common Pitfalls',
+        keywords: ['best practices', 'pitfalls', 'diagnostics', 'tips'],
+        bodyHtml: `
+          <h4>Best practices</h4>
+          <ul>
+            <li>Keep business and personal finances separate.</li>
+            <li>Record transactions promptly and consistently.</li>
+            <li>Reconcile with bank statements monthly.</li>
+            <li>Review reports regularly to catch issues early.</li>
+            <li>Use Diagnostics if numbers feel off.</li>
+            <li>Set aside money for taxes based on your profit.</li>
+          </ul>
+          <h4>Common pitfalls</h4>
+          <ul>
+            <li>Mixing cash and accrual entries mid-year.</li>
+            <li>Double-counting income by recording an invoice and a separate income entry.</li>
+            <li>Recording owner draws or personal purchases as expenses.</li>
+            <li>Skipping backups and losing data after a system change.</li>
+          </ul>
+        `
+      }
+    ];
+
+    const manualIndex = manualChapters.map((chapter) => {
+      const searchText = [
+        chapter.title,
+        (chapter.keywords || []).join(' '),
+        chapter.bodyHtml.replace(/<[^>]*>/g, ' ')
+      ].join(' ').toLowerCase();
+      return { ...chapter, searchText };
+    });
+
+    const openManual = () => {
+      const modalBody = $('#modal-body');
+      if (!modalBody) return;
+      modalBody.className = 'modal manual-modal';
+      modalBody.innerHTML = `
+        <div class="manual-shell">
+          <div class="manual-header">
+            <div class="stack" style="gap:4px">
+              <h2 class="manual-title">Checkmark Accountant V5 Manual</h2>
+              <p style="margin:0; color:var(--muted); font-size:0.9rem">Browse chapters or search for a topic.</p>
+            </div>
+            <button class="icon-btn" data-manual-close aria-label="Close manual">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="manual-layout">
+            <aside class="manual-sidebar">
+              <label class="manual-search">
+                <span class="sr-only">Search the manual</span>
+                <input id="manual-search" type="search" placeholder="Search chapters or keywords">
+              </label>
+              <div id="manual-list" class="manual-list"></div>
+            </aside>
+            <section id="manual-content" class="manual-content" aria-live="polite"></section>
+          </div>
+        </div>
+      `;
+      $('#modal-overlay').classList.add('show');
+      const closeBtn = modalBody.querySelector('[data-manual-close]');
+      if (closeBtn) closeBtn.onclick = closeModal;
+
+      const searchInput = modalBody.querySelector('#manual-search');
+      const listEl = modalBody.querySelector('#manual-list');
+      const contentEl = modalBody.querySelector('#manual-content');
+      let activeId = manualIndex[0]?.id;
+
+      const renderContent = () => {
+        const chapter = manualChapters.find((item) => item.id === activeId);
+        if (!chapter) {
+          contentEl.innerHTML = '<p style="color:var(--muted)">Select a chapter to view details.</p>';
+          return;
+        }
+        contentEl.innerHTML = `<h3>${chapter.title}</h3>${chapter.bodyHtml}`;
+        contentEl.scrollTop = 0;
+      };
+
+      const renderList = (query = '') => {
+        const q = query.trim().toLowerCase();
+        const items = q ? manualIndex.filter((item) => item.searchText.includes(q)) : manualIndex;
+        if (!items.length) {
+          listEl.innerHTML = '<div class="manual-empty">No chapters match your search.</div>';
+          contentEl.innerHTML = '<p style="color:var(--muted)">No results. Try a different search.</p>';
+          return;
+        }
+        if (!items.some((item) => item.id === activeId)) {
+          activeId = items[0].id;
+          renderContent();
+        }
+        listEl.innerHTML = items.map((item) => `
+          <button class="manual-chapter ${item.id === activeId ? 'active' : ''}" data-id="${item.id}">
+            ${item.title}
+          </button>
+        `).join('');
+        listEl.querySelectorAll('button').forEach((btn) => {
+          btn.onclick = () => {
+            activeId = btn.dataset.id;
+            renderContent();
+            renderList(q);
+          };
+        });
+      };
+
+      renderContent();
+      renderList('');
+      if (searchInput) {
+        searchInput.oninput = () => renderList(searchInput.value || '');
+        setTimeout(() => searchInput.focus(), 0);
+      }
     };
 
     // ---------- Business selector ----------
@@ -9146,6 +9582,7 @@
         const serviceSearch = $('#service-search'); if (serviceSearch) serviceSearch.oninput = () => renderServices();
         const openCalculator = $('#open-calculator'); if (openCalculator) openCalculator.onclick = toggleCalculator;
         const openNote = $('#open-note'); if (openNote) openNote.onclick = toggleNote;
+        const openManualBtn = $('#open-manual'); if (openManualBtn) openManualBtn.onclick = openManual;
         const addClient = $('#add-client'); if (addClient) addClient.onclick = () => togglePanelFor('Client', () => editClient({}));
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => togglePanelFor('Project', () => editProject({}));
         const addService = $('#add-service'); if (addService) addService.onclick = () => togglePanelFor('Service', () => editService({}));
