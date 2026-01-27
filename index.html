@@ -5719,19 +5719,11 @@
             <div>${escapeHtml(t.memo)}</div>
           </div>
           ` : ''}
-          <div class="row" style="gap:10px; justify-content:flex-end;">
-            <button id="transaction-view-edit">Edit</button>
-            <button id="transaction-view-dup">Add similar</button>
-            <button id="transaction-view-del">Delete</button>
-          </div>
         </div>
       `;
       openPanel('Transaction', viewHtml);
       const printBtn = $('#print-transaction');
       const pdfBtn = $('#export-pdf-transaction');
-      const editBtn = $('#transaction-view-edit');
-      const dupBtn = $('#transaction-view-dup');
-      const delBtn = $('#transaction-view-del');
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -5741,22 +5733,6 @@
         e.preventDefault();
         e.stopPropagation();
         exportTransactionAsPDF(t);
-      };
-      if (editBtn) editBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        editTxn(t, t.status === 'draft');
-      };
-      if (dupBtn) dupBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        duplicateTxn(t);
-      };
-      if (delBtn) delBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        delTxn(t);
-        closePanel();
       };
     };
 
