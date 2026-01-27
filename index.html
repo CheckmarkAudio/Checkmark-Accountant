@@ -3515,11 +3515,17 @@
       }
     ];
 
+    const stripManualHtml = (html = '') => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return (tmp.textContent || '').replace(/\s+/g, ' ').trim();
+    };
+
     const manualIndex = manualChapters.map((chapter) => {
       const searchText = [
         chapter.title,
         (chapter.keywords || []).join(' '),
-        chapter.bodyHtml.replace(/<[^>]*>/g, ' ')
+        stripManualHtml(chapter.bodyHtml)
       ].join(' ').toLowerCase();
       return { ...chapter, searchText };
     });
@@ -3545,7 +3551,7 @@
             <aside class="manual-sidebar">
               <label class="manual-search">
                 <span class="sr-only">Search the manual</span>
-                <input id="manual-search" type="search" placeholder="Search chapters or keywords">
+                <input id="manual-search" type="search" placeholder="Search the entire manual">
               </label>
               <div id="manual-list" class="manual-list"></div>
             </aside>
@@ -3576,8 +3582,8 @@
         const q = query.trim().toLowerCase();
         const items = q ? manualIndex.filter((item) => item.searchText.includes(q)) : manualIndex;
         if (!items.length) {
-          listEl.innerHTML = '<div class="manual-empty">No chapters match your search.</div>';
-          contentEl.innerHTML = '<p style="color:var(--muted)">No results. Try a different search.</p>';
+          listEl.innerHTML = '<div class="manual-empty">No manual results.</div>';
+          contentEl.innerHTML = '<p style="color:var(--muted)">No results. Try a different word or phrase.</p>';
           return;
         }
         if (!items.some((item) => item.id === activeId)) {
