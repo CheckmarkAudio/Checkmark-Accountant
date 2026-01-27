@@ -9500,9 +9500,26 @@
         if (i.status === 'draft') return;
         const party = file.parties.find(p=>p.party_id===i.party_id);
         const clientName = party ? ` - ${party.name}` : '';
-        activity.push({ date:i.issue_date, text:`Invoice #${i.number}${clientName} ${i.status}`, amount:invoiceTotal(i), status:i.status });
+        activity.push({
+          date: i.issue_date,
+          text: `Invoice #${i.number}${clientName} ${i.status}`,
+          amount: invoiceTotal(i),
+          status: i.status,
+          onClick: () => {
+            setTab('invoices');
+            viewInvoice(i);
+          }
+        });
       });
-      file.transactions.forEach(t=>activity.push({ date:t.date, text:`Txn ${t.type}`, amount:t.amount_cents }));
+      file.transactions.forEach(t=>activity.push({
+        date: t.date,
+        text: `Txn ${t.type}`,
+        amount: t.amount_cents,
+        onClick: () => {
+          setTab('transactions');
+          editTxn(t, t.status === 'draft');
+        }
+      }));
       activity.sort((a,b)=>a.date>b.date?-1:1);
       dashboardActivityCache = activity;
       renderDashboardActivityList(activity);
