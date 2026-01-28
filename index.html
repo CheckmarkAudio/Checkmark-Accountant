@@ -4926,7 +4926,13 @@
           ${canMarkPaid ? `
           <div class="invoice-footer">
             <div class="invoice-actions">
-              <button id="quick-mark-paid" class="primary" type="button">Mark Paid</button>
+              <button
+                id="quick-mark-paid"
+                class="primary"
+                type="button"
+                data-invoice-id="${inv.invoice_id || ''}"
+                onclick="promptMarkPaidById('${inv.invoice_id || ''}')"
+              >Mark Paid</button>
             </div>
           </div>
           ` : ''}
@@ -4953,11 +4959,6 @@
       };
       if (quickMarkPaidBtn) {
         quickMarkPaidBtn.setAttribute('data-interactive', 'true');
-        quickMarkPaidBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          promptMarkPaid(inv);
-        };
       }
     };
 
@@ -5375,6 +5376,20 @@
           document.body.removeChild(tempContainer);
         }
       }
+    };
+
+    const findInvoiceById = (invoiceId) => {
+      if (!file?.invoices?.length) return null;
+      return file.invoices.find(inv => inv.invoice_id === invoiceId) || null;
+    };
+
+    const promptMarkPaidById = (invoiceId) => {
+      const inv = findInvoiceById(invoiceId) || currentInvoiceView;
+      if (!inv) {
+        showToast('Invoice not found');
+        return;
+      }
+      promptMarkPaid(inv);
     };
 
     const promptMarkPaid = (inv) => {
