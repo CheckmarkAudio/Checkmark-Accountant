@@ -4162,7 +4162,7 @@
         tr.querySelector('[data-action="edit"]').onclick = () => editInvoice(inv);
         tr.querySelector('[data-action="dup"]').onclick = () => duplicateInvoice(inv);
         tr.querySelector('[data-action="del"]').onclick = () => deleteInvoice(inv);
-        tr.querySelector('[data-action="pay"]').onclick = () => promptMarkPaid(inv);
+        tr.querySelector('[data-action="pay"]').onclick = () => openMarkPaidModal(inv);
         tr.querySelector('[data-action="void"]').onclick = () => voidInvoice(inv);
         tbody.appendChild(tr);
       });
@@ -4550,7 +4550,7 @@
         saveFile();
         renderInvoices();
         if (shouldMarkPaid) {
-          promptMarkPaid(saved);
+          openMarkPaidModal(saved);
         }
         closePanel();
         if (wasEmpty && getOnboardingStage() === 'invoice') setOnboardingStage('done');
@@ -4614,7 +4614,7 @@
         saveFile();
         renderInvoices();
         if (shouldMarkPaid) {
-          promptMarkPaid(saved);
+          openMarkPaidModal(saved);
         }
         closePanel();
         if (wasEmpty && getOnboardingStage() === 'invoice') setOnboardingStage('done');
@@ -4926,7 +4926,7 @@
           ${canMarkPaid ? `
           <div class="invoice-footer">
             <div class="invoice-actions">
-              <button
+            <button
                 id="quick-mark-paid"
                 class="primary"
                 type="button"
@@ -4962,11 +4962,7 @@
         quickMarkPaidBtn.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (inv?.invoice_id) {
-            promptMarkPaidById(inv.invoice_id);
-          } else {
-            promptMarkPaid(inv);
-          }
+          openMarkPaidModal(inv);
         };
       }
     };
@@ -5398,6 +5394,24 @@
         showToast('Invoice not found');
         return;
       }
+      openMarkPaidModal(inv);
+    }
+
+    function openMarkPaidModal(inv) {
+      if (!inv) {
+        showToast('Invoice not found');
+        return;
+      }
+      if (!file) {
+        showToast('No business loaded');
+        return;
+      }
+      ensureFile();
+      if (!Array.isArray(file.accounts) || file.accounts.length === 0) {
+        file.accounts = seedAccounts();
+      }
+      if (!Array.isArray(file.payments)) file.payments = [];
+      if (!Array.isArray(file.payment_applications)) file.payment_applications = [];
       promptMarkPaid(inv);
     }
 
@@ -10030,7 +10044,7 @@
             if (markPaidBtn && currentInvoiceView) {
               e.preventDefault();
               e.stopPropagation();
-              promptMarkPaid(currentInvoiceView);
+              openMarkPaidModal(currentInvoiceView);
             }
           });
         }
