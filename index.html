@@ -3254,12 +3254,16 @@
       }
     };
 
+    let currentInvoiceView = null;
     const openPanel = (title, bodyHtml) => {
       $('#panel-title').textContent = title;
       $('#panel-body').innerHTML = bodyHtml;
       $('#side-panel').classList.add('open');
     };
-    const closePanel = () => $('#side-panel').classList.remove('open');
+    const closePanel = () => {
+      currentInvoiceView = null;
+      $('#side-panel').classList.remove('open');
+    };
 
     const showToast = (msg, undoFn=null) => {
       $('#toast-msg').textContent = msg;
@@ -4922,13 +4926,14 @@
           ${canMarkPaid ? `
           <div class="invoice-footer">
             <div class="invoice-actions">
-              <button id="quick-mark-paid" class="primary">Mark Paid</button>
+              <button id="quick-mark-paid" class="primary" type="button">Mark Paid</button>
             </div>
           </div>
           ` : ''}
         </div>
       `;
       
+      currentInvoiceView = inv;
       openPanel('Invoice', invoiceHtml);
       
       // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
@@ -4946,11 +4951,7 @@
         e.stopPropagation();
         exportInvoiceAsPDF(inv);
       };
-      if (quickMarkPaidBtn) quickMarkPaidBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        promptMarkPaid(inv);
-      };
+      if (quickMarkPaidBtn) quickMarkPaidBtn.setAttribute('data-interactive', 'true');
     };
 
     const printInvoice = (inv) => {
@@ -9990,6 +9991,18 @@
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => togglePanelFor('Project', () => editProject({}));
         const addService = $('#add-service'); if (addService) addService.onclick = () => togglePanelFor('Service', () => editService({}));
         const closePanelBtn = $('#close-panel'); if (closePanelBtn) closePanelBtn.onclick = closePanel;
+        const panelBody = $('#panel-body');
+        if (panelBody) {
+          panelBody.addEventListener('click', (e) => {
+            const target = e.target;
+            const markPaidBtn = target?.closest?.('#quick-mark-paid');
+            if (markPaidBtn && currentInvoiceView) {
+              e.preventDefault();
+              e.stopPropagation();
+              promptMarkPaid(currentInvoiceView);
+            }
+          });
+        }
         const runPl = $('#run-pl'); if (runPl) runPl.onclick = runPL;
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
