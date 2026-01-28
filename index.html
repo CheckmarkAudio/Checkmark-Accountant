@@ -4926,13 +4926,6 @@
           ${canMarkPaid ? `
           <div class="invoice-footer">
             <div class="invoice-actions">
-            <button
-                id="quick-mark-paid"
-                class="primary"
-                type="button"
-                data-invoice-id="${inv.invoice_id || ''}"
-                onclick="promptMarkPaidById('${inv.invoice_id || ''}')"
-              >Mark Paid</button>
             </div>
           </div>
           ` : ''}
@@ -4959,11 +4952,6 @@
       };
       if (quickMarkPaidBtn) {
         quickMarkPaidBtn.setAttribute('data-interactive', 'true');
-        quickMarkPaidBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openMarkPaidModal(inv);
-        };
       }
     };
 
