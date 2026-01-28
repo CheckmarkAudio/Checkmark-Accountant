@@ -697,7 +697,10 @@
       overflow-wrap: anywhere;
       word-break: break-word;
     }
-    section[data-section="clients"] .table-scroll {
+    section[data-section="clients"] .table-scroll,
+    section[data-section="invoices"] .table-scroll,
+    section[data-section="transactions"] .table-scroll,
+    section[data-section="services"] .table-scroll {
       --table-row-height: 56px;
       --table-header-height: 56px;
       max-height: calc((10 * var(--table-row-height)) + var(--table-header-height));
@@ -1912,19 +1915,21 @@
             <input type="search" id="invoice-search" placeholder="Search by client, number, date, amount" style="min-width:220px; margin-left:auto;">
           </div>
           <div class="stack">
-            <table>
-              <thead>
-                <tr>
-                  <th id="sort-inv-number" class="sortable">#</th>
-                  <th id="sort-inv-client" class="sortable">Client</th>
-                  <th id="sort-inv-date" class="sortable">Date</th>
-                  <th id="sort-inv-status" class="sortable">Status</th>
-                  <th id="sort-inv-total" class="sortable">Total</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="invoice-rows"></tbody>
-            </table>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th id="sort-inv-number" class="sortable">#</th>
+                    <th id="sort-inv-client" class="sortable">Client</th>
+                    <th id="sort-inv-date" class="sortable">Date</th>
+                    <th id="sort-inv-status" class="sortable">Status</th>
+                    <th id="sort-inv-total" class="sortable">Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="invoice-rows"></tbody>
+              </table>
+            </div>
             <div class="empty hidden" id="invoice-empty">No invoices yet. Create your first invoice.</div>
             <div class="empty hidden" id="invoice-empty-filter">No matching invoices.</div>
           </div>
@@ -1964,18 +1969,20 @@
               <input type="file" id="import-txn-file" class="hidden" accept=".json,application/json,.csv,text/csv">
               <input type="search" id="txn-search" placeholder="Search by category, memo, date, amount" style="min-width:220px">
             </div>
-            <table>
-              <thead>
-                <tr>
-                  <th id="sort-txn-date" class="sortable">Date</th>
-                  <th id="sort-txn-type" class="sortable">Type</th>
-                  <th id="sort-txn-category" class="sortable">Category</th>
-                  <th id="sort-txn-amount" class="sortable">Amount</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="txn-rows"></tbody>
-            </table>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th id="sort-txn-date" class="sortable">Date</th>
+                    <th id="sort-txn-type" class="sortable">Type</th>
+                    <th id="sort-txn-category" class="sortable">Category</th>
+                    <th id="sort-txn-amount" class="sortable">Amount</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="txn-rows"></tbody>
+              </table>
+            </div>
             <div class="empty hidden" id="txn-empty">No transactions yet.</div>
             <div class="empty hidden" id="txn-empty-filter">No matching transactions.</div>
           </div>
@@ -2052,10 +2059,12 @@
             <input type="file" id="import-services-file" class="hidden" accept=".json,application/json,.csv,text/csv">
             <input type="search" id="service-search" placeholder="Search services or rates" style="min-width:220px">
           </div>
-          <table>
-            <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
-            <tbody id="service-rows"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>Rate</th><th>Billing</th><th></th></tr></thead>
+              <tbody id="service-rows"></tbody>
+            </table>
+          </div>
           <div class="empty hidden" id="service-empty">No services yet.</div>
           <div class="empty hidden" id="service-empty-filter">No matching services.</div>
         </div>
