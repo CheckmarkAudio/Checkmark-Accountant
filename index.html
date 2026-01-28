@@ -4792,6 +4792,8 @@
         removedPayments.forEach(p => postInvoicePayment(inv, p));
         renumberInvoices();
         saveFile(); renderInvoices();
+        const dashboardSection = $$('section[data-section="dashboard"]')[0];
+        if (dashboardSection && !dashboardSection.classList.contains('hidden')) renderDashboard();
       });
     };
 
