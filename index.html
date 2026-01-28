@@ -3653,7 +3653,7 @@
       loadActive();
       if (onboarding) {
         localStorage.setItem(STORAGE.onboardingSource, 'fresh');
-        localStorage.setItem(STORAGE.onboardingStage, 'client');
+        localStorage.setItem(STORAGE.onboardingStage, 'service');
         scheduleOnboardingCheck();
       }
     };
@@ -3803,11 +3803,11 @@
         setOnboardingStage('done');
         return 'done';
       }
-      if (file?.parties?.length && stage === 'client') {
-        setOnboardingStage('service');
-        return 'service';
-      }
       if (file?.services?.length && stage === 'service') {
+        setOnboardingStage('client');
+        return 'client';
+      }
+      if (file?.parties?.length && stage === 'client') {
         setOnboardingStage('invoice');
         return 'invoice';
       }
@@ -3820,10 +3820,10 @@
       if (!file || !file.business) return;
       if ($('#modal-overlay')?.classList.contains('show')) return;
       const stage = advanceOnboardingStage();
-      if (stage === 'client' && !file.parties.length) {
-        showOnboardingClientPrompt();
-      } else if (stage === 'service' && file.parties.length && !file.services.length) {
+      if (stage === 'service' && !file.services.length) {
         showOnboardingServicePrompt();
+      } else if (stage === 'client' && file.services.length && !file.parties.length) {
+        showOnboardingClientPrompt();
       } else if (stage === 'invoice' && file.parties.length && !file.invoices.length) {
         showOnboardingInvoicePrompt();
       }
@@ -3850,7 +3850,7 @@
       const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
       if (cancelBtn) {
         cancelBtn.onclick = () => {
-          setOnboardingStage('service');
+          setOnboardingStage('invoice');
           closeModal();
         };
       }
@@ -3877,7 +3877,7 @@
       const cancelBtn = $('#modal-body')?.querySelector('[data-cancel]');
       if (cancelBtn) {
         cancelBtn.onclick = () => {
-          setOnboardingStage('invoice');
+          setOnboardingStage('client');
           closeModal();
         };
       }
@@ -5939,7 +5939,7 @@
         else file.parties = file.parties.map(x=>x.party_id===saved.party_id?saved:x);
         saveFile(); renderClients(); closePanel();
         if (wasEmpty) {
-          if (getOnboardingStage() === 'client') setOnboardingStage('service');
+          if (getOnboardingStage() === 'client') setOnboardingStage('invoice');
           scheduleOnboardingCheck();
         }
       };
@@ -6119,7 +6119,7 @@
         else file.services = file.services.map(x=>x.service_id===saved.service_id?saved:x);
         saveFile(); renderServices(); closePanel();
         if (wasEmpty) {
-          if (getOnboardingStage() === 'service') setOnboardingStage('invoice');
+          if (getOnboardingStage() === 'service') setOnboardingStage('client');
           scheduleOnboardingCheck();
         }
       };
