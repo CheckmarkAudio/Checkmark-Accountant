@@ -698,7 +698,9 @@
       word-break: break-word;
     }
     section[data-section="clients"] .table-scroll {
-      max-height: 420px;
+      --table-row-height: 56px;
+      --table-header-height: 56px;
+      max-height: calc((10 * var(--table-row-height)) + var(--table-header-height));
       overflow-y: auto;
     }
     section[data-section="clients"] td.actions {
