@@ -4820,7 +4820,6 @@
       const darkLogo = settings.logoDarkDataUrl;
       let logoUrl = '';
       logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
-      const canMarkPaid = inv.status !== 'paid' && inv.status !== 'void' && inv.status !== 'draft';
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
           <div class="invoice-header">
@@ -4922,18 +4921,6 @@
               </tfoot>
             </table>
           </div>
-          ${canMarkPaid ? `
-          <div class="invoice-footer">
-            <div class="invoice-actions">
-              <button
-                id="quick-mark-paid"
-                class="primary"
-                type="button"
-                data-invoice-id="${inv.invoice_id || ''}"
-              >Mark Paid</button>
-            </div>
-          </div>
-          ` : ''}
         </div>
       `;
       
@@ -4943,7 +4930,6 @@
       // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
       const printBtn = $('#print-invoice');
       const pdfBtn = $('#export-pdf-invoice');
-      const quickMarkPaidBtn = $('#quick-mark-paid');
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -4954,14 +4940,6 @@
         e.stopPropagation();
         exportInvoiceAsPDF(inv);
       };
-      if (quickMarkPaidBtn) {
-        quickMarkPaidBtn.setAttribute('data-interactive', 'true');
-        quickMarkPaidBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openMarkPaidModal(inv);
-        };
-      }
     };
 
     const printInvoice = (inv) => {
