@@ -4159,10 +4159,10 @@
           <button data-action="del">Delete</button>
         </td>`;
         tr.querySelector('[data-action="view"]').onclick = () => viewInvoice(inv);
+        tr.querySelector('[data-action="pay"]').onclick = () => openMarkPaidModal(inv);
         tr.querySelector('[data-action="edit"]').onclick = () => editInvoice(inv);
         tr.querySelector('[data-action="dup"]').onclick = () => duplicateInvoice(inv);
         tr.querySelector('[data-action="del"]').onclick = () => deleteInvoice(inv);
-        tr.querySelector('[data-action="pay"]').onclick = () => openMarkPaidModal(inv);
         tr.querySelector('[data-action="void"]').onclick = () => voidInvoice(inv);
         tbody.appendChild(tr);
       });
@@ -4348,7 +4348,7 @@
             </div>
           </div>
           <div class="row" style="justify-content:space-between"><div>Total</div><div id="inv-total">${fmt(totalCents,file.business.base_currency)}</div></div>
-          <div class="row invoice-form-actions" style="gap:8px">
+        <div class="row invoice-form-actions" style="gap:8px">
             <button type="button" id="mark-invoice-paid">Mark Paid</button>
             <button class="primary" type="submit">Save</button>
             <button type="button" id="save-invoice-draft">Save Draft</button>
@@ -4821,7 +4821,6 @@
       let logoUrl = '';
       logoUrl = isDark ? (darkLogo || lightLogo || '') : (lightLogo || darkLogo || '');
       const canMarkPaid = inv.status !== 'paid' && inv.status !== 'void' && inv.status !== 'draft';
-      
       const invoiceHtml = `
         <div id="invoice-view" class="invoice-view">
           <div class="invoice-header">
@@ -4926,6 +4925,12 @@
           ${canMarkPaid ? `
           <div class="invoice-footer">
             <div class="invoice-actions">
+              <button
+                id="quick-mark-paid"
+                class="primary"
+                type="button"
+                data-invoice-id="${inv.invoice_id || ''}"
+              >Mark Paid</button>
             </div>
           </div>
           ` : ''}
@@ -4939,7 +4944,6 @@
       const printBtn = $('#print-invoice');
       const pdfBtn = $('#export-pdf-invoice');
       const quickMarkPaidBtn = $('#quick-mark-paid');
-      
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -4952,6 +4956,11 @@
       };
       if (quickMarkPaidBtn) {
         quickMarkPaidBtn.setAttribute('data-interactive', 'true');
+        quickMarkPaidBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openMarkPaidModal(inv);
+        };
       }
     };
 
@@ -10024,18 +10033,6 @@
         const addProject = $('#add-project'); if (addProject) addProject.onclick = () => togglePanelFor('Project', () => editProject({}));
         const addService = $('#add-service'); if (addService) addService.onclick = () => togglePanelFor('Service', () => editService({}));
         const closePanelBtn = $('#close-panel'); if (closePanelBtn) closePanelBtn.onclick = closePanel;
-        const panelBody = $('#panel-body');
-        if (panelBody) {
-          panelBody.addEventListener('click', (e) => {
-            const target = e.target;
-            const markPaidBtn = target?.closest?.('#quick-mark-paid');
-            if (markPaidBtn && currentInvoiceView) {
-              e.preventDefault();
-              e.stopPropagation();
-              openMarkPaidModal(currentInvoiceView);
-            }
-          });
-        }
         const runPl = $('#run-pl'); if (runPl) runPl.onclick = runPL;
         const runExpenseSummary = $('#run-expense-summary'); if (runExpenseSummary) runExpenseSummary.onclick = () => renderSummary(summaryByAccount('expense'), $('#report-expense'));
         const runClientSummary = $('#run-client-summary'); if (runClientSummary) runClientSummary.onclick = () => renderSummary(clientRevenue(), $('#report-client'));
