@@ -4959,6 +4959,15 @@
       };
       if (quickMarkPaidBtn) {
         quickMarkPaidBtn.setAttribute('data-interactive', 'true');
+        quickMarkPaidBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (inv?.invoice_id) {
+            promptMarkPaidById(inv.invoice_id);
+          } else {
+            promptMarkPaid(inv);
+          }
+        };
       }
     };
 
