@@ -4931,7 +4931,7 @@
                 class="primary"
                 type="button"
                 data-invoice-id="${inv.invoice_id || ''}"
-                onclick="promptMarkPaidById('${inv.invoice_id || ''}')"
+                onclick="event.preventDefault(); event.stopPropagation(); promptMarkPaidById('${inv.invoice_id || ''}')"
               >Mark Paid</button>
             </div>
           </div>
