@@ -4824,6 +4824,7 @@
         <div id="invoice-view" class="invoice-view">
           <div class="invoice-header">
             <div class="invoice-actions">
+              ${inv.status !== 'paid' && inv.status !== 'void' ? '<button id="mark-paid-invoice" class="primary">Mark Paid</button>' : ''}
               <button id="print-invoice" class="primary">Print</button>
               <button id="export-pdf-invoice" class="primary">Export PDF</button>
             </div>
@@ -4928,8 +4929,14 @@
       openPanel('Invoice', invoiceHtml);
       
       // Set up event handlers - openPanel sets innerHTML synchronously, so elements are available immediately
+      const markPaidBtn = $('#mark-paid-invoice');
       const printBtn = $('#print-invoice');
       const pdfBtn = $('#export-pdf-invoice');
+      if (markPaidBtn) markPaidBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openMarkPaidModal(inv);
+      };
       if (printBtn) printBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
