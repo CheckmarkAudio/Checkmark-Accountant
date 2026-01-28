@@ -4951,7 +4951,14 @@
         e.stopPropagation();
         exportInvoiceAsPDF(inv);
       };
-      if (quickMarkPaidBtn) quickMarkPaidBtn.setAttribute('data-interactive', 'true');
+      if (quickMarkPaidBtn) {
+        quickMarkPaidBtn.setAttribute('data-interactive', 'true');
+        quickMarkPaidBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          promptMarkPaid(inv);
+        };
+      }
     };
 
     const printInvoice = (inv) => {
