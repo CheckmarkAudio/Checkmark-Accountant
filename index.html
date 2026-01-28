@@ -4931,7 +4931,7 @@
                 class="primary"
                 type="button"
                 data-invoice-id="${inv.invoice_id || ''}"
-                onclick="event.preventDefault(); event.stopPropagation(); promptMarkPaidById('${inv.invoice_id || ''}')"
+                onclick="promptMarkPaidById('${inv.invoice_id || ''}')"
               >Mark Paid</button>
             </div>
           </div>
@@ -5383,16 +5383,16 @@
       return file.invoices.find(inv => inv.invoice_id === invoiceId) || null;
     };
 
-    const promptMarkPaidById = (invoiceId) => {
+    function promptMarkPaidById(invoiceId) {
       const inv = findInvoiceById(invoiceId) || currentInvoiceView;
       if (!inv) {
         showToast('Invoice not found');
         return;
       }
       promptMarkPaid(inv);
-    };
+    }
 
-    const promptMarkPaid = (inv) => {
+    function promptMarkPaid(inv) {
       const depositOptions = file.accounts.filter(a=>a.type==='asset').map(a=>`<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
       const recent = recentSelections('deposit');
       showModal(`
@@ -5429,7 +5429,7 @@
         }
       });
       $('#modal-body').querySelectorAll('[data-dep]').forEach(btn=>btn.onclick=()=>{$('#deposit').value=btn.dataset.dep;});
-    };
+    }
 
     // ---------- Transactions ----------
     const renderTransactions = () => {
